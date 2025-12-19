@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跑跑卡丁車 - 雙人對戰控制台 (音效升級版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        
+        .digital-font { font-family: 'Share Tech Mono', monospace; }
+        .hidden-section { display: none !important; }
+        .btn-press:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        
+        /* Custom scrollbar for leaderboard */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- 1. Start Overlay -->
+    <div id="startOverlay" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-2xl text-center max-w-sm mx-4 border-4 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.6)]">
+            <h1 class="text-3xl font-black mb-4 text-gray-800">🎮 雙人對戰控制台</h1>
+            <p class="mb-4 text-gray-600">請確認音量已開啟</p>
+            <button onclick="testSound()" class="mb-6 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full text-sm flex items-center justify-center mx-auto transition">🔊 測試聲音</button>
+            <button onclick="enterSystem()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transform transition hover:scale-105">啟動系統 GO!</button>
+        </div>
+    </div>
+
+    <!-- Music Toggle -->
+    <button id="musicToggleBtn" onclick="toggleMusic()" class="hidden-section fixed top-4 right-4 z-50 bg-gray-900/80 text-white p-3 rounded-full hover:bg-gray-800 border-2 border-white/50 backdrop-blur-sm transition">🎵 音樂: 開</button>
+
+    <!-- 2. Main Menu -->
+    <div id="mainMenu" class="hidden-section w-full max-w-4xl animate-fade-in mt-10">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-black text-gray-800 mb-2 tracking-wider italic transform -skew-x-6">跑跑卡丁車 <span class="text-red-600">雙人對戰版</span></h1>
+            <p class="text-gray-600 font-bold text-lg">請選擇功能模式</p>
+        </header>
+
+        <div class="grid md:grid-cols-2 gap-8 px-4">
+            <!-- Mode 1: Dual Timer -->
+            <div onclick="switchMode('timer')" class="bg-white border-4 border-red-500 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all group relative overflow-hidden">
+                <div class="absolute right-0 top-0 bg-red-500 text-white font-bold px-4 py-1 rounded-bl-xl z-10">裁判專用</div>
+                <div class="flex flex-col items-center text-center z-10 relative">
+                    <div class="text-7xl mb-4 group-hover:scale-110 transition-transform">🏎️</div>
+                    <h2 class="text-3xl font-black text-gray-800 mb-2">雙人競速計時</h2>
+                    <p class="text-gray-500 font-bold">同步起跑 / 獨立成績</p>
+                    <div class="mt-4 bg-red-100 text-red-800 px-4 py-2 rounded-lg text-sm font-bold">含排行榜紀錄</div>
+                </div>
+            </div>
+
+            <!-- Mode 2: Quiz -->
+            <div onclick="switchMode('quiz')" class="bg-white border-4 border-purple-500 rounded-3xl p-6 cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all group relative overflow-hidden">
+                <div class="absolute right-0 top-0 bg-purple-500 text-white font-bold px-4 py-1 rounded-bl-xl z-10">關主專用</div>
+                <div class="flex flex-col items-center text-center z-10 relative">
+                    <div class="text-7xl mb-4 group-hover:scale-110 transition-transform">🎲</div>
+                    <h2 class="text-3xl font-black text-gray-800 mb-2">智力闖關籤筒</h2>
+                    <p class="text-gray-500 font-bold">互動問答站</p>
+                    <div class="mt-4 bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold">含倒數音效</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Dual Timer Mode Section -->
+    <div id="timerMode" class="hidden-section w-full max-w-5xl mt-4">
+        <button onclick="backToMenu()" class="mb-4 text-gray-600 font-bold hover:text-gray-900 flex items-center bg-white px-4 py-2 rounded-full shadow">⬅️ 返回選單</button>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left: Timer Controls -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Main Control Panel -->
+                <div class="bg-gray-900 rounded-3xl p-6 border-8 border-gray-700 shadow-2xl relative">
+                    <!-- Status Header -->
+                    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                        <h2 class="text-2xl font-bold text-gray-400">DUAL RACE TIMER</h2>
+                        <button onclick="startRaceSequence()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black py-2 px-6 rounded-full shadow-lg transform active:scale-95 transition flex items-center gap-2 animate-pulse">
+                            📣 鳴笛起跑
+                        </button>
+                    </div>
+
+                    <!-- Timers Grid -->
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        
+                        <!-- P1 Red -->
+                        <div class="bg-red-900/30 rounded-2xl p-4 border-2 border-red-500/50 flex flex-col items-center">
+                            <div class="text-red-400 font-bold text-lg mb-2">🔴 PLAYER 1</div>
+                            <div id="timerDisplayP1" class="text-5xl md:text-6xl text-red-500 digital-font font-bold tabular-nums drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+                                00:00<span class="text-2xl md:text-3xl opacity-70">.00</span>
+                            </div>
+                            <button id="btnP1" onclick="playerFinish(1)" class="mt-4 w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-black py-3 rounded-xl btn-press border-b-4 border-red-800 active:border-b-0 transition">
+                                🏁 P1 抵達
+                            </button>
+                        </div>
+
+                        <!-- P2 Blue -->
+                        <div class="bg-blue-900/30 rounded-2xl p-4 border-2 border-blue-500/50 flex flex-col items-center">
+                            <div class="text-blue-400 font-bold text-lg mb-2">🔵 PLAYER 2</div>
+                            <div id="timerDisplayP2" class="text-5xl md:text-6xl text-blue-500 digital-font font-bold tabular-nums drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
+                                00:00<span class="text-2xl md:text-3xl opacity-70">.00</span>
+                            </div>
+                            <button id="btnP2" onclick="playerFinish(2)" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-black py-3 rounded-xl btn-press border-b-4 border-blue-800 active:border-b-0 transition">
+                                🏁 P2 抵達
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reset Control -->
+                    <button onclick="resetDualStopwatch()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-3 rounded-xl transition">
+                        🔄 重置比賽
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: Leaderboard -->
+            <div class="bg-white rounded-3xl p-6 border-4 border-gray-300 shadow-xl h-full flex flex-col">
+                <h3 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                    🏆 對戰紀錄表
+                    <span id="raceCountBadge" class="bg-gray-800 text-white text-xs px-2 py-1 rounded-full">0</span>
+                </h3>
+                <div class="flex-1 overflow-y-auto max-h-[400px]">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2 rounded-tl-lg">場次</th>
+                                <th class="px-3 py-2 text-red-600">P1 成績</th>
+                                <th class="px-3 py-2 text-blue-600">P2 成績</th>
+                                <th class="px-3 py-2 rounded-tr-lg">勝者</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoreTableBody" class="font-mono">
+                            <!-- Rows will be added here -->
+                        </tbody>
+                    </table>
+                    <div id="emptyState" class="text-center text-gray-400 py-8">
+                        尚未有比賽紀錄
+                    </div>
+                </div>
+                <button onclick="clearLeaderboard()" class="mt-4 text-xs text-red-500 underline hover:text-red-700 text-center w-full">清除所有紀錄</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Quiz Mode Section -->
+    <div id="quizMode" class="hidden-section w-full max-w-md mt-4">
+        <button onclick="backToMenu()" class="mb-4 text-gray-600 font-bold hover:text-gray-900 flex items-center bg-white px-4 py-2 rounded-full shadow">⬅️ 返回選單</button>
+
+        <div class="w-full bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-800 relative">
+            <div class="bg-yellow-400 p-4 text-center border-b-4 border-gray-800">
+                <h1 class="text-2xl font-black text-gray-900 tracking-wider">🚩 景點智力大考驗</h1>
+                <div class="text-sm font-bold text-gray-700 mt-1">剩餘題目: <span id="questionCount">7</span></div>
+            </div>
+
+            <div id="drawSection" class="p-8 flex flex-col items-center justify-center min-h-[400px]">
+                <div id="drawContainer" class="relative w-48 h-64 mb-8 cursor-pointer group" onclick="drawQuestion()">
+                    <div class="absolute bottom-0 w-full h-48 bg-red-600 rounded-b-2xl border-4 border-black z-20 flex items-center justify-center">
+                        <span class="text-5xl font-black text-yellow-400 border-2 border-black rounded-full w-16 h-16 flex items-center justify-center bg-red-800">籤</span>
+                    </div>
+                    <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-32 h-40 bg-transparent z-10 flex justify-center items-end space-x-1 transition-transform group-hover:-translate-y-2">
+                        <div class="w-4 h-32 bg-yellow-200 border-2 border-black rounded-t-lg transform -rotate-6"></div>
+                        <div class="w-4 h-36 bg-yellow-300 border-2 border-black rounded-t-lg transform rotate-3"></div>
+                        <div class="w-4 h-28 bg-yellow-100 border-2 border-black rounded-t-lg transform -rotate-3"></div>
+                    </div>
+                </div>
+                <button onclick="drawQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-4 rounded-xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 shadow-lg transition-all">
+                    抽題！
+                </button>
+            </div>
+
+            <div id="questionSection" class="hidden flex-col h-full min-h-[500px]">
+                <div class="w-full h-4 bg-gray-200 border-b-2 border-black">
+                    <div id="timerBar" class="h-full bg-green-500 w-full"></div>
+                </div>
+                <div class="p-6 flex-1 flex flex-col">
+                    <div class="mb-6">
+                        <span id="topicTag" class="inline-block bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded mb-2">題目</span>
+                        <h2 id="questionText" class="text-2xl font-bold text-gray-800 leading-tight">題目...</h2>
+                    </div>
+                    <div id="optionsContainer" class="space-y-3 flex-1"></div>
+                    <div class="mt-4 text-center">
+                        <span id="timerText" class="text-4xl font-black text-red-500 font-mono">10</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resultOverlay" class="hidden absolute inset-0 bg-white/95 z-30 flex flex-col items-center justify-center p-6 text-center">
+                <div id="resultIcon" class="text-8xl mb-4">⭕</div>
+                <h2 id="resultTitle" class="text-3xl font-black mb-2">答對了！</h2>
+                <p id="resultMessage" class="text-xl font-bold text-gray-600 mb-8">請繼續前行</p>
+                <button onclick="resetToDraw()" class="bg-gray-800 text-white font-bold py-3 px-8 rounded-lg text-lg">下一位</button>
+            </div>
+            <div id="gameOverOverlay" class="hidden absolute inset-0 bg-yellow-300 z-40 flex flex-col items-center justify-center p-6 text-center">
+                <div class="text-6xl mb-4">🎉</div>
+                <h2 class="text-4xl font-black mb-4 text-black">題目全數抽完！</h2>
+                <button onclick="resetGame()" class="bg-black text-white font-bold py-4 px-10 rounded-xl text-xl">重新填滿</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- System & Audio Core ---
+        let audioCtx = null;
+        
+        // --- Music System ---
+        let isMusicEnabled = true;
+        let isMusicPlaying = false;
+        let nextNoteTime = 0.0;
+        let scheduleAheadTime = 0.1;
+        let current16thNote = 0;
+        let musicTimerID = null;
+        let musicTempo = 150;
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }
+
+        function toggleMusic() {
+            isMusicEnabled = !isMusicEnabled;
+            const btn = document.getElementById('musicToggleBtn');
+            if (isMusicEnabled) {
+                btn.innerText = "🎵 音樂: 開";
+                btn.classList.remove('bg-red-900/80'); btn.classList.add('bg-gray-900/80');
+                if ((!document.getElementById('timerMode').classList.contains('hidden-section') || 
+                     !document.getElementById('quizMode').classList.contains('hidden-section'))) {
+                    startMusic();
+                }
+            } else {
+                btn.innerText = "🔇 音樂: 關";
+                btn.classList.add('bg-red-900/80'); btn.classList.remove('bg-gray-900/80');
+                stopMusic();
+            }
+        }
+
+        // --- Music Synthesis ---
+        function nextNote() {
+            const secondsPerBeat = 60.0 / musicTempo;
+            nextNoteTime += 0.25 * secondsPerBeat;
+            current16thNote = (current16thNote + 1) % 16;
+        }
+
+        function scheduleNote(beatNumber, time) {
+            if (!isMusicEnabled) return;
+            if (beatNumber % 4 === 0) playDrum(time, 150, 0.01, 0.5);
+            if (beatNumber % 8 === 4) playSnare(time);
+            if (beatNumber % 2 !== 0) playHiHat(time);
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            
+            let freq = 65.41; // C2
+            if (beatNumber < 4) freq = 65.41;
+            else if (beatNumber < 8) freq = 77.78; // Eb
+            else if (beatNumber < 12) freq = 87.31; // F
+            else freq = 98.00; // G
+            if (beatNumber % 2 !== 0) freq *= 2; 
+
+            osc.frequency.setValueAtTime(freq, time);
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+            osc.start(time); osc.stop(time + 0.1);
+        }
+
+        function playDrum(time, freq, attack, decay) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(freq, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            osc.start(time); osc.stop(time + 0.5);
+        }
+
+        function playSnare(time) {
+            const bufferSize = audioCtx.sampleRate * 0.1;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 1000;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(time);
+        }
+
+        function playHiHat(time) {
+            const bufferSize = audioCtx.sampleRate * 0.05;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass'; filter.frequency.value = 5000;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start(time);
+        }
+
+        function scheduler() {
+            while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+                scheduleNote(current16thNote, nextNoteTime);
+                nextNote();
+            }
+        }
+
+        function startMusic() {
+            if (!isMusicEnabled || isMusicPlaying) return;
+            ensureAudioContext();
+            isMusicPlaying = true;
+            current16thNote = 0;
+            nextNoteTime = audioCtx.currentTime + 0.1;
+            musicTimerID = setInterval(scheduler, 25);
+            document.getElementById('musicToggleBtn').classList.remove('hidden-section');
+        }
+
+        function stopMusic() {
+            isMusicPlaying = false;
+            if (musicTimerID) clearInterval(musicTimerID);
+            musicTimerID = null;
+        }
+
+        function playSound(type) {
+            ensureAudioContext();
+            if (!audioCtx) return;
+            
+            const now = audioCtx.currentTime;
+
+            // Common routing for simple sounds
+            if (type !== 'gunshot' && type !== 'cheer') {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                if (type === 'tick') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); 
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2); 
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3);
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+                    osc.start(now); osc.stop(now + 0.6);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+                    gainNode.gain.setValueAtTime(0.5, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(now); osc.stop(now + 0.5);
+                } else if (type === 'draw') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                }
+            }
+            
+            // --- NEW: LOUD AIR HORN (Replaces Gunshot) ---
+            else if (type === 'gunshot') {
+                // Creates a loud, detuned air horn sound using two sawtooth waves
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc1.type = 'sawtooth';
+                osc2.type = 'sawtooth';
+                
+                // Slightly detuned frequencies for "beating" effect
+                osc1.frequency.setValueAtTime(330, now); // E4 approx
+                osc2.frequency.setValueAtTime(335, now); // Detuned
+
+                // Envelope
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.6, now + 0.05); // Fast attack
+                gain.gain.linearRampToValueAtTime(0.6, now + 0.6);  // Sustain
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0); // Release
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 1.0);
+                osc2.stop(now + 1.0);
+            } 
+            
+            // --- UPDATED: EVEN HAPPIER CHEER (Ta-da + Confetti) ---
+            else if (type === 'cheer') {
+                // 1. Crowd Noise (Pink Noise) - Keep mostly same, maybe brighter
+                const bufferSize = audioCtx.sampleRate * 3.0; 
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Pink noise generation
+                let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168981;
+                    data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    data[i] *= 0.11; 
+                    b6 = white * 0.115926;
+                }
+                
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                
+                // Brighter Bandpass for "Cheer" rather than "Roar"
+                const bandpass = audioCtx.createBiquadFilter();
+                bandpass.type = 'highpass'; 
+                bandpass.frequency.setValueAtTime(500, now); // Cut muddy lows
+                
+                const noiseGain = audioCtx.createGain();
+                noiseGain.gain.setValueAtTime(0, now);
+                noiseGain.gain.linearRampToValueAtTime(0.8, now + 0.1); 
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 3.0); 
+                
+                noise.connect(bandpass).connect(noiseGain).connect(audioCtx.destination);
+                noise.start(now);
+
+                // 2. Victory Fanfare - Arpeggio "Ta-da-da-DAAA!"
+                // C Major 7: C4, E4, G4, B4, C5, E5
+                const notes = [
+                    { f: 523.25, t: 0 },    // C4
+                    { f: 659.25, t: 0.1 },  // E4
+                    { f: 783.99, t: 0.2 },  // G4
+                    { f: 1046.50, t: 0.3 }, // C5
+                    { f: 1318.51, t: 0.4 }  // E5 (High Joy)
+                ];
+
+                notes.forEach(n => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'triangle'; 
+                    osc.frequency.setValueAtTime(n.f, now + n.t);
+                    
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0, now + n.t);
+                    gain.gain.linearRampToValueAtTime(0.3, now + n.t + 0.05); 
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + 2.0);
+                    
+                    osc.connect(gain).connect(audioCtx.destination);
+                    osc.start(now + n.t);
+                    osc.stop(now + n.t + 2.5);
+                });
+
+                // 3. Sparkles / Confetti Sound (High sine blips)
+                for(let i=0; i<5; i++) {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    // Random pentatonic-ish high notes
+                    const freq = 1500 + Math.random() * 1000;
+                    const startTime = now + 0.3 + (Math.random() * 0.5);
+                    
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+                    
+                    osc.connect(gain).connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.3);
+                }
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.2; 
+                utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- Navigation Logic ---
+        function testSound() {
+            ensureAudioContext();
+            playSound('cheer'); 
+            speak('系統音效測試正常');
+        }
+
+        function enterSystem() {
+            ensureAudioContext();
+            document.getElementById('startOverlay').style.display = 'none';
+            document.getElementById('mainMenu').classList.remove('hidden-section');
+            speak("歡迎來到跑跑卡丁車雙人對戰版");
+        }
+
+        function switchMode(mode) {
+            ensureAudioContext();
+            document.getElementById('mainMenu').classList.add('hidden-section');
+            if (mode === 'timer') {
+                document.getElementById('timerMode').classList.remove('hidden-section');
+                speak("進入雙人競速模式");
+                resetDualStopwatch();
+                startMusic();
+            } else if (mode === 'quiz') {
+                document.getElementById('quizMode').classList.remove('hidden-section');
+                speak("進入智力闖關模式");
+                initQuizGame();
+                startMusic();
+            }
+        }
+
+        function backToMenu() {
+            stopDualStopwatch();
+            clearInterval(quizTimerInterval);
+            stopMusic();
+            document.getElementById('musicToggleBtn').classList.add('hidden-section');
+            document.getElementById('timerMode').classList.add('hidden-section');
+            document.getElementById('quizMode').classList.add('hidden-section');
+            document.getElementById('mainMenu').classList.remove('hidden-section');
+        }
+
+        // --- Dual Timer & Leaderboard Logic ---
+        let dualTimerInterval = null;
+        let raceStartTime = 0;
+        let isRacing = false;
+        
+        // Independent states
+        let p1Time = 0;
+        let p2Time = 0;
+        let p1Finished = false;
+        let p2Finished = false;
+
+        let raceResults = [];
+
+        function startRaceSequence() {
+            ensureAudioContext();
+            resetDualStopwatch();
+            playSound('gunshot'); // Actually plays Air Horn now
+            
+            // Flash effect
+            const panel = document.querySelector('#timerMode .bg-gray-900');
+            panel.classList.add('bg-white');
+            setTimeout(() => { panel.classList.remove('bg-white'); }, 100);
+
+            // Start Timer
+            isRacing = true;
+            raceStartTime = Date.now();
+            
+            // Enable buttons
+            document.getElementById('btnP1').disabled = false;
+            document.getElementById('btnP1').innerText = "🏁 P1 抵達";
+            document.getElementById('btnP1').classList.remove('bg-gray-700');
+            document.getElementById('btnP1').classList.add('bg-red-600');
+            
+            document.getElementById('btnP2').disabled = false;
+            document.getElementById('btnP2').innerText = "🏁 P2 抵達";
+            document.getElementById('btnP2').classList.remove('bg-gray-700');
+            document.getElementById('btnP2').classList.add('bg-blue-600');
+
+            dualTimerInterval = setInterval(updateDualDisplay, 10);
+        }
+
+        function updateDualDisplay() {
+            const now = Date.now();
+            const currentElapsed = now - raceStartTime;
+
+            if (!p1Finished) {
+                p1Time = currentElapsed;
+                document.getElementById('timerDisplayP1').innerHTML = formatTime(p1Time);
+            }
+            if (!p2Finished) {
+                p2Time = currentElapsed;
+                document.getElementById('timerDisplayP2').innerHTML = formatTime(p2Time);
+            }
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const milliseconds = Math.floor((ms % 1000) / 10);
+            return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}<span class="text-2xl md:text-3xl opacity-70">.${String(milliseconds).padStart(2,'0')}</span>`;
+        }
+
+        function formatTimeSimple(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const milliseconds = Math.floor((ms % 1000) / 10);
+            return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(milliseconds).padStart(2,'0')}`;
+        }
+
+        function playerFinish(player) {
+            if (!isRacing) return;
+
+            if (player === 1 && !p1Finished) {
+                p1Finished = true;
+                playSound('cheer'); 
+                document.getElementById('btnP1').disabled = true;
+                document.getElementById('btnP1').innerText = "已完成";
+                document.getElementById('btnP1').classList.add('bg-gray-700');
+            } else if (player === 2 && !p2Finished) {
+                p2Finished = true;
+                playSound('cheer');
+                document.getElementById('btnP2').disabled = true;
+                document.getElementById('btnP2').innerText = "已完成";
+                document.getElementById('btnP2').classList.add('bg-gray-700');
+            }
+
+            // Check if both finished
+            if (p1Finished && p2Finished) {
+                finishRace();
+            }
+        }
+
+        function finishRace() {
+            clearInterval(dualTimerInterval);
+            isRacing = false;
+            speak("比賽結束");
+            recordResult();
+        }
+
+        function stopDualStopwatch() {
+            clearInterval(dualTimerInterval);
+            isRacing = false;
+        }
+
+        function resetDualStopwatch() {
+            stopDualStopwatch();
+            p1Time = 0; p2Time = 0;
+            p1Finished = false; p2Finished = false;
+            document.getElementById('timerDisplayP1').innerHTML = formatTime(0);
+            document.getElementById('timerDisplayP2').innerHTML = formatTime(0);
+            
+            // Disable finish buttons until start
+            const btn1 = document.getElementById('btnP1');
+            const btn2 = document.getElementById('btnP2');
+            btn1.disabled = true; btn2.disabled = true;
+            btn1.classList.add('bg-gray-700'); btn2.classList.add('bg-gray-700');
+            btn1.innerText = "等待起跑"; btn2.innerText = "等待起跑";
+        }
+
+        function recordResult() {
+            const winner = p1Time < p2Time ? "🔴 紅隊" : "🔵 藍隊";
+            // Draw? Unlikely with ms precision but possible
+            const result = {
+                id: raceResults.length + 1,
+                p1: formatTimeSimple(p1Time),
+                p2: formatTimeSimple(p2Time),
+                winner: p1Time === p2Time ? "平手" : winner
+            };
+            raceResults.unshift(result); // Add to top
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const tbody = document.getElementById('scoreTableBody');
+            const badge = document.getElementById('raceCountBadge');
+            const emptyState = document.getElementById('emptyState');
+            
+            badge.innerText = raceResults.length;
+            
+            if (raceResults.length > 0) {
+                emptyState.style.display = 'none';
+            } else {
+                emptyState.style.display = 'block';
+            }
+
+            tbody.innerHTML = raceResults.map(r => `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-3 py-2 font-bold text-gray-900">#${r.id}</td>
+                    <td class="px-3 py-2 text-red-600 font-bold">${r.p1}</td>
+                    <td class="px-3 py-2 text-blue-600 font-bold">${r.p2}</td>
+                    <td class="px-3 py-2 font-bold ${r.winner.includes('紅') ? 'text-red-600' : 'text-blue-600'}">
+                        ${r.winner.includes('紅') ? '👑 ' : ''}${r.winner.includes('藍') ? '👑 ' : ''}${r.winner}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function clearLeaderboard() {
+            if(confirm("確定要清除所有比賽紀錄嗎？")) {
+                raceResults = [];
+                renderLeaderboard();
+            }
+        }
+
+        // --- Quiz Mode Logic ---
+        const originalQuestions = [
+            { topic: "中正紀念堂", question: "請問「中正紀念堂」的八角形屋頂是什麼顏色的？", options: ["紅色", "藍色", "黃色"], answer: 1 },
+            { topic: "北投溫泉", question: "來到北投旅遊，最著名的特色體驗是什麼？", options: ["泡溫泉", "滑雪", "衝浪"], answer: 0 },
+            { topic: "貓空纜車", question: "搭乘貓空纜車上山，除了喝茶，還可以看到什麼景色？", options: ["沙漠", "101大樓與茶園", "冰川"], answer: 1 },
+            { topic: "動物園", question: "台北市立動物園的超人氣明星「圓圓」是什麼動物？", options: ["獅子", "大貓熊", "國王企鵝"], answer: 1 },
+            { topic: "陽明山花鐘", question: "陽明山的著名地標「花鐘」，主要是由什麼組成的？", options: ["時鐘與花朵", "樂高積木", "水晶玻璃"], answer: 0 },
+            { topic: "故宮博物院", question: "故宮的鎮館之寶「翠玉白菜」上，停著什麼昆蟲？", options: ["蝴蝶", "螽斯(紡織娘)", "甲蟲"], answer: 1 },
+            { topic: "龍山寺", question: "萬華龍山寺是台北著名的古蹟，主要供奉的神明是？", options: ["觀世音菩薩", "耶穌", "聖誕老公公"], answer: 0 }
+        ];
+
+        let questions = [];
+        let currentQuestion = null;
+        let quizTimerInterval = null;
+        let quizTimeLeft = 10;
+
+        function initQuizGame() {
+            if (questions.length === 0 || questions.length !== document.getElementById('questionCount').innerText) {
+                questions = [...originalQuestions];
+                updateCount();
+            }
+            document.getElementById('resultOverlay').style.display = 'none';
+            document.getElementById('gameOverOverlay').style.display = 'none';
+            document.getElementById('questionSection').classList.add('hidden');
+            document.getElementById('questionSection').classList.remove('flex');
+            document.getElementById('drawSection').classList.remove('hidden');
+        }
+
+        function updateCount() {
+            document.getElementById('questionCount').innerText = questions.length;
+        }
+
+        function drawQuestion() {
+            if (questions.length === 0) {
+                document.getElementById('gameOverOverlay').style.display = 'flex';
+                return;
+            }
+
+            const container = document.getElementById('drawContainer');
+            container.classList.add('shake');
+            playSound('draw');
+
+            setTimeout(() => {
+                container.classList.remove('shake');
+                const randomIndex = Math.floor(Math.random() * questions.length);
+                currentQuestion = questions[randomIndex];
+                questions.splice(randomIndex, 1);
+                updateCount();
+                setupQuestionUI();
+            }, 500);
+        }
+
+        function setupQuestionUI() {
+            document.getElementById('drawSection').classList.add('hidden');
+            document.getElementById('questionSection').classList.remove('hidden');
+            document.getElementById('questionSection').classList.add('flex');
+            document.getElementById('topicTag').innerText = currentQuestion.topic;
+            document.getElementById('questionText').innerText = currentQuestion.question;
+            
+            const optsContainer = document.getElementById('optionsContainer');
+            optsContainer.innerHTML = '';
+            
+            currentQuestion.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full bg-white border-2 border-gray-300 p-4 rounded-xl text-lg font-bold text-gray-700 hover:bg-blue-50 hover:border-blue-400 transition mb-2 shadow-sm text-left';
+                btn.innerText = (index + 1) + ". " + opt;
+                btn.onclick = () => checkAnswer(index);
+                optsContainer.appendChild(btn);
+            });
+
+            startQuizTimer();
+        }
+
+        function startQuizTimer() {
+            quizTimeLeft = 10;
+            const timerText = document.getElementById('timerText');
+            const timerBar = document.getElementById('timerBar');
+            timerText.innerText = quizTimeLeft;
+            timerBar.style.width = '100%';
+            timerBar.className = 'h-full bg-green-500 w-full';
+
+            if (quizTimerInterval) clearInterval(quizTimerInterval);
+
+            quizTimerInterval = setInterval(() => {
+                quizTimeLeft--;
+                timerText.innerText = quizTimeLeft;
+                
+                if (quizTimeLeft <= 5) timerBar.className = 'h-full bg-red-500 w-full';
+                else if (quizTimeLeft <= 7) timerBar.className = 'h-full bg-yellow-400 w-full';
+                
+                timerBar.style.width = (quizTimeLeft * 10) + '%';
+                if (quizTimeLeft >= 0) playSound('tick');
+                if (quizTimeLeft <= 0) {
+                    clearInterval(quizTimerInterval);
+                    handleQuizTimeout();
+                }
+            }, 1000);
+        }
+
+        function handleQuizTimeout() {
+            playSound('wrong');
+            showResult(false, "時間到！");
+        }
+
+        function checkAnswer(selectedIndex) {
+            clearInterval(quizTimerInterval);
+            const isCorrect = selectedIndex === currentQuestion.answer;
+            if (isCorrect) {
+                playSound('correct');
+                showResult(true);
+            } else {
+                playSound('wrong');
+                showResult(false, "答錯了！");
+            }
+        }
+
+        function showResult(isCorrect, customTitle) {
+            const overlay = document.getElementById('resultOverlay');
+            const icon = document.getElementById('resultIcon');
+            const title = document.getElementById('resultTitle');
+            const msg = document.getElementById('resultMessage');
+            overlay.style.display = 'flex';
+            if (isCorrect) {
+                icon.innerText = "⭕";
+                icon.className = "text-8xl mb-4 text-green-500 animate-bounce";
+                title.innerText = "恭喜答對！";
+                title.className = "text-3xl font-black mb-2 text-green-700";
+                msg.innerText = "請繼續前行";
+                speak("恭喜答對，請繼續前行");
+            } else {
+                icon.innerText = "❌";
+                icon.className = "text-8xl mb-4 text-red-500 shake";
+                title.innerText = customTitle || "答錯了！";
+                title.className = "text-3xl font-black mb-2 text-red-700";
+                msg.innerText = "請退回原點";
+                speak("很遺憾，請退回原點");
+            }
+        }
+
+        function resetToDraw() {
+            document.getElementById('resultOverlay').style.display = 'none';
+            document.getElementById('questionSection').classList.add('hidden');
+            document.getElementById('questionSection').classList.remove('flex');
+            document.getElementById('drawSection').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            document.getElementById('gameOverOverlay').style.display = 'none';
+            questions = [...originalQuestions];
+            updateCount();
+            resetToDraw();
+        }
+    </script>
+</body>
+</html>
