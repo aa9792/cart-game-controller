@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跑跑卡丁車 - 雙人對戰控制台 (音效升級版)</title>
+    <title>跑跑卡丁車 - 雙人對戰控制台 (極速搶答版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
@@ -28,6 +28,13 @@
         .hidden-section { display: none !important; }
         .btn-press:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         
+        /* Transition for car movement */
+        .kart-transition { transition: left 0.5s cubic-bezier(0.4, 0.0, 0.2, 1); }
+        
+        /* Cell Highlight Animations */
+        .active-cell-p1 { background-color: #fee2e2; box-shadow: inset 0 0 10px #ef4444; transition: all 0.3s; }
+        .active-cell-p2 { background-color: #dbeafe; box-shadow: inset 0 0 10px #3b82f6; transition: all 0.3s; }
+
         /* Custom scrollbar for leaderboard */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -74,9 +81,9 @@
                 <div class="absolute right-0 top-0 bg-purple-500 text-white font-bold px-4 py-1 rounded-bl-xl z-10">關主專用</div>
                 <div class="flex flex-col items-center text-center z-10 relative">
                     <div class="text-7xl mb-4 group-hover:scale-110 transition-transform">🎲</div>
-                    <h2 class="text-3xl font-black text-gray-800 mb-2">智力闖關籤筒</h2>
-                    <p class="text-gray-500 font-bold">互動問答站</p>
-                    <div class="mt-4 bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold">含倒數音效</div>
+                    <h2 class="text-3xl font-black text-gray-800 mb-2">智力搶答拉力賽</h2>
+                    <p class="text-gray-500 font-bold">極速搶答模式</p>
+                    <div class="mt-4 bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold">無間斷出題 / 答錯回原點</div>
                 </div>
             </div>
         </div>
@@ -162,58 +169,114 @@
         </div>
     </div>
 
-    <!-- 4. Quiz Mode Section -->
-    <div id="quizMode" class="hidden-section w-full max-w-md mt-4">
+    <!-- 4. Quiz Mode Section (UPDATED FOR DIRECT BUZZER PLAY) -->
+    <div id="quizMode" class="hidden-section w-full max-w-2xl mt-4">
         <button onclick="backToMenu()" class="mb-4 text-gray-600 font-bold hover:text-gray-900 flex items-center bg-white px-4 py-2 rounded-full shadow">⬅️ 返回選單</button>
 
-        <div class="w-full bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-800 relative">
-            <div class="bg-yellow-400 p-4 text-center border-b-4 border-gray-800">
-                <h1 class="text-2xl font-black text-gray-900 tracking-wider">🚩 景點智力大考驗</h1>
-                <div class="text-sm font-bold text-gray-700 mt-1">剩餘題目: <span id="questionCount">7</span></div>
+        <!-- Top Status Bar -->
+        <div class="flex justify-between items-center mb-4 bg-gray-800 text-white p-4 rounded-2xl shadow-lg border-2 border-gray-600">
+            <div class="flex items-center gap-2">
+                <div class="text-2xl">⏱️</div>
+                <div id="quizTotalTimer" class="font-mono text-3xl font-bold text-yellow-400">00:00</div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-gray-400">狀態:</span>
+                <span id="quizStatusBadge" class="px-4 py-1 rounded-full font-black bg-gray-600 text-white text-lg">等待搶答</span>
+            </div>
+        </div>
+
+        <div class="w-full bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-800 relative mb-6">
+            <div class="bg-yellow-400 p-2 text-center border-b-4 border-gray-800">
+                <h1 class="text-xl font-black text-gray-900 tracking-wider">🚩 景點智力搶答賽</h1>
             </div>
 
-            <div id="drawSection" class="p-8 flex flex-col items-center justify-center min-h-[400px]">
-                <div id="drawContainer" class="relative w-48 h-64 mb-8 cursor-pointer group" onclick="drawQuestion()">
-                    <div class="absolute bottom-0 w-full h-48 bg-red-600 rounded-b-2xl border-4 border-black z-20 flex items-center justify-center">
-                        <span class="text-5xl font-black text-yellow-400 border-2 border-black rounded-full w-16 h-16 flex items-center justify-center bg-red-800">籤</span>
-                    </div>
-                    <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-32 h-40 bg-transparent z-10 flex justify-center items-end space-x-1 transition-transform group-hover:-translate-y-2">
-                        <div class="w-4 h-32 bg-yellow-200 border-2 border-black rounded-t-lg transform -rotate-6"></div>
-                        <div class="w-4 h-36 bg-yellow-300 border-2 border-black rounded-t-lg transform rotate-3"></div>
-                        <div class="w-4 h-28 bg-yellow-100 border-2 border-black rounded-t-lg transform -rotate-3"></div>
-                    </div>
-                </div>
-                <button onclick="drawQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-4 rounded-xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 shadow-lg transition-all">
-                    抽題！
-                </button>
-            </div>
-
-            <div id="questionSection" class="hidden flex-col h-full min-h-[500px]">
+            <!-- Question & Interaction Area -->
+            <div id="questionSection" class="flex flex-col h-full min-h-[450px]">
                 <div class="w-full h-4 bg-gray-200 border-b-2 border-black">
                     <div id="timerBar" class="h-full bg-green-500 w-full"></div>
                 </div>
                 <div class="p-6 flex-1 flex flex-col">
-                    <div class="mb-6">
+                    <div class="mb-4">
                         <span id="topicTag" class="inline-block bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded mb-2">題目</span>
-                        <h2 id="questionText" class="text-2xl font-bold text-gray-800 leading-tight">題目...</h2>
+                        <h2 id="questionText" class="text-2xl font-bold text-gray-800 leading-tight">題目讀取中...</h2>
                     </div>
-                    <div id="optionsContainer" class="space-y-3 flex-1"></div>
+
+                    <!-- Buzzer Buttons Area (Visible by default now) -->
+                    <div id="buzzerArea" class="flex-1 flex gap-4 items-center justify-center py-4">
+                        <button onclick="teamBuzzIn(1)" class="flex-1 h-32 bg-red-600 hover:bg-red-500 text-white text-3xl font-black rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 shadow-xl transition-all flex flex-col items-center justify-center group">
+                            <span class="text-5xl mb-2 group-hover:scale-110 transition-transform">🚨</span>
+                            紅隊搶答
+                        </button>
+                        <button onclick="teamBuzzIn(2)" class="flex-1 h-32 bg-blue-600 hover:bg-blue-500 text-white text-3xl font-black rounded-2xl border-b-8 border-blue-900 active:border-b-0 active:translate-y-2 shadow-xl transition-all flex flex-col items-center justify-center group">
+                            <span class="text-5xl mb-2 group-hover:scale-110 transition-transform">🚨</span>
+                            藍隊搶答
+                        </button>
+                    </div>
+
+                    <!-- Answer Options Area (Hidden initially) -->
+                    <div id="optionsContainer" class="hidden space-y-3 flex-1"></div>
+                    
                     <div class="mt-4 text-center">
                         <span id="timerText" class="text-4xl font-black text-red-500 font-mono">10</span>
                     </div>
                 </div>
             </div>
 
+            <!-- Overlays -->
             <div id="resultOverlay" class="hidden absolute inset-0 bg-white/95 z-30 flex flex-col items-center justify-center p-6 text-center">
                 <div id="resultIcon" class="text-8xl mb-4">⭕</div>
                 <h2 id="resultTitle" class="text-3xl font-black mb-2">答對了！</h2>
-                <p id="resultMessage" class="text-xl font-bold text-gray-600 mb-8">請繼續前行</p>
-                <button onclick="resetToDraw()" class="bg-gray-800 text-white font-bold py-3 px-8 rounded-lg text-lg">下一位</button>
+                <p id="resultMessage" class="text-xl font-bold text-gray-600 mb-8">前進一步！</p>
+                <button onclick="handleNextRound()" class="bg-gray-800 text-white font-bold py-3 px-8 rounded-lg text-lg">下一題</button>
             </div>
-            <div id="gameOverOverlay" class="hidden absolute inset-0 bg-yellow-300 z-40 flex flex-col items-center justify-center p-6 text-center">
-                <div class="text-6xl mb-4">🎉</div>
-                <h2 class="text-4xl font-black mb-4 text-black">題目全數抽完！</h2>
-                <button onclick="resetGame()" class="bg-black text-white font-bold py-4 px-10 rounded-xl text-xl">重新填滿</button>
+
+            <div id="winnerOverlay" class="hidden absolute inset-0 bg-yellow-300 z-40 flex flex-col items-center justify-center p-6 text-center border-4 border-black">
+                <div class="text-8xl mb-4 animate-bounce">🏆</div>
+                <h2 id="winnerTitle" class="text-5xl font-black mb-2 text-black drop-shadow-md">紅隊獲勝！</h2>
+                <p class="text-2xl font-bold text-gray-800 mb-4">總耗時</p>
+                <div id="finalTime" class="text-4xl font-mono font-black text-red-600 mb-8 border-2 border-black px-4 py-2 bg-white rounded-lg">00:45</div>
+                <button onclick="resetGame()" class="bg-black hover:bg-gray-800 text-white font-bold py-4 px-10 rounded-xl text-xl transition-transform hover:scale-105">再來一場</button>
+            </div>
+        </div>
+
+        <!-- Track Visualization -->
+        <div class="bg-gray-200 rounded-3xl p-4 border-4 border-gray-400 shadow-inner">
+            <h3 class="text-center font-bold text-gray-500 mb-2 text-sm tracking-widest">RACE TRACK (6 STEPS)</h3>
+            
+            <!-- Lane 1: P1 Red -->
+            <div class="relative h-16 bg-white rounded-xl mb-4 border-2 border-gray-300 flex items-center overflow-hidden" id="laneP1">
+                <!-- Start Line Cell (0) -->
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative flex items-center justify-center bg-gray-50 text-xs font-bold text-gray-300" id="p1-cell-0">START</div>
+                <!-- Steps 1-5 -->
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p1-cell-1"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p1-cell-2"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p1-cell-3"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p1-cell-4"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p1-cell-5"></div>
+                <!-- Finish Cell (6) -->
+                <div class="flex-1 h-full relative bg-yellow-100 flex items-center justify-center font-black text-xs text-yellow-600" id="p1-cell-6">FIN</div>
+
+                <!-- Kart -->
+                <div id="kartP1" class="absolute z-10 text-3xl transform -translate-x-1/2 kart-transition pointer-events-none" style="left: 7%; top: 50%; transform: translate(-50%, -50%) scaleX(-1);">🏎️</div>
+                <div class="absolute z-10 left-1 top-1 text-[10px] font-bold text-red-500 bg-white/80 px-1 rounded">P1</div>
+            </div>
+
+            <!-- Lane 2: P2 Blue -->
+            <div class="relative h-16 bg-white rounded-xl border-2 border-gray-300 flex items-center overflow-hidden" id="laneP2">
+                <!-- Start Line Cell (0) -->
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative flex items-center justify-center bg-gray-50 text-xs font-bold text-gray-300" id="p2-cell-0">START</div>
+                <!-- Steps 1-5 -->
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p2-cell-1"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p2-cell-2"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p2-cell-3"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p2-cell-4"></div>
+                <div class="flex-1 h-full border-r border-dashed border-gray-300 relative" id="p2-cell-5"></div>
+                <!-- Finish Cell (6) -->
+                <div class="flex-1 h-full relative bg-yellow-100 flex items-center justify-center font-black text-xs text-yellow-600" id="p2-cell-6">FIN</div>
+
+                <!-- Kart -->
+                <div id="kartP2" class="absolute z-10 text-3xl transform -translate-x-1/2 kart-transition filter hue-rotate-[200deg] pointer-events-none" style="left: 7%; top: 50%; transform: translate(-50%, -50%) scaleX(-1);">🏎️</div>
+                <div class="absolute z-10 left-1 top-1 text-[10px] font-bold text-blue-500 bg-white/80 px-1 rounded">P2</div>
             </div>
         </div>
     </div>
@@ -400,9 +463,8 @@
                 }
             }
             
-            // --- NEW: LOUD AIR HORN (Replaces Gunshot) ---
             else if (type === 'gunshot') {
-                // Creates a loud, detuned air horn sound using two sawtooth waves
+                // Loud Air Horn
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -410,15 +472,13 @@
                 osc1.type = 'sawtooth';
                 osc2.type = 'sawtooth';
                 
-                // Slightly detuned frequencies for "beating" effect
-                osc1.frequency.setValueAtTime(330, now); // E4 approx
-                osc2.frequency.setValueAtTime(335, now); // Detuned
+                osc1.frequency.setValueAtTime(330, now);
+                osc2.frequency.setValueAtTime(335, now);
 
-                // Envelope
                 gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.6, now + 0.05); // Fast attack
-                gain.gain.linearRampToValueAtTime(0.6, now + 0.6);  // Sustain
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0); // Release
+                gain.gain.linearRampToValueAtTime(0.6, now + 0.05);
+                gain.gain.linearRampToValueAtTime(0.6, now + 0.6);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
 
                 osc1.connect(gain);
                 osc2.connect(gain);
@@ -430,14 +490,12 @@
                 osc2.stop(now + 1.0);
             } 
             
-            // --- UPDATED: EVEN HAPPIER CHEER (Ta-da + Confetti) ---
             else if (type === 'cheer') {
-                // 1. Crowd Noise (Pink Noise) - Keep mostly same, maybe brighter
+                // Happy Cheer
                 const bufferSize = audioCtx.sampleRate * 3.0; 
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 
-                // Pink noise generation
                 let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
                 for (let i = 0; i < bufferSize; i++) {
                     const white = Math.random() * 2 - 1;
@@ -455,10 +513,9 @@
                 const noise = audioCtx.createBufferSource();
                 noise.buffer = buffer;
                 
-                // Brighter Bandpass for "Cheer" rather than "Roar"
                 const bandpass = audioCtx.createBiquadFilter();
                 bandpass.type = 'highpass'; 
-                bandpass.frequency.setValueAtTime(500, now); // Cut muddy lows
+                bandpass.frequency.setValueAtTime(500, now);
                 
                 const noiseGain = audioCtx.createGain();
                 noiseGain.gain.setValueAtTime(0, now);
@@ -468,14 +525,9 @@
                 noise.connect(bandpass).connect(noiseGain).connect(audioCtx.destination);
                 noise.start(now);
 
-                // 2. Victory Fanfare - Arpeggio "Ta-da-da-DAAA!"
-                // C Major 7: C4, E4, G4, B4, C5, E5
+                // Victory Arpeggio
                 const notes = [
-                    { f: 523.25, t: 0 },    // C4
-                    { f: 659.25, t: 0.1 },  // E4
-                    { f: 783.99, t: 0.2 },  // G4
-                    { f: 1046.50, t: 0.3 }, // C5
-                    { f: 1318.51, t: 0.4 }  // E5 (High Joy)
+                    { f: 523.25, t: 0 }, { f: 659.25, t: 0.1 }, { f: 783.99, t: 0.2 }, { f: 1046.50, t: 0.3 }, { f: 1318.51, t: 0.4 }
                 ];
 
                 notes.forEach(n => {
@@ -493,21 +545,17 @@
                     osc.stop(now + n.t + 2.5);
                 });
 
-                // 3. Sparkles / Confetti Sound (High sine blips)
+                // Sparkles
                 for(let i=0; i<5; i++) {
                     const osc = audioCtx.createOscillator();
                     osc.type = 'sine';
-                    // Random pentatonic-ish high notes
                     const freq = 1500 + Math.random() * 1000;
                     const startTime = now + 0.3 + (Math.random() * 0.5);
-                    
                     osc.frequency.setValueAtTime(freq, startTime);
-                    
                     const gain = audioCtx.createGain();
                     gain.gain.setValueAtTime(0, startTime);
                     gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
                     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
-                    
                     osc.connect(gain).connect(audioCtx.destination);
                     osc.start(startTime);
                     osc.stop(startTime + 0.3);
@@ -559,6 +607,7 @@
         function backToMenu() {
             stopDualStopwatch();
             clearInterval(quizTimerInterval);
+            clearInterval(quizRaceTimerInterval);
             stopMusic();
             document.getElementById('musicToggleBtn').classList.add('hidden-section');
             document.getElementById('timerMode').classList.add('hidden-section');
@@ -570,30 +619,20 @@
         let dualTimerInterval = null;
         let raceStartTime = 0;
         let isRacing = false;
-        
-        // Independent states
-        let p1Time = 0;
-        let p2Time = 0;
-        let p1Finished = false;
-        let p2Finished = false;
-
+        let p1Time = 0; let p2Time = 0;
+        let p1Finished = false; let p2Finished = false;
         let raceResults = [];
 
         function startRaceSequence() {
             ensureAudioContext();
             resetDualStopwatch();
-            playSound('gunshot'); // Actually plays Air Horn now
-            
-            // Flash effect
+            playSound('gunshot');
             const panel = document.querySelector('#timerMode .bg-gray-900');
             panel.classList.add('bg-white');
             setTimeout(() => { panel.classList.remove('bg-white'); }, 100);
 
-            // Start Timer
             isRacing = true;
             raceStartTime = Date.now();
-            
-            // Enable buttons
             document.getElementById('btnP1').disabled = false;
             document.getElementById('btnP1').innerText = "🏁 P1 抵達";
             document.getElementById('btnP1').classList.remove('bg-gray-700');
@@ -603,22 +642,14 @@
             document.getElementById('btnP2').innerText = "🏁 P2 抵達";
             document.getElementById('btnP2').classList.remove('bg-gray-700');
             document.getElementById('btnP2').classList.add('bg-blue-600');
-
             dualTimerInterval = setInterval(updateDualDisplay, 10);
         }
 
         function updateDualDisplay() {
             const now = Date.now();
             const currentElapsed = now - raceStartTime;
-
-            if (!p1Finished) {
-                p1Time = currentElapsed;
-                document.getElementById('timerDisplayP1').innerHTML = formatTime(p1Time);
-            }
-            if (!p2Finished) {
-                p2Time = currentElapsed;
-                document.getElementById('timerDisplayP2').innerHTML = formatTime(p2Time);
-            }
+            if (!p1Finished) { p1Time = currentElapsed; document.getElementById('timerDisplayP1').innerHTML = formatTime(p1Time); }
+            if (!p2Finished) { p2Time = currentElapsed; document.getElementById('timerDisplayP2').innerHTML = formatTime(p2Time); }
         }
 
         function formatTime(ms) {
@@ -639,38 +670,21 @@
 
         function playerFinish(player) {
             if (!isRacing) return;
-
             if (player === 1 && !p1Finished) {
-                p1Finished = true;
-                playSound('cheer'); 
-                document.getElementById('btnP1').disabled = true;
-                document.getElementById('btnP1').innerText = "已完成";
-                document.getElementById('btnP1').classList.add('bg-gray-700');
+                p1Finished = true; playSound('cheer');
+                document.getElementById('btnP1').disabled = true; document.getElementById('btnP1').innerText = "已完成"; document.getElementById('btnP1').classList.add('bg-gray-700');
             } else if (player === 2 && !p2Finished) {
-                p2Finished = true;
-                playSound('cheer');
-                document.getElementById('btnP2').disabled = true;
-                document.getElementById('btnP2').innerText = "已完成";
-                document.getElementById('btnP2').classList.add('bg-gray-700');
+                p2Finished = true; playSound('cheer');
+                document.getElementById('btnP2').disabled = true; document.getElementById('btnP2').innerText = "已完成"; document.getElementById('btnP2').classList.add('bg-gray-700');
             }
-
-            // Check if both finished
-            if (p1Finished && p2Finished) {
-                finishRace();
-            }
+            if (p1Finished && p2Finished) { finishRace(); }
         }
 
         function finishRace() {
-            clearInterval(dualTimerInterval);
-            isRacing = false;
-            speak("比賽結束");
-            recordResult();
+            clearInterval(dualTimerInterval); isRacing = false; speak("比賽結束"); recordResult();
         }
 
-        function stopDualStopwatch() {
-            clearInterval(dualTimerInterval);
-            isRacing = false;
-        }
+        function stopDualStopwatch() { clearInterval(dualTimerInterval); isRacing = false; }
 
         function resetDualStopwatch() {
             stopDualStopwatch();
@@ -678,10 +692,7 @@
             p1Finished = false; p2Finished = false;
             document.getElementById('timerDisplayP1').innerHTML = formatTime(0);
             document.getElementById('timerDisplayP2').innerHTML = formatTime(0);
-            
-            // Disable finish buttons until start
-            const btn1 = document.getElementById('btnP1');
-            const btn2 = document.getElementById('btnP2');
+            const btn1 = document.getElementById('btnP1'); const btn2 = document.getElementById('btnP2');
             btn1.disabled = true; btn2.disabled = true;
             btn1.classList.add('bg-gray-700'); btn2.classList.add('bg-gray-700');
             btn1.innerText = "等待起跑"; btn2.innerText = "等待起跑";
@@ -689,30 +700,21 @@
 
         function recordResult() {
             const winner = p1Time < p2Time ? "🔴 紅隊" : "🔵 藍隊";
-            // Draw? Unlikely with ms precision but possible
             const result = {
                 id: raceResults.length + 1,
                 p1: formatTimeSimple(p1Time),
                 p2: formatTimeSimple(p2Time),
                 winner: p1Time === p2Time ? "平手" : winner
             };
-            raceResults.unshift(result); // Add to top
-            renderLeaderboard();
+            raceResults.unshift(result); renderLeaderboard();
         }
 
         function renderLeaderboard() {
             const tbody = document.getElementById('scoreTableBody');
             const badge = document.getElementById('raceCountBadge');
             const emptyState = document.getElementById('emptyState');
-            
             badge.innerText = raceResults.length;
-            
-            if (raceResults.length > 0) {
-                emptyState.style.display = 'none';
-            } else {
-                emptyState.style.display = 'block';
-            }
-
+            if (raceResults.length > 0) { emptyState.style.display = 'none'; } else { emptyState.style.display = 'block'; }
             tbody.innerHTML = raceResults.map(r => `
                 <tr class="bg-white border-b hover:bg-gray-50">
                     <td class="px-3 py-2 font-bold text-gray-900">#${r.id}</td>
@@ -726,13 +728,10 @@
         }
 
         function clearLeaderboard() {
-            if(confirm("確定要清除所有比賽紀錄嗎？")) {
-                raceResults = [];
-                renderLeaderboard();
-            }
+            if(confirm("確定要清除所有比賽紀錄嗎？")) { raceResults = []; renderLeaderboard(); }
         }
 
-        // --- Quiz Mode Logic ---
+        // --- Quiz Race Mode Logic (Buzzer Edition) ---
         const originalQuestions = [
             { topic: "中正紀念堂", question: "請問「中正紀念堂」的八角形屋頂是什麼顏色的？", options: ["紅色", "藍色", "黃色"], answer: 1 },
             { topic: "北投溫泉", question: "來到北投旅遊，最著名的特色體驗是什麼？", options: ["泡溫泉", "滑雪", "衝浪"], answer: 0 },
@@ -740,60 +739,149 @@
             { topic: "動物園", question: "台北市立動物園的超人氣明星「圓圓」是什麼動物？", options: ["獅子", "大貓熊", "國王企鵝"], answer: 1 },
             { topic: "陽明山花鐘", question: "陽明山的著名地標「花鐘」，主要是由什麼組成的？", options: ["時鐘與花朵", "樂高積木", "水晶玻璃"], answer: 0 },
             { topic: "故宮博物院", question: "故宮的鎮館之寶「翠玉白菜」上，停著什麼昆蟲？", options: ["蝴蝶", "螽斯(紡織娘)", "甲蟲"], answer: 1 },
-            { topic: "龍山寺", question: "萬華龍山寺是台北著名的古蹟，主要供奉的神明是？", options: ["觀世音菩薩", "耶穌", "聖誕老公公"], answer: 0 }
+            { topic: "龍山寺", question: "萬華龍山寺是台北著名的古蹟，主要供奉的神明是？", options: ["觀世音菩薩", "耶穌", "聖誕老公公"], answer: 0 },
+            { topic: "101大樓", question: "台北101大樓曾經是世界最高樓，它的外型像什麼？", options: ["竹節", "香蕉", "球棒"], answer: 0 },
+            { topic: "淡水老街", question: "去淡水老街必吃的小吃「阿給」，外面包的是什麼？", options: ["麵包", "油豆腐", "蛋皮"], answer: 1 },
+            { topic: "美麗華", question: "大直美麗華最顯眼的地標是什麼遊樂設施？", options: ["雲霄飛車", "旋轉木馬", "摩天輪"], answer: 2 }
         ];
 
         let questions = [];
         let currentQuestion = null;
         let quizTimerInterval = null;
         let quizTimeLeft = 10;
+        
+        // Race specific variables
+        let p1Pos = 0; // 0 to 6
+        let p2Pos = 0; // 0 to 6
+        let answeringTeam = 0; // 1 = P1, 2 = P2, 0 = None
+        let quizRaceStartTime = 0;
+        let quizRaceTimerInterval = null;
+        const WINNING_POS = 6;
 
         function initQuizGame() {
-            if (questions.length === 0 || questions.length !== document.getElementById('questionCount').innerText) {
-                questions = [...originalQuestions];
-                updateCount();
-            }
+            questions = [...originalQuestions];
+            p1Pos = 0;
+            p2Pos = 0;
+            answeringTeam = 0;
+            
+            // UI Reset
             document.getElementById('resultOverlay').style.display = 'none';
-            document.getElementById('gameOverOverlay').style.display = 'none';
-            document.getElementById('questionSection').classList.add('hidden');
-            document.getElementById('questionSection').classList.remove('flex');
-            document.getElementById('drawSection').classList.remove('hidden');
+            document.getElementById('winnerOverlay').style.display = 'none';
+            // Directly start buzzer phase, hide draw section conceptually (though we removed the button)
+            // But we can just use the buzzer phase logic directly.
+            
+            // Start Race Timer
+            quizRaceStartTime = Date.now();
+            if(quizRaceTimerInterval) clearInterval(quizRaceTimerInterval);
+            quizRaceTimerInterval = setInterval(updateQuizTotalTimer, 1000);
+            updateQuizTotalTimer();
+            
+            updateTrackUI();
+            
+            document.getElementById('quizStatusBadge').innerText = "等待搶答";
+            document.getElementById('quizStatusBadge').className = "px-4 py-1 rounded-full font-black bg-gray-600 text-white text-lg";
+            speak("比賽開始，請搶答");
+            
+            // Load first question immediately
+            loadNextQuestion();
         }
 
-        function updateCount() {
-            document.getElementById('questionCount').innerText = questions.length;
+        function updateQuizTotalTimer() {
+            const now = Date.now();
+            const elapsed = Math.floor((now - quizRaceStartTime) / 1000);
+            const m = Math.floor(elapsed / 60);
+            const s = elapsed % 60;
+            document.getElementById('quizTotalTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
         }
 
-        function drawQuestion() {
-            if (questions.length === 0) {
-                document.getElementById('gameOverOverlay').style.display = 'flex';
-                return;
+        function updateTrackUI() {
+            // Update Kart Positions
+            const stepPercent = 100 / 7;
+            const centerOffset = stepPercent / 2;
+            const p1Left = (p1Pos * stepPercent) + centerOffset;
+            const p2Left = (p2Pos * stepPercent) + centerOffset;
+            
+            document.getElementById('kartP1').style.left = p1Left + '%';
+            document.getElementById('kartP2').style.left = p2Left + '%';
+
+            // Highlight Active Cells
+            for(let i=0; i<=6; i++) {
+                document.getElementById(`p1-cell-${i}`).className = "flex-1 h-full border-r border-dashed border-gray-300 relative transition-colors duration-300";
+                document.getElementById(`p2-cell-${i}`).className = "flex-1 h-full border-r border-dashed border-gray-300 relative transition-colors duration-300";
+                
+                if(i===0) {
+                     document.getElementById(`p1-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
+                     document.getElementById(`p2-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
+                }
+                if(i===6) {
+                     document.getElementById(`p1-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
+                     document.getElementById(`p2-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
+                }
             }
 
-            const container = document.getElementById('drawContainer');
-            container.classList.add('shake');
-            playSound('draw');
-
-            setTimeout(() => {
-                container.classList.remove('shake');
-                const randomIndex = Math.floor(Math.random() * questions.length);
-                currentQuestion = questions[randomIndex];
-                questions.splice(randomIndex, 1);
-                updateCount();
-                setupQuestionUI();
-            }, 500);
+            const p1Cell = document.getElementById(`p1-cell-${p1Pos}`);
+            const p2Cell = document.getElementById(`p2-cell-${p2Pos}`);
+            
+            p1Cell.classList.remove("bg-gray-50", "bg-yellow-100");
+            p1Cell.classList.add("active-cell-p1");
+            
+            p2Cell.classList.remove("bg-gray-50", "bg-yellow-100");
+            p2Cell.classList.add("active-cell-p2");
         }
 
-        function setupQuestionUI() {
-            document.getElementById('drawSection').classList.add('hidden');
+        function loadNextQuestion() {
+            if (questions.length === 0) questions = [...originalQuestions];
+
+            // Immediate transition
+            const randomIndex = Math.floor(Math.random() * questions.length);
+            currentQuestion = questions[randomIndex];
+            questions.splice(randomIndex, 1);
+            
+            setupBuzzerPhase();
+        }
+
+        function setupBuzzerPhase() {
             document.getElementById('questionSection').classList.remove('hidden');
             document.getElementById('questionSection').classList.add('flex');
+            
+            // Show Topic & Question
             document.getElementById('topicTag').innerText = currentQuestion.topic;
             document.getElementById('questionText').innerText = currentQuestion.question;
             
+            // Show Buzzers, Hide Options
+            document.getElementById('buzzerArea').classList.remove('hidden');
+            document.getElementById('buzzerArea').classList.add('flex');
+            document.getElementById('optionsContainer').classList.add('hidden');
+            document.getElementById('timerText').innerText = ""; 
+            
+            // Update Status
+            document.getElementById('quizStatusBadge').innerText = "等待搶答";
+            document.getElementById('quizStatusBadge').className = "px-4 py-1 rounded-full font-black bg-yellow-500 text-black text-lg animate-pulse";
+            
+            // speak("請搶答"); // Optional repetition
+        }
+
+        function teamBuzzIn(team) {
+            answeringTeam = team;
+            playSound('gunshot'); // Buzzer sound
+            
+            // Hide Buzzers
+            document.getElementById('buzzerArea').classList.add('hidden');
+            document.getElementById('buzzerArea').classList.remove('flex');
+            
+            // Show Options
             const optsContainer = document.getElementById('optionsContainer');
             optsContainer.innerHTML = '';
+            optsContainer.classList.remove('hidden');
             
+            // Status Update
+            const teamName = team === 1 ? "🔴 紅隊" : "🔵 藍隊";
+            const bgClass = team === 1 ? "bg-red-600" : "bg-blue-600";
+            
+            document.getElementById('quizStatusBadge').innerText = `${teamName} 回答中`;
+            document.getElementById('quizStatusBadge').className = `px-4 py-1 rounded-full font-black ${bgClass} text-white text-lg`;
+            
+            // Generate Options
             currentQuestion.options.forEach((opt, index) => {
                 const btn = document.createElement('button');
                 btn.className = 'option-btn w-full bg-white border-2 border-gray-300 p-4 rounded-xl text-lg font-bold text-gray-700 hover:bg-blue-50 hover:border-blue-400 transition mb-2 shadow-sm text-left';
@@ -801,7 +889,8 @@
                 btn.onclick = () => checkAnswer(index);
                 optsContainer.appendChild(btn);
             });
-
+            
+            speak(`${team === 1 ? '紅隊' : '藍隊'}請回答`);
             startQuizTimer();
         }
 
@@ -839,13 +928,23 @@
         function checkAnswer(selectedIndex) {
             clearInterval(quizTimerInterval);
             const isCorrect = selectedIndex === currentQuestion.answer;
+            
             if (isCorrect) {
                 playSound('correct');
+                // Move Forward
+                if (answeringTeam === 1) p1Pos = Math.min(p1Pos + 1, WINNING_POS);
+                else p2Pos = Math.min(p2Pos + 1, WINNING_POS);
+                
                 showResult(true);
             } else {
                 playSound('wrong');
+                // Penalty: Back to Start!
+                if (answeringTeam === 1) p1Pos = 0;
+                else p2Pos = 0;
+                
                 showResult(false, "答錯了！");
             }
+            updateTrackUI();
         }
 
         function showResult(isCorrect, customTitle) {
@@ -853,36 +952,62 @@
             const icon = document.getElementById('resultIcon');
             const title = document.getElementById('resultTitle');
             const msg = document.getElementById('resultMessage');
+            
             overlay.style.display = 'flex';
+            
             if (isCorrect) {
                 icon.innerText = "⭕";
                 icon.className = "text-8xl mb-4 text-green-500 animate-bounce";
-                title.innerText = "恭喜答對！";
+                title.innerText = "答對了！";
                 title.className = "text-3xl font-black mb-2 text-green-700";
-                msg.innerText = "請繼續前行";
-                speak("恭喜答對，請繼續前行");
+                msg.innerText = "衝刺前進一步！";
+                
+                // Check Win Condition immediately
+                if ((answeringTeam === 1 && p1Pos === WINNING_POS) || (answeringTeam === 2 && p2Pos === WINNING_POS)) {
+                    // Delay slightly to show correct feedback first, then win
+                    setTimeout(() => handleWin(), 1000);
+                    return;
+                }
+                
+                speak("答對了，前進一步");
             } else {
-                icon.innerText = "❌";
+                icon.innerText = "💥";
                 icon.className = "text-8xl mb-4 text-red-500 shake";
                 title.innerText = customTitle || "答錯了！";
                 title.className = "text-3xl font-black mb-2 text-red-700";
-                msg.innerText = "請退回原點";
-                speak("很遺憾，請退回原點");
+                msg.innerText = "引擎故障...退回原點！";
+                speak("很遺憾，退回原點");
             }
         }
 
-        function resetToDraw() {
+        function handleWin() {
+            clearInterval(quizRaceTimerInterval);
+            playSound('cheer');
+            
+            const overlay = document.getElementById('winnerOverlay');
+            const title = document.getElementById('winnerTitle');
+            const timeDisplay = document.getElementById('finalTime');
+            
+            const winnerName = answeringTeam === 1 ? "🔴 紅隊" : "🔵 藍隊";
+            title.innerText = `${winnerName} 獲勝！`;
+            timeDisplay.innerText = document.getElementById('quizTotalTimer').innerText;
+            
+            overlay.style.display = 'flex';
+            speak(`恭喜${winnerName}獲勝`);
+        }
+
+        function handleNextRound() {
             document.getElementById('resultOverlay').style.display = 'none';
-            document.getElementById('questionSection').classList.add('hidden');
-            document.getElementById('questionSection').classList.remove('flex');
-            document.getElementById('drawSection').classList.remove('hidden');
+            loadNextQuestion();
+        }
+
+        function resetToDraw() {
+            // Deprecated flow but kept for structure
+            handleNextRound();
         }
 
         function resetGame() {
-            document.getElementById('gameOverOverlay').style.display = 'none';
-            questions = [...originalQuestions];
-            updateCount();
-            resetToDraw();
+            initQuizGame();
         }
     </script>
 </body>
