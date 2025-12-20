@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跑跑卡丁車 - 雙人對戰控制台 (極速搶答版)</title>
+    <title>跑跑卡丁車 - 雙人對戰控制台 (可自訂題目版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
@@ -35,7 +35,7 @@
         .active-cell-p1 { background-color: #fee2e2; box-shadow: inset 0 0 10px #ef4444; transition: all 0.3s; }
         .active-cell-p2 { background-color: #dbeafe; box-shadow: inset 0 0 10px #3b82f6; transition: all 0.3s; }
 
-        /* Custom scrollbar for leaderboard */
+        /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
@@ -83,7 +83,7 @@
                     <div class="text-7xl mb-4 group-hover:scale-110 transition-transform">🎲</div>
                     <h2 class="text-3xl font-black text-gray-800 mb-2">智力搶答拉力賽</h2>
                     <p class="text-gray-500 font-bold">極速搶答模式</p>
-                    <div class="mt-4 bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold">無間斷出題 / 答錯回原點</div>
+                    <div class="mt-4 bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-bold">可自訂題庫</div>
                 </div>
             </div>
         </div>
@@ -169,9 +169,12 @@
         </div>
     </div>
 
-    <!-- 4. Quiz Mode Section (UPDATED FOR DIRECT BUZZER PLAY) -->
+    <!-- 4. Quiz Mode Section -->
     <div id="quizMode" class="hidden-section w-full max-w-2xl mt-4">
-        <button onclick="backToMenu()" class="mb-4 text-gray-600 font-bold hover:text-gray-900 flex items-center bg-white px-4 py-2 rounded-full shadow">⬅️ 返回選單</button>
+        <div class="flex justify-between items-center mb-4">
+            <button onclick="backToMenu()" class="text-gray-600 font-bold hover:text-gray-900 flex items-center bg-white px-4 py-2 rounded-full shadow">⬅️ 返回選單</button>
+            <button onclick="openQuestionSettings()" class="text-purple-600 font-bold hover:text-purple-900 flex items-center bg-white px-4 py-2 rounded-full shadow border border-purple-200">⚙️ 題目設定</button>
+        </div>
 
         <!-- Top Status Bar -->
         <div class="flex justify-between items-center mb-4 bg-gray-800 text-white p-4 rounded-2xl shadow-lg border-2 border-gray-600">
@@ -201,7 +204,7 @@
                         <h2 id="questionText" class="text-2xl font-bold text-gray-800 leading-tight">題目讀取中...</h2>
                     </div>
 
-                    <!-- Buzzer Buttons Area (Visible by default now) -->
+                    <!-- Buzzer Buttons Area -->
                     <div id="buzzerArea" class="flex-1 flex gap-4 items-center justify-center py-4">
                         <button onclick="teamBuzzIn(1)" class="flex-1 h-32 bg-red-600 hover:bg-red-500 text-white text-3xl font-black rounded-2xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 shadow-xl transition-all flex flex-col items-center justify-center group">
                             <span class="text-5xl mb-2 group-hover:scale-110 transition-transform">🚨</span>
@@ -213,7 +216,7 @@
                         </button>
                     </div>
 
-                    <!-- Answer Options Area (Hidden initially) -->
+                    <!-- Answer Options Area -->
                     <div id="optionsContainer" class="hidden space-y-3 flex-1"></div>
                     
                     <div class="mt-4 text-center">
@@ -277,6 +280,29 @@
                 <!-- Kart -->
                 <div id="kartP2" class="absolute z-10 text-3xl transform -translate-x-1/2 kart-transition filter hue-rotate-[200deg] pointer-events-none" style="left: 7%; top: 50%; transform: translate(-50%, -50%) scaleX(-1);">🏎️</div>
                 <div class="absolute z-10 left-1 top-1 text-[10px] font-bold text-blue-500 bg-white/80 px-1 rounded">P2</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Settings Modal (New Feature) -->
+    <div id="settingsOverlay" class="hidden fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-100 rounded-t-2xl">
+                <h3 class="text-xl font-bold text-gray-800">⚙️ 編輯題目庫 (JSON格式)</h3>
+                <button onclick="closeSettings()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-4 flex-1 flex flex-col gap-2 overflow-hidden">
+                <p class="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+                    <strong>說明：</strong>請保持 JSON 格式。<code>answer</code> 欄位 0 代表第一個選項，1 代表第二個，以此類推。
+                </p>
+                <textarea id="jsonInput" class="flex-1 w-full border-2 border-gray-300 rounded-lg p-3 font-mono text-sm focus:border-blue-500 focus:outline-none" spellcheck="false"></textarea>
+            </div>
+            <div class="p-4 border-t bg-gray-50 rounded-b-2xl flex justify-between gap-4">
+                <button onclick="resetDefaultQuestions()" class="text-red-500 font-bold hover:text-red-700 underline text-sm">恢復預設題庫</button>
+                <div class="flex gap-2">
+                    <button onclick="closeSettings()" class="px-4 py-2 rounded-lg text-gray-600 font-bold hover:bg-gray-200">取消</button>
+                    <button onclick="saveCustomQuestions()" class="px-6 py-2 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 shadow-lg">💾 儲存並套用</button>
+                </div>
             </div>
         </div>
     </div>
@@ -732,7 +758,8 @@
         }
 
         // --- Quiz Race Mode Logic (Buzzer Edition) ---
-        const originalQuestions = [
+        // Change from const to let to allow importing
+        let originalQuestions = [
             { topic: "中正紀念堂", question: "請問「中正紀念堂」的八角形屋頂是什麼顏色的？", options: ["紅色", "藍色", "黃色"], answer: 1 },
             { topic: "北投溫泉", question: "來到北投旅遊，最著名的特色體驗是什麼？", options: ["泡溫泉", "滑雪", "衝浪"], answer: 0 },
             { topic: "貓空纜車", question: "搭乘貓空纜車上山，除了喝茶，還可以看到什麼景色？", options: ["沙漠", "101大樓與茶園", "冰川"], answer: 1 },
@@ -744,6 +771,9 @@
             { topic: "淡水老街", question: "去淡水老街必吃的小吃「阿給」，外面包的是什麼？", options: ["麵包", "油豆腐", "蛋皮"], answer: 1 },
             { topic: "美麗華", question: "大直美麗華最顯眼的地標是什麼遊樂設施？", options: ["雲霄飛車", "旋轉木馬", "摩天輪"], answer: 2 }
         ];
+
+        // Backup for reset
+        const defaultQuestionsBackup = JSON.parse(JSON.stringify(originalQuestions));
 
         let questions = [];
         let currentQuestion = null;
@@ -767,8 +797,6 @@
             // UI Reset
             document.getElementById('resultOverlay').style.display = 'none';
             document.getElementById('winnerOverlay').style.display = 'none';
-            // Directly start buzzer phase, hide draw section conceptually (though we removed the button)
-            // But we can just use the buzzer phase logic directly.
             
             // Start Race Timer
             quizRaceStartTime = Date.now();
@@ -785,6 +813,51 @@
             // Load first question immediately
             loadNextQuestion();
         }
+
+        // --- Question Settings Logic ---
+        function openQuestionSettings() {
+            document.getElementById('settingsOverlay').classList.remove('hidden');
+            document.getElementById('jsonInput').value = JSON.stringify(originalQuestions, null, 2);
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsOverlay').classList.add('hidden');
+        }
+
+        function resetDefaultQuestions() {
+            if(confirm('確定要捨棄目前設定，恢復為預設題目嗎？')) {
+                document.getElementById('jsonInput').value = JSON.stringify(defaultQuestionsBackup, null, 2);
+            }
+        }
+
+        function saveCustomQuestions() {
+            try {
+                const input = document.getElementById('jsonInput').value;
+                const parsed = JSON.parse(input);
+                
+                // Basic Validation
+                if(!Array.isArray(parsed) || parsed.length === 0) throw new Error("必須是包含資料的陣列");
+                
+                const valid = parsed.every(q => 
+                    q.topic && 
+                    q.question && 
+                    Array.isArray(q.options) && 
+                    q.options.length >= 2 && 
+                    typeof q.answer === 'number'
+                );
+
+                if(!valid) throw new Error("題目格式錯誤 (缺少必要欄位或選項不足)");
+
+                originalQuestions = parsed;
+                alert(`成功匯入 ${originalQuestions.length} 題！比賽將重新開始。`);
+                closeSettings();
+                initQuizGame(); // Restart game with new questions
+
+            } catch (e) {
+                alert("JSON 格式錯誤：\n" + e.message);
+            }
+        }
+        // ------------------------------
 
         function updateQuizTotalTimer() {
             const now = Date.now();
@@ -810,12 +883,12 @@
                 document.getElementById(`p2-cell-${i}`).className = "flex-1 h-full border-r border-dashed border-gray-300 relative transition-colors duration-300";
                 
                 if(i===0) {
-                     document.getElementById(`p1-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
-                     document.getElementById(`p2-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
+                      document.getElementById(`p1-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
+                      document.getElementById(`p2-cell-${i}`).classList.add("flex", "items-center", "justify-center", "bg-gray-50", "text-xs", "font-bold", "text-gray-300");
                 }
                 if(i===6) {
-                     document.getElementById(`p1-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
-                     document.getElementById(`p2-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
+                      document.getElementById(`p1-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
+                      document.getElementById(`p2-cell-${i}`).classList.add("bg-yellow-100", "flex", "items-center", "justify-center", "font-black", "text-xs", "text-yellow-600");
                 }
             }
 
@@ -999,11 +1072,6 @@
         function handleNextRound() {
             document.getElementById('resultOverlay').style.display = 'none';
             loadNextQuestion();
-        }
-
-        function resetToDraw() {
-            // Deprecated flow but kept for structure
-            handleNextRound();
         }
 
         function resetGame() {
