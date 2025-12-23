@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>警衛排班查詢系統</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 text-slate-800">
+
+    <div class="max-w-md w-full glass-panel rounded-2xl overflow-hidden shadow-xl transition-all duration-300">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-white text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+            <h1 class="text-2xl font-bold relative z-10 mb-1">警衛排班查詢</h1>
+            <p class="text-blue-100 text-sm relative z-10">輸入日期查詢當班人員</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-6 space-y-6">
+
+            <!-- Input Section -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">選擇日期</label>
+                    <input type="date" id="queryDate" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 shadow-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-2">選擇時段</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="shift" value="0" class="peer sr-only" checked onchange="updateResult()">
+                            <div class="rounded-lg border-2 border-slate-200 bg-white p-3 text-center hover:bg-slate-50 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition-all">
+                                <div class="font-bold">早班</div>
+                                <div class="text-xs text-slate-500 mt-1">06:00 - 14:00</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="shift" value="1" class="peer sr-only" onchange="updateResult()">
+                            <div class="rounded-lg border-2 border-slate-200 bg-white p-3 text-center hover:bg-slate-50 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition-all">
+                                <div class="font-bold">晚班</div>
+                                <div class="text-xs text-slate-500 mt-1">14:00 - 22:00</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- Result Section -->
+            <div class="text-center space-y-2">
+                <p class="text-sm text-slate-500">當班警衛</p>
+                <div id="resultName" class="text-4xl font-bold text-slate-800 tracking-wide py-2 bg-slate-100 rounded-xl border border-slate-200">
+                    計算中...
+                </div>
+                <div id="nextShiftInfo" class="text-xs text-slate-400 mt-2">
+                    下一個班次: ...
+                </div>
+            </div>
+        </div>
+
+        <!-- Calibration Section (Accordion) -->
+        <div class="bg-slate-50 border-t border-slate-200">
+            <details class="group">
+                <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-4 text-slate-500 hover:text-slate-700 text-sm">
+                    <span>⚙️ 排班校正 (若結果不準確請點此)</span>
+                    <span class="transition group-open:rotate-180">
+                        <svg fill="none" height="20" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="20"><path d="M6 9l6 6 6-6"></path></svg>
+                    </span>
+                </summary>
+                <div class="text-slate-600 px-4 pb-4 text-sm animate-fadeIn">
+                    <p class="mb-3 text-xs">如果不確定循環基準日，請在下方設定「目前此時此刻」實際在執勤的人員，系統將自動修正循環。</p>
+                    
+                    <div class="flex items-center space-x-2">
+                        <select id="calibrateGuard" class="flex-1 bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2">
+                            <option value="0">曾少勇</option>
+                            <option value="1">徐文明</option>
+                            <option value="2">鄭瑞明</option>
+                        </select>
+                        <button onclick="calibrate()" class="bg-slate-700 hover:bg-slate-800 text-white font-medium rounded-lg text-sm px-4 py-2 text-center transition-colors">
+                            設定為當班
+                        </button>
+                    </div>
+                    <p id="calibrateMsg" class="text-green-600 text-xs mt-2 hidden">校正成功！設定已儲存。</p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        const guards = ['曾少勇', '徐文明', '鄭瑞明'];
+        
+        // Base Reference Date: 2025-12-23
+        // On this date, Morning Shift (0) is 曾少勇 (Index 0).
+        // This is our hard anchor point.
+        const baseDateString = '2025-12-23'; 
+        
+        // Using a v2 key to ensure we don't pick up old calibration data from the previous version
+        const STORAGE_KEY = 'guard_roster_offset_v2';
+
+        function getShiftOffset() {
+            // Returns the user-calibrated offset (integer)
+            const savedOffset = localStorage.getItem(STORAGE_KEY);
+            return savedOffset ? parseInt(savedOffset, 10) : 0;
+        }
+
+        function setShiftOffset(offset) {
+            localStorage.setItem(STORAGE_KEY, offset);
+        }
+
+        function getDaysDiff(d1, d2) {
+            // Treat dates as UTC midnight to avoid DST/Timezone issues
+            const date1 = new Date(d1);
+            const date2 = new Date(d2);
+            date1.setHours(0,0,0,0);
+            date2.setHours(0,0,0,0);
+            
+            const diffTime = date2.getTime() - date1.getTime();
+            return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        function calculateGuard(dateStr, shiftIndex) {
+            // 1. Days since base date
+            const daysDiff = getDaysDiff(baseDateString, dateStr);
+            
+            // 2. Total shifts passed (2 shifts per day)
+            // Shift index: 0 = Morning, 1 = Evening
+            let totalShifts = (daysDiff * 2) + parseInt(shiftIndex);
+            
+            // 3. Add user calibration offset
+            totalShifts += getShiftOffset();
+
+            // 4. Modulo arithmetic (handling negative numbers safely)
+            const numGuards = guards.length;
+            const guardIndex = ((totalShifts % numGuards) + numGuards) % numGuards;
+            
+            return {
+                name: guards[guardIndex],
+                index: guardIndex
+            };
+        }
+
+        function updateResult() {
+            const dateInput = document.getElementById('queryDate').value;
+            // Get selected radio button
+            const shiftInput = document.querySelector('input[name="shift"]:checked').value;
+
+            if (!dateInput) return;
+
+            const current = calculateGuard(dateInput, shiftInput);
+            
+            // Display Result
+            const resultEl = document.getElementById('resultName');
+            resultEl.textContent = current.name;
+            
+            // Determine styling based on shift
+            if(shiftInput === '0') {
+                resultEl.className = "text-4xl font-bold text-blue-700 tracking-wide py-4 bg-blue-50 rounded-xl border border-blue-200 transition-colors";
+            } else {
+                resultEl.className = "text-4xl font-bold text-indigo-700 tracking-wide py-4 bg-indigo-50 rounded-xl border border-indigo-200 transition-colors";
+            }
+
+            // Calculate Next Shift Preview
+            // Logic: Just add 1 to the shift index, if it becomes 2, add 1 to date... 
+            // easier: just calculate current result index + 1 in the guard array circular list
+            const nextGuardIndex = (current.index + 1) % guards.length;
+            document.getElementById('nextShiftInfo').textContent = `接班人員: ${guards[nextGuardIndex]}`;
+        }
+
+        function calibrate() {
+            // 1. Get current inputs
+            const dateInput = document.getElementById('queryDate').value;
+            const shiftInput = document.querySelector('input[name="shift"]:checked').value;
+            
+            // 2. Get who the user SAYS should be on duty
+            const actualGuardIndex = parseInt(document.getElementById('calibrateGuard').value);
+            
+            // 3. Calculate who the algorithm THINKS is on duty (with current offset)
+            const currentOffset = getShiftOffset();
+            
+            // Re-run calculation logic manually to isolate the "base" value
+            const daysDiff = getDaysDiff(baseDateString, dateInput);
+            const baseShifts = (daysDiff * 2) + parseInt(shiftInput); // Shifts without any offset
+            
+            // We need: (baseShifts + NEW_OFFSET) % 3 === actualGuardIndex
+            // So: NEW_OFFSET = actualGuardIndex - baseShifts
+            
+            let newOffset = actualGuardIndex - baseShifts;
+            
+            setShiftOffset(newOffset);
+            
+            // UI Feedback
+            const msg = document.getElementById('calibrateMsg');
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 3000);
+            
+            // Refresh display
+            updateResult();
+        }
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set date input to today (Handling timezone offsets slightly better by using local string construction)
+            const now = new Date();
+            // Format YYYY-MM-DD manually to avoid UTC issues
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day}`;
+            
+            document.getElementById('queryDate').value = today;
+
+            // Auto-select shift based on current hour
+            const currentHour = now.getHours();
+            if (currentHour >= 14 && currentHour < 22) {
+                // Afternoon/Evening shift
+                document.querySelector('input[name="shift"][value="1"]').checked = true;
+            } else {
+                // Morning
+                document.querySelector('input[name="shift"][value="0"]').checked = true;
+            }
+
+            updateResult();
+        });
+
+    </script>
+</body>
+</html>
