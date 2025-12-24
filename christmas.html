@@ -358,36 +358,75 @@
             }
         }
 
-        // 搖獎聲音 (低頻馬達 + 撞擊聲)
-        function playRumbleSound() {
+        // 搖獎音樂：歡樂遊戲風格 (8-bit Arpeggio)
+        function playGameMusic() {
             initAudio();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(40, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 3);
+            const now = audioCtx.currentTime;
+            let isPlaying = true;
+            let nextNoteTime = audioCtx.currentTime;
+            let noteIndex = 0;
+            let timerID;
 
-            // 模擬不規則撞擊聲
-            const lfo = audioCtx.createOscillator();
-            lfo.frequency.value = 15;
-            const lfoGain = audioCtx.createGain();
-            lfoGain.gain.value = 0.3;
-            lfo.connect(lfoGain);
-            lfoGain.connect(gain.gain);
-            lfo.start();
+            // C Major Arpeggio sequence (復古遊戲風)
+            // 頻率對應: C4, E4, G4, C5, E5, C5, G4, E4
+            const melody = [
+                261.63, 329.63, 392.00, 523.25, 659.25, 523.25, 392.00, 329.63
+            ];
+            // 速度: 秒/音符 (越小越快)
+            const tempo = 0.11; 
 
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            
+            function schedule() {
+                if (!isPlaying) return;
+
+                // 預先排程未來 0.5 秒的音符，確保播放流暢不卡頓
+                while (nextNoteTime < audioCtx.currentTime + 0.5) {
+                    const freq = melody[noteIndex % melody.length];
+                    
+                    // --- 主旋律 (Square Wave - 8bit感) ---
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square'; // 方波最有復古遊戲感
+                    osc.frequency.value = freq;
+                    
+                    // 短促的包絡 (Staccato)
+                    gain.gain.setValueAtTime(0.08, nextNoteTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, nextNoteTime + 0.08);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(nextNoteTime);
+                    osc.stop(nextNoteTime + 0.1);
+
+                    // --- 伴奏低音 (每 4 個音符一次) ---
+                    if (noteIndex % 4 === 0) {
+                        const bassOsc = audioCtx.createOscillator();
+                        const bassGain = audioCtx.createGain();
+                        bassOsc.type = 'triangle'; // 三角波比較渾厚
+                        bassOsc.frequency.value = freq / 4; // 低兩八度
+                        
+                        bassGain.gain.setValueAtTime(0.15, nextNoteTime);
+                        bassGain.gain.exponentialRampToValueAtTime(0.01, nextNoteTime + 0.3);
+                        
+                        bassOsc.connect(bassGain);
+                        bassGain.connect(audioCtx.destination);
+                        bassOsc.start(nextNoteTime);
+                        bassOsc.stop(nextNoteTime + 0.3);
+                    }
+
+                    nextNoteTime += tempo;
+                    noteIndex++;
+                }
+                
+                timerID = requestAnimationFrame(schedule);
+            }
+
+            schedule();
+
             return {
                 stop: () => {
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                    osc.stop(audioCtx.currentTime + 0.5);
-                    lfo.stop(audioCtx.currentTime + 0.5);
+                    isPlaying = false;
+                    cancelAnimationFrame(timerID);
                 }
             };
         }
@@ -446,12 +485,30 @@
         function speakName(name) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(`恭喜 ${name}！`);
+                
+                // 1. 修改台詞：增加語助詞，聽起來更童趣
+                const utterance = new SpeechSynthesisUtterance(`耶！恭喜 ${name} 中大獎囉！`);
                 utterance.lang = 'zh-TW';
-                utterance.rate = 1.1;
+                
+                // 2. 調整參數：模擬小女孩聲音 (提高音調)
+                utterance.pitch = 2.0; // 拉高音調至 2.0 (最高)，聽起來更像卡通人物
+                utterance.rate = 1.1;  // 語速適中
+                utterance.volume = 1.0;
+                
+                // 3. 語音選擇
                 const voices = window.speechSynthesis.getVoices();
-                const zhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('TW'));
-                if (zhVoice) utterance.voice = zhVoice;
+                // 優先尋找台灣繁體中文 (通常 Google Chrome 的 "Google 國語" 就是女聲)
+                let targetVoice = voices.find(v => v.lang === 'zh-TW');
+                
+                // 如果找不到完全匹配，找任何包含 zh 的
+                if (!targetVoice) {
+                    targetVoice = voices.find(v => v.lang.includes('zh'));
+                }
+
+                if (targetVoice) {
+                    utterance.voice = targetVoice;
+                }
+                
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -574,8 +631,8 @@
             const machine = document.getElementById('machine');
             machine.classList.add('shaking');
 
-            // 1. 開始劇烈搖動 (3秒)
-            const rumbleSound = playRumbleSound();
+            // 1. 開始劇烈搖動 (3秒)，播放歡樂遊戲音樂
+            const gameMusic = playGameMusic();
             animateBalls(1.5); // 高速模式
 
             // 2. 減速階段 (1秒)
@@ -585,7 +642,8 @@
                 
                 isAnimating = true; // 開啟新的 loop
                 animateBalls(0.5); // 低速模式
-                rumbleSound.stop();
+                
+                gameMusic.stop(); // 停止音樂
             }, 2500);
 
             // 3. 停止並掉落球 (總共約 3.5 秒後)
