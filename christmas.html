@@ -96,6 +96,19 @@
             background: var(--glass-reflection);
             transform: rotate(-45deg);
             pointer-events: none;
+            z-index: 25; /* 確保反光在最上層 */
+        }
+
+        /* 新增：內部閃光層 */
+        .light-effect {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 22; /* 蓋在球上面，製造反光感 */
+            opacity: 0;
+            background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.9) 0%, transparent 60%);
+            mix-blend-mode: overlay;
         }
 
         /* 3D 球體樣式 */
@@ -202,40 +215,19 @@
 
         /* 掉落動畫 */
         @keyframes dropAndBounce {
-            0% { 
-                top: -120px; /* 從機器內部開始 */
-                opacity: 1;
-                transform: scale(0.8);
-            }
-            40% {
-                top: 15px; /* 撞到底部 */
-                transform: scale(1);
-            }
-            55% {
-                top: -10px; /* 第一次彈起 */
-            }
-            70% {
-                top: 15px; /* 第二次落地 */
-            }
-            85% {
-                top: 5px; /* 小彈 */
-            }
-            100% {
-                top: 10px; /* 停住 */
-                opacity: 1;
-                width: 120px; /* 變大 */
-                height: 120px;
-                font-size: 22px;
-                transform: rotate(360deg);
-                z-index: 50; /* 跳到最前面 */
-            }
+            0% { top: -120px; opacity: 1; transform: scale(0.8); }
+            40% { top: 15px; transform: scale(1); }
+            55% { top: -10px; }
+            70% { top: 15px; }
+            85% { top: 5px; }
+            100% { top: 10px; opacity: 1; width: 120px; height: 120px; font-size: 22px; transform: rotate(360deg); z-index: 50; }
         }
 
         .winner-ball.animate-drop {
             animation: dropAndBounce 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         }
 
-        /* 機器震動動畫 */
+        /* 機器震動動畫 (位置) */
         @keyframes rumble {
             0% { transform: translate(1px, 1px) rotate(0deg); }
             25% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -244,8 +236,32 @@
             100% { transform: translate(1px, -1px) rotate(1deg); }
         }
 
+        /* 邊框發光動畫 (光影) */
+        @keyframes border-pulse {
+            0%, 100% { 
+                box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.3); 
+                border-color: var(--machine-border);
+            }
+            50% { 
+                box-shadow: inset 0 0 20px rgba(255,255,255,0.3), 0 0 50px var(--winner-color); 
+                border-color: #fff;
+            }
+        }
+
+        /* 內部閃光動畫 */
+        @keyframes flash-internal {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+
+        /* 搖動狀態類別：結合震動、發光與閃爍 */
         .shaking {
-            animation: rumble 0.1s infinite;
+            animation: rumble 0.1s infinite, border-pulse 0.4s infinite;
+        }
+        
+        .shaking .light-effect {
+            animation: flash-internal 0.2s infinite; /* 快速閃爍 */
         }
 
         /* 按鈕樣式 */
@@ -258,6 +274,11 @@
         .custom-btn:active { transform: scale(0.95); }
         .custom-btn:disabled { background-color: #7f8c8d; cursor: not-allowed; transform: none; }
         
+        /* 賽博模式的特殊光影調整 */
+        .cyber-theme .shaking {
+            /* 賽博模式下光暈更強 */
+            animation: rumble 0.1s infinite, border-pulse 0.3s infinite;
+        }
         .cyber-theme .machine-container {
             box-shadow: 0 0 20px var(--machine-border), inset 0 0 30px rgba(0,0,0,0.8);
         }
@@ -307,6 +328,9 @@
             <div class="relative flex flex-col items-center">
                 <!-- 1. 球形機身 -->
                 <div class="machine-container" id="machine">
+                    <!-- 新增：光影特效層 -->
+                    <div class="light-effect"></div>
+                    
                     <div class="balls-wrapper" id="ballsArea">
                         <!-- JS 生成球體 -->
                     </div>
@@ -368,7 +392,6 @@
             let timerID;
 
             // C Major Arpeggio sequence (復古遊戲風)
-            // 頻率對應: C4, E4, G4, C5, E5, C5, G4, E4
             const melody = [
                 261.63, 329.63, 392.00, 523.25, 659.25, 523.25, 392.00, 329.63
             ];
@@ -402,7 +425,7 @@
                     if (noteIndex % 4 === 0) {
                         const bassOsc = audioCtx.createOscillator();
                         const bassGain = audioCtx.createGain();
-                        bassOsc.type = 'triangle'; // 三角波比較渾厚
+                        bassOsc.type = 'triangle'; 
                         bassOsc.frequency.value = freq / 4; // 低兩八度
                         
                         bassGain.gain.setValueAtTime(0.15, nextNoteTime);
