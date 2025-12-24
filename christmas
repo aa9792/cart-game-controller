@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎄 聖誕節交換禮物搖獎機 🎁</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            /* 預設風格：溫馨聖誕 */
+            --bg-color: #f0f4f8;
+            --bg-pattern: radial-gradient(#dbeafe 1px, transparent 1px);
+            --bg-size: 20px 20px;
+            
+            --machine-bg: #c0392b;
+            --machine-border: #f1c40f;
+            --glass-reflection: rgba(255, 255, 255, 0.2);
+            
+            --text-primary: #2c3e50;
+            --accent-color: #27ae60;
+            --btn-text: #ffffff;
+            
+            --ball-base: #ecf0f1;
+            --ball-shadow: #bdc3c7;
+            --ball-text: #c0392b;
+            --winner-color: #f1c40f;
+            
+            --pipe-color: rgba(255, 255, 255, 0.4);
+            --tray-color: #34495e;
+
+            --font-main: 'Noto Sans TC', sans-serif;
+        }
+
+        body.cyber-theme {
+            /* 風格二：酷炫霓虹 */
+            --bg-color: #0f0f1a;
+            --bg-pattern: linear-gradient(0deg, transparent 24%, rgba(0, 255, 234, .3) 25%, rgba(0, 255, 234, .3) 26%, transparent 27%, transparent 74%, rgba(0, 255, 234, .3) 75%, rgba(0, 255, 234, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 255, 234, .3) 25%, rgba(0, 255, 234, .3) 26%, transparent 27%, transparent 74%, rgba(0, 255, 234, .3) 75%, rgba(0, 255, 234, .3) 76%, transparent 77%, transparent);
+            --bg-size: 50px 50px;
+
+            --machine-bg: rgba(20, 20, 40, 0.8);
+            --machine-border: #00ffea;
+            --glass-reflection: rgba(0, 255, 234, 0.1);
+
+            --text-primary: #00ffea;
+            --accent-color: #ff00ff;
+            --btn-text: #ffffff;
+
+            --ball-base: #2c2c2c;
+            --ball-shadow: #000;
+            --ball-text: #ff00ff;
+            --winner-color: #ff00ff;
+            
+            --pipe-color: rgba(0, 255, 234, 0.2);
+            --tray-color: #1a1a2e;
+
+            --font-main: 'Share Tech Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: var(--bg-pattern);
+            background-size: var(--bg-size);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            transition: all 0.5s ease;
+        }
+
+        /* 搖獎機主體 */
+        .machine-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border: 12px solid var(--machine-border);
+            border-radius: 50%;
+            background-color: var(--machine-bg);
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 
+                inset 0 0 50px rgba(0,0,0,0.5),
+                0 10px 30px rgba(0,0,0,0.3);
+            transition: all 0.5s ease;
+            z-index: 20; /* 確保在最上層 */
+        }
+
+        /* 玻璃反光效果 */
+        .machine-container::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 100px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--glass-reflection);
+            transform: rotate(-45deg);
+            pointer-events: none;
+        }
+
+        /* 3D 球體樣式 */
+        .ball {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            /* 3D 漸層球體 */
+            background: radial-gradient(circle at 35% 35%, #fff 5%, var(--ball-base) 40%, var(--ball-shadow) 95%);
+            color: var(--ball-text);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 2px 5px 10px rgba(0,0,0,0.4);
+            transition: transform 0.1s linear;
+            user-select: none;
+            z-index: 10;
+        }
+        
+        /* 霓虹模式的球 */
+        .cyber-theme .ball {
+            background: radial-gradient(circle at 30% 30%, #fff 0%, var(--ball-base) 30%, #000 100%);
+            box-shadow: 0 0 10px var(--ball-text);
+            border: 1px solid var(--ball-text);
+        }
+
+        /* 出球口閘門 (視覺裝飾) */
+        .exit-gate {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 30px;
+            background: #2c3e50;
+            border-top: 5px solid #bdc3c7;
+            border-radius: 10px 10px 0 0;
+            z-index: 15;
+        }
+
+        /* 連接管線 */
+        .pipe-connector {
+            width: 60px;
+            height: 60px;
+            margin: -10px auto 0; /* 接在球體下方 */
+            background: linear-gradient(90deg, rgba(255,255,255,0.1), var(--pipe-color), rgba(255,255,255,0.1));
+            border-left: 2px solid rgba(255,255,255,0.3);
+            border-right: 2px solid rgba(255,255,255,0.3);
+            position: relative;
+            z-index: 5;
+            backdrop-filter: blur(2px);
+        }
+
+        /* 領獎托盤 */
+        .winner-tray {
+            width: 280px;
+            height: 80px;
+            background: var(--tray-color);
+            margin: 0 auto;
+            border-radius: 0 0 20px 20px;
+            border: 4px solid var(--machine-border);
+            border-top: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 中獎球動畫 CSS */
+        .winner-ball {
+            position: absolute;
+            /* 初始狀態：隱藏在管線上方 */
+            top: -100px; 
+            width: 44px;
+            height: 44px;
+            background: radial-gradient(circle at 35% 35%, #fff 5%, var(--winner-color) 40%, #e67e22 95%);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0;
+            z-index: 8; /* 在管線後面 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            text-align: center;
+            line-height: 1.1;
+            padding: 2px;
+            overflow: hidden;
+            word-break: break-all;
+        }
+        
+        .cyber-theme .winner-ball {
+             background: radial-gradient(circle at 35% 35%, #fff 0%, var(--winner-color) 50%, #000 100%);
+             box-shadow: 0 0 20px var(--winner-color);
+        }
+
+        /* 掉落動畫 */
+        @keyframes dropAndBounce {
+            0% { 
+                top: -120px; /* 從機器內部開始 */
+                opacity: 1;
+                transform: scale(0.8);
+            }
+            40% {
+                top: 15px; /* 撞到底部 */
+                transform: scale(1);
+            }
+            55% {
+                top: -10px; /* 第一次彈起 */
+            }
+            70% {
+                top: 15px; /* 第二次落地 */
+            }
+            85% {
+                top: 5px; /* 小彈 */
+            }
+            100% {
+                top: 10px; /* 停住 */
+                opacity: 1;
+                width: 120px; /* 變大 */
+                height: 120px;
+                font-size: 22px;
+                transform: rotate(360deg);
+                z-index: 50; /* 跳到最前面 */
+            }
+        }
+
+        .winner-ball.animate-drop {
+            animation: dropAndBounce 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        /* 機器震動動畫 */
+        @keyframes rumble {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            25% { transform: translate(-1px, -2px) rotate(-1deg); }
+            50% { transform: translate(-3px, 0px) rotate(1deg); }
+            75% { transform: translate(3px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -1px) rotate(1deg); }
+        }
+
+        .shaking {
+            animation: rumble 0.1s infinite;
+        }
+
+        /* 按鈕樣式 */
+        .custom-btn {
+            background-color: var(--accent-color);
+            color: var(--btn-text);
+            transition: all 0.2s;
+        }
+        .custom-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
+        .custom-btn:active { transform: scale(0.95); }
+        .custom-btn:disabled { background-color: #7f8c8d; cursor: not-allowed; transform: none; }
+        
+        .cyber-theme .machine-container {
+            box-shadow: 0 0 20px var(--machine-border), inset 0 0 30px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <!-- 標題區 -->
+    <header class="text-center mb-6 relative z-10">
+        <h1 class="text-3xl md:text-5xl font-bold mb-2 drop-shadow-lg transition-colors duration-300">
+            🎄 交換禮物搖獎機 🎁
+        </h1>
+        <p class="opacity-80 text-lg">抽出今天的幸運兒！</p>
+    </header>
+
+    <main class="w-full max-w-5xl flex flex-col md:flex-row gap-8 items-start justify-center">
+        
+        <!-- 左側：設定區 -->
+        <div class="w-full md:w-1/3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-6 rounded-2xl shadow-xl transition-colors duration-300">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span>📝</span> 參加名單
+            </h2>
+            <div class="mb-4">
+                <textarea id="nameInput" 
+                    class="w-full h-40 p-3 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none resize-none text-gray-700 bg-white/90 text-base transition-all"
+                    placeholder="在此輸入名字，一行一個&#10;或是用逗號分隔"></textarea>
+            </div>
+            
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-sm font-medium opacity-70">剩餘人數: <span id="count" class="text-xl font-bold">0</span></span>
+                <button onclick="initBalls()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm transition-colors">
+                    🔄 更新/重置
+                </button>
+            </div>
+
+            <div class="border-t border-gray-300/30 pt-4">
+                <button onclick="toggleTheme()" class="w-full py-2 border-2 border-current rounded-lg font-bold hover:bg-current hover:bg-opacity-10 transition-all flex justify-center items-center gap-2">
+                    <span id="themeIcon">🎨</span> 切換風格
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側：搖獎機台 -->
+        <div class="w-full md:w-2/3 flex flex-col items-center">
+            
+            <!-- 整個機器結構 -->
+            <div class="relative flex flex-col items-center">
+                <!-- 1. 球形機身 -->
+                <div class="machine-container" id="machine">
+                    <div class="balls-wrapper" id="ballsArea">
+                        <!-- JS 生成球體 -->
+                    </div>
+                    <div class="exit-gate"></div>
+                </div>
+
+                <!-- 2. 連接管線 -->
+                <div class="pipe-connector"></div>
+
+                <!-- 3. 接球盤 -->
+                <div class="winner-tray">
+                    <!-- 中獎球會在這裡出現 -->
+                    <div class="winner-ball" id="winnerBall">?</div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="mt-8">
+                <button id="drawBtn" onclick="startLottery()" disabled 
+                    class="custom-btn text-2xl px-12 py-4 rounded-full font-bold shadow-lg flex items-center gap-3">
+                    <span>🎁</span> 立即搖獎
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 text-center opacity-60 text-sm pb-8">
+        <p>Tip: 記得開啟聲音以獲得最佳體驗 🔊</p>
+    </footer>
+
+    <script>
+        // --- 全域變數 ---
+        let participants = [];
+        let isAnimating = false;
+        let audioCtx = null;
+        let animationFrameId;
+        
+        // 預設名單
+        const defaultNames = "聖誕老人\n魯道夫\n雪人\n小精靈\n胡桃鉗\n薑餅人";
+        document.getElementById('nameInput').value = defaultNames;
+
+        // --- 音效系統 (Web Audio API) ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 搖獎聲音 (低頻馬達 + 撞擊聲)
+        function playRumbleSound() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(40, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 3);
+
+            // 模擬不規則撞擊聲
+            const lfo = audioCtx.createOscillator();
+            lfo.frequency.value = 15;
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.3;
+            lfo.connect(lfoGain);
+            lfoGain.connect(gain.gain);
+            lfo.start();
+
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            
+            return {
+                stop: () => {
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                    osc.stop(audioCtx.currentTime + 0.5);
+                    lfo.stop(audioCtx.currentTime + 0.5);
+                }
+            };
+        }
+
+        // 掉落與中獎音效
+        function playDropAndWinSound() {
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            // 1. 掉落咻聲 (滑音)
+            const dropOsc = audioCtx.createOscillator();
+            const dropGain = audioCtx.createGain();
+            dropOsc.frequency.setValueAtTime(800, now);
+            dropOsc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+            dropGain.gain.setValueAtTime(0.2, now);
+            dropGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            dropOsc.connect(dropGain);
+            dropGain.connect(audioCtx.destination);
+            dropOsc.start(now);
+            dropOsc.stop(now + 0.3);
+
+            // 2. 撞擊聲 (短促噪音)
+            setTimeout(() => {
+                const clickOsc = audioCtx.createOscillator();
+                const clickGain = audioCtx.createGain();
+                clickOsc.type = 'square';
+                clickOsc.frequency.value = 100;
+                clickGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                clickGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                clickOsc.connect(clickGain);
+                clickGain.connect(audioCtx.destination);
+                clickOsc.start();
+                clickOsc.stop(audioCtx.currentTime + 0.1);
+            }, 300); // 配合動畫落地時間
+
+            // 3. 勝利音樂 (Do-Mi-Sol-Do)
+            setTimeout(() => {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + i * 0.1);
+                    osc.stop(audioCtx.currentTime + 1.5);
+                });
+            }, 800); // 動畫完全結束後
+        }
+
+        // 語音合成
+        function speakName(name) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(`恭喜 ${name}！`);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.1;
+                const voices = window.speechSynthesis.getVoices();
+                const zhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('TW'));
+                if (zhVoice) utterance.voice = zhVoice;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- 核心邏輯 ---
+
+        function initBalls() {
+            const rawText = document.getElementById('nameInput').value;
+            participants = rawText.split(/[,\n]/).map(s => s.trim()).filter(s => s !== "");
+            
+            renderBalls(participants);
+            updateCount();
+            resetWinnerDisplay();
+            
+            const btn = document.getElementById('drawBtn');
+            if (participants.length > 0) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🎁</span> 立即搖獎';
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+            }
+        }
+
+        function renderBalls(list) {
+            const container = document.getElementById('ballsArea');
+            container.innerHTML = '';
+            
+            const displayCount = Math.min(list.length, 25); // 最多顯示25顆
+
+            for(let i=0; i<displayCount; i++) {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+                // 為了視覺好看，取名字前兩個字
+                ball.innerText = list[i].substring(0,2);
+                ball.style.fontSize = list[i].length > 2 ? '10px' : '14px';
+                
+                // 初始位置
+                const top = Math.random() * 260 + 10;
+                const left = Math.random() * 260 + 10;
+                ball.style.top = `${top}px`;
+                ball.style.left = `${left}px`;
+                
+                // 物理屬性
+                ball.dataset.vx = (Math.random() - 0.5) * 12;
+                ball.dataset.vy = (Math.random() - 0.5) * 12;
+                
+                container.appendChild(ball);
+            }
+        }
+
+        function updateCount() {
+            document.getElementById('count').innerText = participants.length;
+        }
+
+        function resetWinnerDisplay() {
+            const wb = document.getElementById('winnerBall');
+            wb.classList.remove('animate-drop');
+            wb.innerText = "?";
+            wb.style.opacity = 0;
+        }
+
+        // 物理引擎動畫
+        function animateBalls(speedMultiplier = 1.0) {
+            const balls = document.querySelectorAll('.machine-container .ball');
+            const size = 320; 
+            const ballR = 22;
+
+            balls.forEach(ball => {
+                let x = parseFloat(ball.style.left);
+                let y = parseFloat(ball.style.top);
+                let vx = parseFloat(ball.dataset.vx) * speedMultiplier;
+                let vy = parseFloat(ball.dataset.vy) * speedMultiplier;
+
+                x += vx;
+                y += vy;
+
+                // 邊界反彈
+                if (x <= 0 || x >= size - ballR*2) {
+                    vx *= -1;
+                    x = Math.max(0, Math.min(x, size - ballR*2));
+                }
+                if (y <= 0 || y >= size - ballR*2) {
+                    vy *= -1;
+                    y = Math.max(0, Math.min(y, size - ballR*2));
+                }
+                
+                // 隨機擾動 (模擬風力)
+                vx += (Math.random() - 0.5) * 1;
+                vy += (Math.random() - 0.5) * 1;
+
+                ball.dataset.vx = vx / speedMultiplier; // 存回基礎速度
+                ball.dataset.vy = vy / speedMultiplier;
+                ball.style.left = `${x}px`;
+                ball.style.top = `${y}px`;
+                
+                // 旋轉效果
+                ball.style.transform = `rotate(${x * 2}deg)`;
+            });
+
+            if (isAnimating) {
+                animationFrameId = requestAnimationFrame(() => animateBalls(speedMultiplier));
+            }
+        }
+
+        function startLottery() {
+            if(isAnimating) return;
+            if(participants.length === 0) {
+                alert("名單已空！請重新匯入。");
+                return;
+            }
+
+            initAudio();
+            isAnimating = true;
+            resetWinnerDisplay();
+            
+            const drawBtn = document.getElementById('drawBtn');
+            drawBtn.disabled = true;
+            
+            const machine = document.getElementById('machine');
+            machine.classList.add('shaking');
+
+            // 1. 開始劇烈搖動 (3秒)
+            const rumbleSound = playRumbleSound();
+            animateBalls(1.5); // 高速模式
+
+            // 2. 減速階段 (1秒)
+            setTimeout(() => {
+                isAnimating = false; // 暫停舊的 loop
+                cancelAnimationFrame(animationFrameId);
+                
+                isAnimating = true; // 開啟新的 loop
+                animateBalls(0.5); // 低速模式
+                rumbleSound.stop();
+            }, 2500);
+
+            // 3. 停止並掉落球 (總共約 3.5 秒後)
+            setTimeout(() => {
+                isAnimating = false;
+                cancelAnimationFrame(animationFrameId);
+                machine.classList.remove('shaking');
+                
+                processWinnerDrop();
+
+            }, 3500);
+        }
+
+        function processWinnerDrop() {
+            // 選出得獎者
+            const randomIndex = Math.floor(Math.random() * participants.length);
+            const winnerName = participants[randomIndex];
+            participants.splice(randomIndex, 1); // 移除
+
+            // 執行掉落動畫
+            const wb = document.getElementById('winnerBall');
+            wb.innerText = winnerName;
+            wb.classList.add('animate-drop');
+            
+            // 音效與語音
+            playDropAndWinSound();
+            setTimeout(() => {
+                speakName(winnerName);
+            }, 1200); // 等球落地彈完再講話
+
+            // 更新剩餘球數
+            updateCount();
+            renderBalls(participants);
+
+            // 按鈕恢復
+            setTimeout(() => {
+                const btn = document.getElementById('drawBtn');
+                if (participants.length > 0) {
+                    btn.disabled = false;
+                } else {
+                    btn.innerHTML = '🎉 抽獎結束';
+                }
+            }, 2000);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('cyber-theme');
+            const isCyber = document.body.classList.contains('cyber-theme');
+            const themeIcon = document.getElementById('themeIcon');
+            themeIcon.innerText = isCyber ? '🎄' : '🎨';
+            const btn = document.querySelector('button[onclick="toggleTheme()"]');
+            if(isCyber) {
+                btn.innerHTML = '<span id="themeIcon">🎄</span> 切換回聖誕風格';
+            } else {
+                btn.innerHTML = '<span id="themeIcon">🕶️</span> 切換賽博龐克';
+            }
+        }
+
+        window.onload = function() {
+            initBalls();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+        };
+    </script>
+</body>
+</html>
