@@ -283,7 +283,7 @@
                                 <div className="space-y-10">
                                     <section>
                                         <h2 className="text-lg font-bold mb-4 border-l-4 border-indigo-600 pl-3">教學配課精算 (14 師 / 140 節)</h2>
-                                        <table className="w-full border-collapse text-sm border border-slate-100">
+                                        <table className="w-full border-collapse text-sm border border-slate-100 mb-4">
                                             <thead>
                                                 <tr className="bg-slate-50 text-slate-600 text-left">
                                                     <th className="border p-3">人員分類</th>
@@ -300,6 +300,37 @@
                                                 <tr className="bg-slate-800 text-white font-bold"><td colSpan="3" className="border p-3 text-right">每週總授課量</td><td className="border p-3 text-right">140 節</td></tr>
                                             </tbody>
                                         </table>
+
+                                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                            <h4 className="text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                                <svg className="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                教師代碼對照說明 (Code Legend)
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center">
+                                                        <span className="w-12 font-mono font-bold text-indigo-700 bg-indigo-50 px-1 rounded mr-2">CT</span>
+                                                        <span className="text-slate-600 font-medium">Chinese Teacher (中師)</span>
+                                                    </div>
+                                                    <ul className="pl-14 list-disc text-slate-500 space-y-0.5">
+                                                        <li><span className="font-mono text-indigo-600">CT 1-3</span> : 處室主任 (兼任少量學科)</li>
+                                                        <li><span className="font-mono text-indigo-600">CT 4-7</span> : 行政組長 (兼任國語/數學)</li>
+                                                    </ul>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center">
+                                                        <span className="w-12 font-mono font-bold text-emerald-700 bg-emerald-50 px-1 rounded mr-2">ET</span>
+                                                        <span className="text-slate-600 font-medium">English Teacher (外師)</span>
+                                                    </div>
+                                                    <ul className="pl-14 list-disc text-slate-500 space-y-0.5">
+                                                        <li><span className="font-mono text-emerald-600">ET 1-4</span> : 班級導師 (LA/Social/探索)</li>
+                                                        <li><span className="font-mono text-emerald-600">ET 5-7</span> : 專任教師 (Science/Arts/PE)</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </section>
                                     <section>
                                         <h2 className="text-lg font-bold mb-4 border-l-4 border-indigo-600 pl-3">每日作息時間 (40分鐘制)</h2>
