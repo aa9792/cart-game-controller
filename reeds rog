@@ -1,0 +1,420 @@
+import React, { useState } from 'react';
+
+const SchoolScheduleApp = () => {
+  const [activeTab, setActiveTab] = useState('org');
+
+  // 作息時間表
+  const timeTable = [
+    { period: '晨間', time: '07:40 - 08:20', activity: '晨間運動 / 學生朝會' },
+    { period: '導師時間', time: '08:20 - 08:40', activity: 'Home Room (中外師協同)' },
+    { period: '第 1 節', time: '08:40 - 09:20', activity: '正式授課' },
+    { period: '第 2 節', time: '09:30 - 10:10', activity: '正式授課' },
+    { period: '大休息', time: '10:10 - 10:30', activity: 'Recess (20 min)' },
+    { period: '第 3 節', time: '10:30 - 11:10', activity: '正式授課' },
+    { period: '第 4 節', time: '11:20 - 12:00', activity: '正式授課' },
+    { period: '午餐/休', time: '12:00 - 13:20', activity: 'Lunch & Nap' },
+    { period: '第 5 節', time: '13:20 - 14:00', activity: '正式授課' },
+    { period: '第 6 節', time: '14:10 - 14:50', activity: '正式授課' },
+    { period: '大休息', time: '14:50 - 15:10', activity: 'Recess (20 min)' },
+    { period: '第 7 節', time: '15:10 - 15:50', activity: '正式授課' },
+    { period: '放學', time: '15:50 - 16:00', activity: 'Home Room / 放學準備' },
+  ];
+
+  // 組織職掌詳細數據 (按處室歸類)
+  const officeStaffData = [
+    {
+      office: '教導處 (教學核心)',
+      dean: '教導主任 (1)',
+      members: [
+        { title: '教務/研發組長', count: 2, detail: '負責課務安排、課程研發、SAEAM 計畫推動，並兼任中師語文/數學教學。' },
+        { title: '外師教學團隊 (7)', detail: '包含 4 位班級導師與 3 位專任教師，負責全校雙語學科、主題探索與 LA 教學。' }
+      ],
+      color: 'indigo'
+    },
+    {
+      office: '學輔處 (生活管理)',
+      dean: '學輔主任 (1)',
+      members: [
+        { title: '學務/設備組長', count: 2, detail: '負責學生生活輔導、品德教育、社團活動、教學設備維護，並兼任中師國數教學。' }
+      ],
+      color: 'sky'
+    },
+    {
+      office: '總務處 (後勤行政)',
+      dean: '總務主任 (1)',
+      members: [
+        { title: '後勤行政團隊 (3)', detail: '包含出納、外事兼招生秘書、行政幹事。負責財務管理、招生業務、公文與校園營繕。' }
+      ],
+      color: 'amber'
+    }
+  ];
+
+  const classSchedules = {
+    '1A': [
+      ['語文(CT4)', '語文(CT4)', '語文(CT4)', '語文(CT4)', '探索(ET1+ET5)'],
+      ['數學(CT5)', '數學(CT5)', '數學(CT5)', '數學(CT5)', '探索(ET1+ET5)'],
+      ['LA(ET1)', 'LA(ET1)', 'LA(ET1)', 'LA(ET1)', '探索(ET1+ET6)'],
+      ['LA(ET1)', 'LA(ET1)', 'LA(ET1)', '語文(CT4)', '探索(ET1+ET6)'],
+      ['Social(ET1)', '藝術(ET5)', 'Science(ET6)', '藝術(ET5)', 'LA(ET1)'],
+      ['Social(ET1)', '體育(ET7)', 'Science(ET6)', '體育(ET7)', 'Social(ET1)'],
+      ['IT(ET7)', 'SAEAM(ET5)', '品德(CT1)', '閱讀(CT2)', '社會(CT3)'],
+    ],
+    '1B': [
+      ['LA(ET2)', 'LA(ET2)', 'LA(ET2)', 'LA(ET2)', '探索(ET2+ET5)'],
+      ['LA(ET2)', 'LA(ET2)', 'LA(ET2)', '語文(CT4)', '探索(ET2+ET5)'],
+      ['語文(CT4)', '語文(CT4)', '語文(CT4)', '語文(CT4)', '探索(ET2+ET7)'],
+      ['數學(CT5)', '數學(CT5)', '數學(CT5)', '數學(CT5)', '探索(ET2+ET7)'],
+      ['Science(ET6)', '體育(ET7)', 'Social(ET2)', '體育(ET7)', 'LA(ET2)'],
+      ['Science(ET6)', '藝術(ET5)', 'Social(ET2)', '藝術(ET5)', 'Social(ET2)'],
+      ['社會(CT3)', '閱讀(CT2)', 'IT(ET7)', '品德(CT1)', 'SAEAM(ET5)'],
+    ],
+    '2A': [
+      ['語文(CT6)', '語文(CT6)', '語文(CT6)', '語文(CT6)', '探索(ET3+ET6)'],
+      ['數學(CT7)', '數學(CT7)', '數學(CT7)', '數學(CT7)', '探索(ET3+ET6)'],
+      ['LA(ET3)', 'LA(ET3)', 'LA(ET3)', 'LA(ET3)', '探索(ET3+ET5)'],
+      ['LA(ET3)', 'LA(ET3)', 'LA(ET3)', '語文(CT6)', '探索(ET3+ET5)'],
+      ['體育(ET7)', 'Science(ET6)', '藝術(ET5)', 'Science(ET6)', 'LA(ET3)'],
+      ['藝術(ET5)', 'Social(ET3)', '體育(ET7)', 'Social(ET3)', 'Social(ET3)'],
+      ['SAEAM(ET5)', 'IT(ET7)', '社會(CT3)', '品德(CT1)', '閱讀(CT2)'],
+    ],
+    '3A': [
+      ['LA(ET4)', 'LA(ET4)', 'LA(ET4)', 'LA(ET4)', '探索(ET4+ET7)'],
+      ['LA(ET4)', 'LA(ET4)', 'LA(ET4)', '語文(CT6)', '探索(ET4+ET7)'],
+      ['語文(CT6)', '語文(CT6)', '語文(CT6)', '語文(CT6)', '探索(ET4+ET6)'],
+      ['數學(CT7)', '數學(CT7)', '數學(CT7)', '數學(CT7)', '探索(ET4+ET6)'],
+      ['藝術(ET5)', 'Social(ET4)', '體育(ET7)', 'Social(ET4)', 'LA(ET4)'],
+      ['IT(ET7)', 'Science(ET6)', '藝術(ET5)', 'Science(ET6)', 'Social(ET4)'],
+      ['社會(CT3)', '品德(CT1)', 'SAEAM(ET5)', '體育(ET7)', '閱讀(CT2)'],
+    ]
+  };
+
+  const teacherMapping = {
+    '1A': [
+      { category: '中師團隊', subject: '語文讀寫', code: 'CT4', role: '教務組長' },
+      { category: '中師團隊', subject: '數學邏輯', code: 'CT5', role: '學務組長' },
+      { category: '中師團隊', subject: '品德/閱讀/社會', code: 'CT1-3', role: '各處室主任' },
+      { category: '外師團隊', subject: 'LA/Social/探索', code: 'ET1', role: '班級導師' },
+      { category: '外師團隊', subject: 'Science/Arts/PE', code: 'ET5-7', role: '專任教師' },
+    ],
+    '1B': [
+      { category: '中師團隊', subject: '語文讀寫', code: 'CT4', role: '教務組長' },
+      { category: '中師團隊', subject: '數學邏輯', code: 'CT5', role: '學務組長' },
+      { category: '中師團隊', subject: '品德/閱讀/社會', code: 'CT1-3', role: '各處室主任' },
+      { category: '外師團隊', subject: 'LA/Social/探索', code: 'ET2', role: '班級導師' },
+      { category: '外師團隊', subject: 'Science/Arts/PE', code: 'ET5-7', role: '專任教師' },
+    ],
+    '2A': [
+      { category: '中師團隊', subject: '語文讀寫', code: 'CT6', role: '研發組長' },
+      { category: '中師團隊', subject: '數學邏輯', code: 'CT7', role: '設備組長' },
+      { category: '中師團隊', subject: '品德/閱讀/社會', code: 'CT1-3', role: '各處室主任' },
+      { category: '外師團隊', subject: 'LA/Social/探索', code: 'ET3', role: '班級導師' },
+      { category: '外師團隊', subject: 'Science/Arts/PE', code: 'ET5-7', role: '專任教師' },
+    ],
+    '3A': [
+      { category: '中師團隊', subject: '語文讀寫', code: 'CT6', role: '研發組長' },
+      { category: '中師團隊', subject: '數學邏輯', code: 'CT7', role: '設備組長' },
+      { category: '中師團隊', subject: '品德/閱讀/社會', code: 'CT1-3', role: '各處室主任' },
+      { category: '外師團隊', subject: 'LA/Social/探索', code: 'ET4', role: '班級導師' },
+      { category: '外師團隊', subject: 'Science/Arts/PE', code: 'ET5-7', role: '專任教師' },
+    ]
+  };
+
+  const days = ['星期一', '星期二', '星期三', '星期四', '星期五'];
+
+  const OrgChart = () => (
+    <div className="py-10 bg-slate-50 rounded-xl border border-slate-200 overflow-x-auto mb-8 shadow-inner">
+      <div className="flex flex-col items-center min-w-[1000px]">
+        {/* 校長 */}
+        <div className="w-56 p-4 bg-slate-800 text-white text-center rounded-xl shadow-lg font-bold border-2 border-slate-700 relative z-10">
+          校長室 (1)
+        </div>
+        
+        <div className="w-0.5 h-10 bg-slate-300"></div>
+        
+        {/* 三個處室主任 */}
+        <div className="flex space-x-24 relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[720px] h-0.5 bg-slate-300"></div>
+          
+          {/* 教導處 */}
+          <div className="flex flex-col items-center">
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="w-44 p-2 bg-indigo-600 text-white text-center rounded shadow-md text-sm font-bold">教導處 (1)</div>
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="space-y-4">
+              <div className="w-44 p-1.5 bg-white border border-indigo-200 text-center rounded text-xs shadow-sm font-bold text-indigo-800">教務組 / 研發組 (2)</div>
+              
+              <div className="flex flex-col items-center">
+                <div className="w-0.5 h-4 bg-indigo-200"></div>
+                <div className="w-48 p-2 bg-emerald-600 text-white text-center rounded-lg shadow-sm text-xs font-bold">外師教學團隊 (7)</div>
+                <div className="w-0.5 h-4 bg-emerald-200"></div>
+                {/* 外師細分 */}
+                <div className="flex space-x-2">
+                  <div className="w-24 p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-center rounded text-[10px] font-bold">4 位班級導師</div>
+                  <div className="w-24 p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-center rounded text-[10px] font-bold">3 位專任教師</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 學輔處 */}
+          <div className="flex flex-col items-center">
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="w-44 p-2 bg-sky-600 text-white text-center rounded shadow-md text-sm font-bold">學輔處 (1)</div>
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="w-44 p-1.5 bg-white border border-sky-200 text-center rounded text-xs shadow-sm font-bold text-sky-800">學務組 / 設備組 (2)</div>
+          </div>
+
+          {/* 總務處 */}
+          <div className="flex flex-col items-center">
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="w-44 p-2 bg-amber-600 text-white text-center rounded shadow-md text-sm font-bold">總務處 (1)</div>
+            <div className="w-0.5 h-6 bg-slate-300"></div>
+            <div className="space-y-4">
+              <div className="w-44 p-1.5 bg-white border border-amber-200 text-center rounded text-xs shadow-sm font-bold text-amber-800">營繕 / 財務管理</div>
+              
+              <div className="flex flex-col items-center">
+                <div className="w-0.5 h-4 bg-amber-200"></div>
+                <div className="w-48 p-2 bg-slate-600 text-white text-center rounded-lg shadow-sm text-xs font-bold">後勤行政團隊 (3)</div>
+                <div className="w-0.5 h-4 bg-slate-300"></div>
+                {/* 後勤細分 */}
+                <div className="flex flex-col space-y-1">
+                  <div className="w-36 p-1 bg-slate-100 border border-slate-200 text-slate-700 text-center rounded text-[10px] font-bold">出納</div>
+                  <div className="w-36 p-1 bg-slate-100 border border-slate-200 text-slate-700 text-center rounded text-[10px] font-bold">外事兼招生秘書</div>
+                  <div className="w-36 p-1 bg-slate-100 border border-slate-200 text-slate-700 text-center rounded text-[10px] font-bold">行政幹事</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-50 text-slate-900 font-sans p-6 overflow-hidden">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">招生第一年：教職員職掌與配課管理</h1>
+        <div className="flex items-center space-x-4 text-sm text-slate-500">
+          <span>員額：1 校長, 14 師, 3 職員 (共 18 位)</span>
+          <span className="text-slate-300">|</span>
+          <span>比例：中師 7 (含行政) : 外師 7</span>
+        </div>
+      </div>
+
+      <div className="flex space-x-2 mb-4 bg-slate-200 p-1 rounded-lg w-max shadow-inner">
+        <button onClick={() => setActiveTab('org')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'org' ? 'bg-white shadow text-indigo-700' : 'hover:bg-slate-300 text-slate-600'}`}>組織職掌與架構</button>
+        <button onClick={() => setActiveTab('summary')} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'summary' ? 'bg-white shadow text-indigo-700' : 'hover:bg-slate-300 text-slate-600'}`}>課務配課統計</button>
+        {Object.keys(classSchedules).map(cls => (
+          <button key={cls} onClick={() => setActiveTab(cls)} className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === cls ? 'bg-white shadow text-indigo-700' : 'hover:bg-slate-300 text-slate-600'}`}>{cls} 課表</button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-auto bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        {activeTab === 'org' && (
+          <div className="space-y-12">
+            <section>
+              <div className="flex items-center mb-6">
+                <div className="w-1.5 h-6 bg-indigo-600 mr-3 rounded-full"></div>
+                <h2 className="text-xl font-bold text-slate-800">一、 學校行政組織架構 (招生首年)</h2>
+              </div>
+              <OrgChart />
+              
+              {/* 人員組成概況區塊 - 增加授課節數資訊 */}
+              <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 shadow-inner">
+                <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center">
+                   <svg className="w-4 h-4 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 005.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                   教職員組成概況 (Personnel Composition)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors">
+                    <div className="text-xs text-slate-400 font-bold uppercase mb-1">校級領導</div>
+                    <div className="text-2xl font-black text-slate-800">1 <span className="text-sm font-normal text-slate-500">位</span></div>
+                    <div className="mt-2 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded inline-block">每週授課：0 節</div>
+                    <div className="text-[10px] text-indigo-600 font-medium mt-1">校長 (不授課)</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors">
+                    <div className="text-xs text-slate-400 font-bold uppercase mb-1">處室主任</div>
+                    <div className="text-2xl font-black text-indigo-600">3 <span className="text-sm font-normal text-slate-500">位</span></div>
+                    <div className="mt-2 text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded inline-block font-bold">每週授課：2 節 / 人</div>
+                    <div className="text-[10px] text-slate-500 mt-1">教導、學輔、總務主任 (中師)</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors">
+                    <div className="text-xs text-slate-400 font-bold uppercase mb-1">行政組長 / 教學</div>
+                    <div className="text-2xl font-black text-indigo-600">4 <span className="text-sm font-normal text-slate-500">位</span></div>
+                    <div className="mt-2 text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded inline-block font-bold">每週授課：8.5 節 / 人</div>
+                    <div className="text-[10px] text-slate-500 mt-1">教務、學務、研發、設備組長 (中師)</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:border-emerald-200 transition-colors">
+                    <div className="text-xs text-slate-400 font-bold uppercase mb-1">外師教學團隊</div>
+                    <div className="text-2xl font-black text-emerald-600">7 <span className="text-sm font-normal text-slate-500">位</span></div>
+                    <div className="mt-2 text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded inline-block font-bold">每週授課：12-15 節 / 人</div>
+                    <div className="text-[10px] text-slate-500 mt-1">4 班導師 + 3 專任教師</div>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-white/50 rounded-lg text-xs text-slate-500 leading-relaxed border border-dashed border-slate-200 text-center">
+                  <span className="font-bold text-indigo-700">教學總能量：</span> 每週共計消化 <span className="font-bold text-indigo-900">140 節</span> 課程 (中外師協力完成) | <span className="font-bold">編制總額 18 位</span>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center mb-6">
+                <div className="w-1.5 h-6 bg-indigo-600 mr-3 rounded-full"></div>
+                <h2 className="text-xl font-bold text-slate-800">二、 各處室詳細職掌與成員</h2>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {officeStaffData.map((office, idx) => (
+                  <div key={idx} className={`border rounded-xl overflow-hidden border-${office.color}-100 shadow-sm hover:shadow-md transition-shadow`}>
+                    <div className={`bg-${office.color}-600 p-4 text-white`}>
+                      <div className="text-xs uppercase tracking-widest opacity-80 mb-1">Office Unit</div>
+                      <div className="text-lg font-bold">{office.office}</div>
+                      <div className="text-xs mt-2 font-medium bg-white/20 inline-block px-2 py-1 rounded text-center min-w-[120px]">主管：{office.dean}</div>
+                    </div>
+                    <div className="p-5 space-y-6">
+                      {office.members.map((m, mIdx) => (
+                        <div key={mIdx}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-slate-800 text-sm">{m.title}</span>
+                            <span className={`text-xs font-bold text-${office.color}-700 bg-${office.color}-50 px-2 py-1 rounded-md`}>{m.count} 位</span>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">{m.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeTab === 'summary' && (
+          <div className="space-y-10">
+            <section>
+              <h2 className="text-lg font-bold mb-4 border-l-4 border-indigo-600 pl-3">教學配課精算 (14 師 / 140 節)</h2>
+              <table className="w-full border-collapse text-sm border border-slate-100">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600">
+                    <th className="border p-3 text-left">人員分類</th>
+                    <th className="border p-3 text-left">代碼與科目</th>
+                    <th className="border p-3 text-right">每人節數</th>
+                    <th className="border p-3 text-right">小計</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border p-3 font-semibold">中師主任 (3位)</td>
+                    <td className="border p-3 text-slate-500">CT1-3 品德 / 閱讀 / 社會</td>
+                    <td className="border p-3 text-right">2 節</td>
+                    <td className="border p-3 text-right">6 節</td>
+                  </tr>
+                  <tr>
+                    <td className="border p-3 font-semibold">中師組長 (4位)</td>
+                    <td className="border p-3 text-slate-500">CT4-7 班級國語讀寫 / 數學邏輯</td>
+                    <td className="border p-3 text-right">8.5 節</td>
+                    <td className="border p-3 text-right">34 節</td>
+                  </tr>
+                  <tr className="bg-emerald-50/50">
+                    <td className="border p-3 font-semibold text-emerald-800">外師導師 (4位)</td>
+                    <td className="border p-3 text-emerald-600">ET1-4 LA / Social / 探索教育</td>
+                    <td className="border p-3 text-right">15 節</td>
+                    <td className="border p-3 text-right">60 節</td>
+                  </tr>
+                  <tr className="bg-emerald-50/50">
+                    <td className="border p-3 font-semibold text-emerald-800">外師專任 (3位)</td>
+                    <td className="border p-3 text-emerald-600">ET5-7 Science / Arts / PE / SAEAM</td>
+                    <td className="border p-3 text-right">13.3 節</td>
+                    <td className="border p-3 text-right">40 節</td>
+                  </tr>
+                  <tr className="bg-slate-800 text-white font-bold">
+                    <td colSpan="3" className="border p-3 text-right">每週總授課量 (4 班 × 35 節)</td>
+                    <td className="border p-3 text-right">140 節</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+            
+            <section>
+              <h2 className="text-lg font-bold mb-4 border-l-4 border-indigo-600 pl-3">每日作息時間 (40分鐘制)</h2>
+              <table className="w-full border-collapse text-sm">
+                <tbody>
+                  {timeTable.map((t, idx) => (
+                    <tr key={idx} className={t.period.includes('休息') || t.period.includes('午餐') ? 'bg-amber-50/50' : 'hover:bg-slate-50'}>
+                      <td className="border p-2 w-24 font-bold text-slate-600">{t.period}</td>
+                      <td className="border p-2 w-32 font-mono text-indigo-600">{t.time}</td>
+                      <td className="border p-2 text-slate-500">{t.activity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </div>
+        )}
+
+        {Object.keys(classSchedules).includes(activeTab) && (
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div>
+              <div className="flex justify-between items-end mb-6 pb-2 border-b-2 border-slate-100">
+                <h2 className="text-3xl font-black text-slate-800">{activeTab} Class Schedule</h2>
+                <div className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">週五 1-4 節：主題探索 (雙外師)</div>
+              </div>
+              <table className="w-full border-collapse table-fixed text-sm rounded-xl overflow-hidden shadow-sm">
+                <thead>
+                  <tr className="bg-slate-800 text-white uppercase tracking-wider text-xs">
+                    <th className="border border-slate-700 p-3 w-28">Period</th>
+                    {days.map(d => <th key={d} className="border border-slate-700 p-3">{d}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {classSchedules[activeTab].map((row, pIdx) => (
+                    <tr key={pIdx}>
+                      <td className="border bg-slate-100 p-3 font-bold text-center border-slate-200">
+                        P{pIdx + 1}<br/>
+                        <span className="text-[10px] text-indigo-500 font-mono font-normal">
+                          {pIdx < 2 ? timeTable[pIdx+2].time.split(' ')[0] : pIdx < 4 ? timeTable[pIdx+3].time.split(' ')[0] : timeTable[pIdx+4].time.split(' ')[0]}
+                        </span>
+                      </td>
+                      {row.map((cell, dIdx) => {
+                        const isExploration = dIdx === 4 && pIdx < 4;
+                        return (
+                          <td key={dIdx} className={`border p-4 text-center border-slate-100 transition-all ${isExploration ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : 'hover:bg-indigo-50/50'}`}>
+                            <div className={`font-bold text-base ${isExploration ? 'text-emerald-700' : 'text-slate-900'}`}>{cell.split('(')[0]}</div>
+                            <div className="text-[10px] text-slate-400 mt-1 uppercase font-semibold">{cell.split('(')[1]?.replace(')', '')}</div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <section className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <span className="w-2 h-6 bg-indigo-600 rounded-full mr-3"></span>
+                班級任課老師與科目對照 (Teacher Assignment)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {teacherMapping[activeTab].map((map, idx) => (
+                  <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{map.category}</div>
+                      <div className="text-sm font-bold text-slate-800">{map.subject}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-mono font-bold text-indigo-600">{map.code}</div>
+                      <div className="text-[10px] text-slate-500">{map.role}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 text-center text-[10px] text-slate-400 font-medium">※ 以上資料基於 18 人編制規劃，支援 Excel 一鍵複製貼上維護。</div>
+    </div>
+  );
+};
+
+export default SchoolScheduleApp;
