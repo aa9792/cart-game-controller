@@ -219,6 +219,7 @@
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
         .logistics-btn { background-color: #374151; padding: 1rem; border-radius: 0.5rem; transition: all 0.2s; border: 1px solid #4b5563; }
         .logistics-btn:hover:not(:disabled) { background-color: #d97706; color: white; transform: scale(1.05); }
+        .logistics-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
         /* Drag & Drop Styles */
         .draggable-card {
@@ -244,6 +245,14 @@
             background-color: rgba(245, 158, 11, 0.1);
             border-color: #fbbf24;
         }
+
+        /* Leaderboard Styles */
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 1rem; color: #e5e7eb; }
+        .leaderboard-table th, .leaderboard-table td { padding: 0.75rem; border-bottom: 1px solid #374151; text-align: left; }
+        .leaderboard-table th { color: #f59e0b; font-weight: bold; border-bottom: 2px solid #d97706; }
+        .leaderboard-table tr:nth-child(1) td { color: #fbbf24; font-weight: bold; text-shadow: 0 0 5px rgba(251,191,36,0.3); } /* Gold */
+        .leaderboard-table tr:nth-child(2) td { color: #e5e7eb; font-weight: bold; } /* Silver */
+        .leaderboard-table tr:nth-child(3) td { color: #b45309; font-weight: bold; } /* Bronze */
     </style>
 </head>
 <body class="overflow-x-hidden">
@@ -257,8 +266,8 @@
         <div class="flex-1 mx-4 max-w-md bg-gray-700 rounded-full h-4">
             <div id="progressBar" class="bg-amber-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
         </div>
-        <div class="text-sm font-bold text-white">
-            積分: <span id="scoreDisplay" class="text-amber-400 text-xl">0</span>
+        <div class="text-sm font-bold text-white text-right">
+            <div>積分: <span id="scoreDisplay" class="text-amber-400 text-xl">0</span></div>
         </div>
     </div>
 
@@ -299,9 +308,24 @@
                 </div>
                 <p id="equipFeedback" class="text-sm font-bold text-amber-400 min-h-[1.5rem] mb-4">請點擊選擇...</p>
                 <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-center" id="equipGrid">
-                    <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'correct', '頭燈：一定要帶！防止瓦斯爆炸，也能照亮黑暗。')"><div class="text-3xl mb-1">🔦</div><div class="text-xs">頭燈</div></div>
+                    <!-- Correct Items -->
+                    <!-- Custom Headlamp SVG -->
+                    <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'correct', '頭燈：一定要帶！防止瓦斯爆炸，也能照亮黑暗。')">
+                        <div class="flex justify-center mb-1 h-9 items-center">
+                            <svg class="w-10 h-10 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="9" r="6" class="fill-gray-700 stroke-gray-400" />
+                                <circle cx="12" cy="9" r="3" class="fill-yellow-300 stroke-yellow-500 animate-pulse" />
+                                <rect x="10" y="1" width="4" height="2" class="fill-gray-500" />
+                                <path d="M12 15v3c0 1.5 1 3 3 3h4" class="stroke-gray-500" />
+                                <path d="M12 9l0 0" class="stroke-yellow-400 opacity-50"><animate attributeName="d" values="M12 9l0 0; M4 9l-2 0 M20 9l2 0 M12 17l0 2 M12 1l0 -2; M12 9l0 0" dur="2s" repeatCount="indefinite" /></path>
+                            </svg>
+                        </div>
+                        <div class="text-xs">頭燈</div>
+                    </div>
+                    
                     <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'correct', '膠盔：保護頭部，坑道很矮。')"><div class="text-3xl mb-1">⛑️</div><div class="text-xs">膠盔</div></div>
                     <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'correct', '十字鎬：吃飯的傢伙。')"><div class="text-3xl mb-1">⛏️</div><div class="text-xs">十字鎬</div></div>
+                    <!-- Wrong Items -->
                     <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'wrong', '❌ 嚴禁煙火！坑內有瓦斯，會爆炸！')"><div class="text-3xl mb-1">🔥</div><div class="text-xs">火柴</div></div>
                     <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'wrong', '❌ 嚴禁吸菸！你會害死大家。')"><div class="text-3xl mb-1">🚬</div><div class="text-xs">香菸</div></div>
                     <div class="item-box p-4 rounded cursor-pointer" onclick="selectItem(this, 'neutral', '❌ 雖然好聽，但坑內聽不到廣播。')"><div class="text-3xl mb-1">📻</div><div class="text-xs">收音機</div></div>
@@ -347,12 +371,20 @@
                 <div class="bg-amber-600 text-white font-bold rounded-full w-12 h-12 flex items-center justify-center text-xl">2</div>
                 <h2 class="text-3xl font-bold text-white">第二層：黑金生活圈</h2>
             </div>
-            <!-- Logistics Game -->
+            
+            <!-- Logistics Game: Timed Edition -->
             <div id="logisticsGamePanel" class="mb-8 p-6 bg-gray-900 rounded-xl border border-gray-700 shadow-xl relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-2 opacity-10 text-9xl">🚂</div>
                 <div class="relative z-10">
-                    <h3 class="text-xl font-bold text-amber-400 mb-2">🚂 互動遊戲：七堵調度站站長</h3>
-                    <p class="text-gray-400 mb-4 text-sm">煤炭運來了！請根據煤炭的描述，點擊正確的按鈕將它們送往該去的地方。</p>
+                    <h3 class="text-xl font-bold text-amber-400 mb-2">🚂 互動遊戲：七堵調度站挑戰賽</h3>
+                    <p class="text-gray-400 mb-4 text-sm">限時 30 秒！盡可能將煤炭送往正確的地方！</p>
+                    
+                    <!-- Timer & Score Display -->
+                    <div class="flex justify-between mb-4 bg-gray-800 p-3 rounded-lg border border-gray-600">
+                        <div class="text-white font-mono text-xl">⏳ 剩餘時間: <span id="gameTimer" class="text-red-400">30</span>s</div>
+                        <div class="text-white font-mono text-xl">📦 調度成功: <span id="sessionScore" class="text-green-400">0</span></div>
+                    </div>
+
                     <div class="flex flex-col md:flex-row items-center gap-6">
                         <div class="bg-black border-4 border-gray-600 rounded-lg p-6 w-full md:w-1/2 text-center h-48 flex flex-col justify-center items-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
                             <div id="logistics-icon" class="text-5xl mb-2 animate-bounce">📦</div>
@@ -362,12 +394,13 @@
                             <button id="btn-export" onclick="checkLogistics('export')" class="logistics-btn" disabled><strong>🚢 運往碼頭 (出口)</strong><br><span class="text-xs text-gray-400">高品質塊煤</span></button>
                             <button id="btn-power" onclick="checkLogistics('power')" class="logistics-btn" disabled><strong>⚡ 運往發電廠 (能源)</strong><br><span class="text-xs text-gray-400">大量粉煤/普通煤</span></button>
                             <button id="btn-domestic" onclick="checkLogistics('domestic')" class="logistics-btn" disabled><strong>🏠 運往市區 (民生)</strong><br><span class="text-xs text-gray-400">煤球/少量需求</span></button>
-                            <button id="btn-start-logistics" onclick="startLogisticsGame()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded mt-2">開始調度任務</button>
+                            <button id="btn-start-logistics" onclick="startLogisticsGame()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded mt-2">開始計時挑戰</button>
                         </div>
                     </div>
                     <p id="logistics-feedback" class="text-center mt-4 font-bold h-6 text-amber-500"></p>
                 </div>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="glass-panel p-6 rounded-xl"><h3 class="text-lg font-bold text-amber-400 mb-2">產區分佈</h3><div class="chart-container bg-white rounded p-2"><canvas id="regionalChart"></canvas></div><p class="text-sm text-gray-400 mt-2">觀察：瑞芳雖然產量最高，但基隆的七堵與暖暖也是重要產地。</p></div>
                 <div class="glass-panel p-6 rounded-xl"><h3 class="text-lg font-bold text-amber-400 mb-2">煤炭去哪了？</h3><div class="chart-container bg-white rounded p-2"><canvas id="usageChart"></canvas></div><p class="text-sm text-gray-400 mt-2">大部分的煤炭並非家用，而是為了推動工業化。</p></div>
@@ -456,13 +489,76 @@
             </div>
         </section>
 
-        <footer class="text-center py-12 border-t border-gray-800"><h3 class="text-2xl font-bold text-gray-500 mb-4">恭喜完成黑金探險！</h3><p class="text-gray-400">設計風格：Interactive Industrial | 適用對象：國高中社會/地科課程</p></footer>
+        <!-- Final Score & Leaderboard Section -->
+        <section id="finalSection" class="hidden mb-24 animate__animated animate__fadeIn">
+            <div class="max-w-2xl mx-auto bg-gray-800 p-8 rounded-xl border-2 border-amber-500 shadow-2xl text-center">
+                <h2 class="text-3xl font-black text-amber-500 mb-4">🏆 探險任務完成！</h2>
+                <p class="text-gray-400 mb-6">恭喜你完成了所有關卡。看看你的最終成績！</p>
+                
+                <div class="text-6xl font-black text-white mb-8 text-shadow-glow">
+                    <span id="endGameScore">0</span> <span class="text-2xl text-gray-500">分</span>
+                </div>
+
+                <!-- Name Input -->
+                <div id="saveScoreForm" class="mb-8 flex justify-center">
+                    <input type="text" id="playerName" placeholder="請輸入名字/代號" class="bg-gray-700 text-white border border-gray-600 rounded-l-lg px-4 py-3 w-48 md:w-64 focus:outline-none focus:border-amber-500" maxlength="8">
+                    <button onclick="saveHighscore()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-6 rounded-r-lg transition">
+                        記錄成績
+                    </button>
+                </div>
+
+                <!-- Leaderboard Table -->
+                <div id="leaderboardDisplay" class="hidden text-left">
+                    <h3 class="text-xl font-bold text-gray-300 mb-4 border-b border-gray-600 pb-2">📜 本機英雄榜 (Top 5)</h3>
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>探險家</th>
+                                <th>分數</th>
+                                <th>日期</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody">
+                            <!-- JS Injected -->
+                        </tbody>
+                    </table>
+                    <button onclick="location.reload()" class="mt-6 w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">再次挑戰</button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center py-12 border-t border-gray-800">
+            <h3 class="text-2xl font-bold text-gray-500 mb-4">恭喜完成黑金探險！</h3>
+            <button onclick="resetProgress()" class="mt-2 px-4 py-2 bg-gray-700 hover:bg-red-600 text-white rounded text-xs transition">清除所有紀錄 (教師用)</button>
+        </footer>
     </main>
 
     <!-- Scripts -->
     <script>
         let score = 0;
         let currentLevel = 1;
+        
+        // --- Audio Context & Sound Helper ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playCorrectSound() { playTone(600, 'sine', 0.1); setTimeout(() => playTone(800, 'sine', 0.2), 100); }
+        function playWrongSound() { playTone(150, 'sawtooth', 0.3); }
+        function playGameEndSound() { playTone(400, 'sine', 0.1); setTimeout(() => playTone(500, 'sine', 0.1), 150); setTimeout(() => playTone(600, 'sine', 0.4), 300); }
 
         function updateScore(points) {
             score += points;
@@ -470,6 +566,68 @@
             const display = document.getElementById('scoreDisplay');
             display.classList.add('animate__animated', 'animate__heartBeat');
             setTimeout(() => display.classList.remove('animate__heartBeat'), 1000);
+        }
+        
+        // --- Leaderboard System ---
+        function getLeaderboard() {
+            return JSON.parse(localStorage.getItem('keelung_coal_leaderboard') || '[]');
+        }
+
+        function saveHighscore() {
+            const nameInput = document.getElementById('playerName');
+            let name = nameInput.value.trim();
+            if (!name) name = "無名礦工";
+            
+            const today = new Date().toLocaleDateString();
+            const newRecord = { name: name, score: score, date: today };
+            
+            // Get existing, add new, sort, slice top 5
+            let leaderboard = getLeaderboard();
+            leaderboard.push(newRecord);
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5);
+            
+            localStorage.setItem('keelung_coal_leaderboard', JSON.stringify(leaderboard));
+            
+            // Render and show
+            renderLeaderboard();
+            document.getElementById('saveScoreForm').classList.add('hidden');
+            document.getElementById('leaderboardDisplay').classList.remove('hidden');
+            playGameEndSound();
+        }
+
+        function renderLeaderboard() {
+            const leaderboard = getLeaderboard();
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+            
+            if (leaderboard.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500">尚無紀錄</td></tr>';
+                return;
+            }
+
+            leaderboard.forEach((record, index) => {
+                const tr = document.createElement('tr');
+                let rankIcon = index + 1;
+                if(index === 0) rankIcon = '🥇';
+                if(index === 1) rankIcon = '🥈';
+                if(index === 2) rankIcon = '🥉';
+                
+                tr.innerHTML = `
+                    <td>${rankIcon}</td>
+                    <td>${record.name}</td>
+                    <td>${record.score}</td>
+                    <td class="text-gray-500 text-sm">${record.date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function resetProgress() {
+            if(confirm('確定要清除所有排行榜紀錄並重新開始嗎？')) {
+                localStorage.removeItem('keelung_coal_leaderboard');
+                location.reload();
+            }
         }
 
         function startJourney() {
@@ -481,6 +639,7 @@
             const l1 = document.getElementById('level1');
             l1.classList.remove('opacity-0');
             l1.classList.add('animate__animated', 'animate__fadeInUp');
+            if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
         function unlockLevel(level) {
@@ -513,6 +672,7 @@
                 feedbackEl.classList.remove('text-red-400');
                 feedbackEl.classList.add('text-green-400');
                 updateScore(100);
+                playCorrectSound();
                 const nextLevelBtn = document.getElementById(`btn-unlock-${quizId + 1}`);
                 if (nextLevelBtn) {
                     nextLevelBtn.disabled = false;
@@ -526,6 +686,7 @@
                 feedbackEl.innerText = "答錯囉！請再試一次看看！";
                 feedbackEl.classList.remove('text-green-400');
                 feedbackEl.classList.add('text-red-400');
+                playWrongSound();
             }
             feedbackEl.classList.remove('hidden');
         }
@@ -541,20 +702,24 @@
                 feedback.innerText = msg;
                 feedback.className = "text-sm font-bold text-red-500 animate__animated animate__flash";
                 updateScore(-10);
+                playWrongSound();
                 setTimeout(() => { el.classList.remove('wrong'); feedback.className = "text-sm font-bold text-amber-400"; feedback.innerText = "請重新選擇..."; }, 2000);
             } else if (type === 'neutral') {
                 el.classList.add('wrong');
                 feedback.innerText = msg;
+                playWrongSound();
                 setTimeout(() => el.classList.remove('wrong'), 1000);
             } else {
                 el.classList.add('selected');
                 selectedEquipCount++;
                 feedback.innerText = msg + ` (${selectedEquipCount}/3)`;
                 feedback.className = "text-sm font-bold text-green-400";
+                playCorrectSound();
                 if (selectedEquipCount === 3) {
                     equipmentSolved = true;
                     feedback.innerText = "✅ 裝備齊全！准許下坑！資料庫已解鎖。";
                     updateScore(50);
+                    playGameEndSound();
                     const content = document.getElementById('level1-content');
                     content.classList.remove('opacity-30', 'pointer-events-none', 'filter', 'blur-sm');
                     content.classList.add('animate__animated', 'animate__fadeIn');
@@ -562,40 +727,60 @@
             }
         }
 
-        // Logistics Game
+        // Logistics Game: Timed & Scored
         const logisticsData = [{ id: 'high', icon: '💎', desc: '高品質塊煤 (燃燒熱值高)', target: 'export' }, { id: 'power', icon: '⚡', desc: '普通粉煤 (發電用)', target: 'power' }, { id: 'coke', icon: '🧱', desc: '煤球/焦炭 (家庭與工業)', target: 'domestic' }];
         let currentLogisticsTask = null;
-        let logisticsRound = 0;
+        let logisticsSessionScore = 0;
+        let logisticsTimer = 30;
+        let logisticsInterval = null;
+
         function startLogisticsGame() {
+            logisticsSessionScore = 0;
+            logisticsTimer = 30;
+            document.getElementById('sessionScore').innerText = logisticsSessionScore;
+            document.getElementById('gameTimer').innerText = logisticsTimer;
             document.getElementById('btn-start-logistics').classList.add('hidden');
             document.querySelectorAll('.logistics-btn').forEach(b => b.disabled = false);
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            logisticsInterval = setInterval(() => {
+                logisticsTimer--;
+                document.getElementById('gameTimer').innerText = logisticsTimer;
+                if (logisticsTimer <= 0) { endLogisticsGame(); }
+            }, 1000);
             nextLogisticsRound();
         }
+
+        function endLogisticsGame() {
+            clearInterval(logisticsInterval);
+            document.getElementById('logistics-icon').innerText = '🎉';
+            document.getElementById('logistics-desc').innerHTML = `時間到！<br>你成功調度了 ${logisticsSessionScore} 批煤炭！`;
+            document.getElementById('logistics-feedback').innerText = '';
+            document.querySelectorAll('.logistics-btn').forEach(b => b.disabled = true);
+            playGameEndSound();
+        }
+
         function nextLogisticsRound() {
-            if (logisticsRound >= 5) {
-                document.getElementById('logistics-icon').innerText = '🎉';
-                document.getElementById('logistics-desc').innerHTML = '任務完成！<br>你真是調度天才！';
-                document.getElementById('logistics-feedback').innerText = '';
-                document.querySelectorAll('.logistics-btn').forEach(b => b.disabled = true);
-                return;
-            }
             currentLogisticsTask = logisticsData[Math.floor(Math.random() * logisticsData.length)];
             document.getElementById('logistics-icon').innerText = currentLogisticsTask.icon;
             document.getElementById('logistics-desc').innerText = currentLogisticsTask.desc;
             document.getElementById('logistics-feedback').innerText = '請選擇去處...';
         }
+
         function checkLogistics(choice) {
             const feedback = document.getElementById('logistics-feedback');
             if (choice === currentLogisticsTask.target) {
-                feedback.innerText = "✅ 調度正確！貨車已出發！";
+                feedback.innerText = "✅ 調度正確！+10 分";
                 feedback.className = "text-center mt-4 font-bold h-6 text-green-400";
-                updateScore(20);
-                logisticsRound++;
-                setTimeout(nextLogisticsRound, 1000);
+                logisticsSessionScore++;
+                document.getElementById('sessionScore').innerText = logisticsSessionScore;
+                updateScore(10);
+                playCorrectSound();
+                nextLogisticsRound();
             } else {
-                feedback.innerText = "❌ 送錯地方了！請再試一次。";
+                feedback.innerText = "❌ 送錯地方了！扣 5 分";
                 feedback.className = "text-center mt-4 font-bold h-6 text-red-400";
                 updateScore(-5);
+                playWrongSound();
             }
         }
 
@@ -660,9 +845,7 @@
             const sourceZone = document.getElementById('sourceZone');
             sourceZone.innerHTML = '';
             const dropZone = document.getElementById('dropZone');
-            // Reset drop zone except placeholder
             dropZone.innerHTML = '<span class="text-gray-500 pointer-events-none" id="dropPlaceholder">請將步驟拖拉至此...</span>';
-            
             const shuffled = [...correctOrder].sort(() => Math.random() - 0.5);
             shuffled.forEach(step => {
                 const div = document.createElement('div');
@@ -674,8 +857,6 @@
                 div.addEventListener('dragend', handleDragEnd);
                 sourceZone.appendChild(div);
             });
-
-            // Add drop listeners
             [sourceZone, dropZone].forEach(zone => {
                 zone.addEventListener('dragover', handleDragOver);
                 zone.addEventListener('dragenter', handleDragEnter);
@@ -684,15 +865,8 @@
             });
         }
 
-        function handleDragStart(e) {
-            draggedItem = this;
-            setTimeout(() => this.classList.add('dragging'), 0);
-        }
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            draggedItem = null;
-            document.querySelectorAll('.drop-zone-active').forEach(el => el.classList.remove('drop-zone-active'));
-        }
+        function handleDragStart(e) { draggedItem = this; setTimeout(() => this.classList.add('dragging'), 0); }
+        function handleDragEnd(e) { this.classList.remove('dragging'); draggedItem = null; document.querySelectorAll('.drop-zone-active').forEach(el => el.classList.remove('drop-zone-active')); }
         function handleDragOver(e) { e.preventDefault(); }
         function handleDragEnter(e) { e.preventDefault(); this.classList.add('drop-zone-active'); }
         function handleDragLeave(e) { this.classList.remove('drop-zone-active'); }
@@ -707,37 +881,25 @@
         function checkPlaceholder() {
             const dropZone = document.getElementById('dropZone');
             const placeholder = document.getElementById('dropPlaceholder');
-            if (dropZone.querySelectorAll('.draggable-card').length > 0) {
-                placeholder.classList.add('hidden');
-            } else {
-                placeholder.classList.remove('hidden');
-            }
+            if (dropZone.querySelectorAll('.draggable-card').length > 0) placeholder.classList.add('hidden');
+            else placeholder.classList.remove('hidden');
         }
 
         function checkDragOrder() {
             const dropZone = document.getElementById('dropZone');
             const cards = Array.from(dropZone.querySelectorAll('.draggable-card'));
             const feedback = document.getElementById('orderingFeedback');
-            
-            if (cards.length !== 4) {
-                feedback.innerText = "❌ 請將所有 4 張卡片都拖進框框中！";
-                feedback.className = "text-center mt-4 font-bold text-lg text-amber-400";
-                return;
-            }
-
+            if (cards.length !== 4) { feedback.innerText = "❌ 請將所有 4 張卡片都拖進框框中！"; feedback.className = "text-center mt-4 font-bold text-lg text-amber-400"; return; }
             const currentOrder = cards.map(c => c.id);
             const isCorrect = JSON.stringify(currentOrder) === JSON.stringify(correctOrder);
-
             if (isCorrect) {
                 feedback.innerText = "🎉 全對！流程邏輯清晰，第四層已解鎖！";
                 feedback.className = "text-center mt-4 font-bold text-lg text-green-400";
                 updateScore(50);
-                
-                // Lock cards
+                playCorrectSound();
                 cards.forEach(c => { c.draggable = false; c.style.borderColor = '#10b981'; c.style.cursor = 'default'; });
                 document.querySelector('button[onclick="checkDragOrder()"]').disabled = true;
                 document.querySelector('button[onclick="checkDragOrder()"]').classList.add('opacity-50', 'cursor-not-allowed');
-
                 const btn = document.getElementById('btn-unlock-4');
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -746,17 +908,13 @@
                 feedback.innerText = "❌ 順序不對喔！請重新調整再試試。";
                 feedback.className = "text-center mt-4 font-bold text-lg text-red-400 animate__animated animate__shakeX";
                 setTimeout(() => feedback.classList.remove('animate__shakeX'), 1000);
-                
-                // Return cards to source zone with animation delay effect (optional, or just keep them there)
-                // For better UX, we leave them in drop zone so user can fix just the wrong ones, 
-                // but since we don't give hints, maybe moving them back is too harsh? 
-                // Let's just shake the box.
                 dropZone.classList.add('animate__animated', 'animate__shakeX');
                 setTimeout(() => dropZone.classList.remove('animate__animated', 'animate__shakeX'), 500);
+                playWrongSound();
             }
         }
 
-        // Mini Game
+        // Mini Game (Level 4)
         function playGame(choice) {
             const resultBox = document.getElementById('game-result');
             const buttonsDiv = document.getElementById('game-buttons');
@@ -765,12 +923,23 @@
                 resultBox.classList.add('bg-red-600', 'text-white');
                 resultBox.innerHTML = "💀 <strong>悲劇發生：</strong><br>那是瓦斯外洩的前兆！幾分鐘後發生了塵爆。忽視警訊是礦場大忌。<br>(扣除 50 積分)";
                 updateScore(-50);
+                playWrongSound();
             } else {
                 resultBox.classList.add('bg-green-600', 'text-white');
                 resultBox.innerHTML = "✅ <strong>成功存活：</strong><br>你的警覺救了全隊！那是危險的瓦斯味。雖然今天沒賺到工資，但活著最重要。<br>(獲得 100 積分)";
                 updateScore(100);
+                playCorrectSound();
             }
             buttonsDiv.classList.add('opacity-50', 'pointer-events-none');
+            
+            // --- NEW: Trigger Final Section ---
+            setTimeout(() => {
+                document.getElementById('endGameScore').innerText = score;
+                const finalSection = document.getElementById('finalSection');
+                finalSection.classList.remove('hidden');
+                finalSection.scrollIntoView({ behavior: 'smooth' });
+                // If score qualifies as high score logic is inside saveHighscore now
+            }, 1500);
         }
 
         function initCharts() {
