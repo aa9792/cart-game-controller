@@ -2,18 +2,19 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>愛德生實驗教育課表產生器（認知 × 非認知雙軌版）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>愛德生實驗教育課表產生器（修正版）</title>
   <style>
     body {
-      font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
       background: #f0f2f5;
       margin: 0;
-      padding: 0;
+      padding: 20px;
       color: #333;
     }
     .container {
       max-width: 1200px;
-      margin: 24px auto;
+      margin: 0 auto;
       background: #ffffff;
       border-radius: 16px;
       padding: 24px 32px;
@@ -21,11 +22,12 @@
     }
     h1 {
       font-size: 26px;
-      margin-bottom: 8px;
+      margin-bottom: 20px;
       color: #1a237e;
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
     .badge {
       font-size: 14px;
@@ -61,7 +63,7 @@
       cursor: pointer;
     }
     button {
-      padding: 8px 16px;
+      padding: 8px 20px;
       border-radius: 8px;
       border: none;
       cursor: pointer;
@@ -82,14 +84,38 @@
       border: 1px solid #ccc;
       color: #666;
     }
-    
+    button.reset:hover {
+      background: #f5f5f5;
+    }
+
+    /* 統計區塊 */
+    .stats-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #eee;
+      text-align: center;
+      background: #fff;
+    }
+    .stat-card h3 { margin: 0 0 8px 0; font-size: 14px; color: #666; }
+    .stat-card .number { font-size: 24px; font-weight: bold; }
+    .stat-card.cog { background: #e3f2fd; border-color: #bbdefb; }
+    .stat-card.non-cog { background: #f1f8e9; border-color: #c5e1a5; }
+
     /* 表格樣式 */
+    .table-responsive {
+      overflow-x: auto;
+    }
     table {
       width: 100%;
+      min-width: 800px; /* 確保在手機上不會太擠 */
       border-collapse: separate;
       border-spacing: 0;
-      margin-top: 16px;
-      font-size: 15px;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       overflow: hidden;
@@ -100,7 +126,6 @@
       padding: 12px 8px;
       text-align: center;
       vertical-align: middle;
-      position: relative;
     }
     th:last-child, td:last-child {
       border-right: none;
@@ -113,6 +138,7 @@
       color: #444;
       font-weight: 600;
       padding: 16px;
+      white-space: nowrap;
     }
     .row-header {
       background: #fcfcfc;
@@ -120,73 +146,68 @@
       font-size: 13px;
       color: #666;
       font-weight: 500;
+      white-space: nowrap;
     }
-    
-    /* 課程類別標籤樣式 */
+
+    /* 課程儲存格樣式 */
     .course-cell {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 4px;
+      min-height: 40px;
     }
-    .cog-tag, .non-cog-tag, .fixed-tag {
-      font-size: 12px;
-      padding: 2px 8px;
+    .tag {
+      font-size: 11px;
+      padding: 2px 6px;
       border-radius: 4px;
-      width: fit-content;
+      white-space: nowrap;
     }
-    /* 認知課程 - 藍色系 */
+    
+    /* 課程類別顏色 */
     .type-cognitive {
       background-color: #e3f2fd;
       color: #0d47a1;
       border-left: 4px solid #1976d2;
     }
-    .cog-tag { color: #1565c0; background: rgba(255,255,255,0.5); }
-    
-    /* 非認知課程 - 橘綠色系 (素養導向) */
+    .type-cognitive .tag { background: rgba(255,255,255,0.6); color: #1565c0; }
+
     .type-non-cognitive {
       background-color: #f1f8e9;
       color: #33691e;
       border-left: 4px solid #7cb342;
     }
-    .non-cog-tag { color: #558b2f; background: rgba(255,255,255,0.5); }
+    .type-non-cognitive .tag { background: rgba(255,255,255,0.6); color: #558b2f; }
 
-    /* 探索課程 - 特別色 */
     .type-explore {
       background-color: #fff3e0;
       color: #e65100;
       border-left: 4px solid #fb8c00;
       font-weight: bold;
     }
+    .type-explore .tag { background: rgba(255,255,255,0.6); color: #ef6c00; }
 
-    /* 固定活動 */
+    /* 固定活動 (不可編輯) */
     .fixed-activity {
       background-color: #f5f5f5;
-      color: #666;
+      color: #888;
       font-size: 14px;
+      font-style: italic;
     }
 
-    /* 統計面板 */
-    .stats-panel {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #eee;
-      text-align: center;
-    }
-    .stat-card h3 { margin: 0 0 8px 0; font-size: 14px; color: #666; }
-    .stat-card .number { font-size: 24px; font-weight: bold; }
-    .stat-card.cog { background: #e3f2fd; border-color: #bbdefb; }
-    .stat-card.non-cog { background: #f1f8e9; border-color: #c5e1a5; }
-    
-    .editable:hover {
-      background-color: rgba(0,0,0,0.02);
+    .editable {
       cursor: text;
+    }
+    .editable:hover {
+      background-color: rgba(0,0,0,0.03); /* 懸停效果 */
+    }
+    
+    /* 訊息列 */
+    #message {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -202,33 +223,38 @@
     <div class="grade-selector">
       <label for="grade-level">選擇年段：</label>
       <select id="grade-level">
-        <option value="g1-2">國小低年級 (G1-G2)</option>
+        <option value="g1-2" selected>國小低年級 (G1-G2)</option>
         <option value="g3-6">國小中高年級 (G3-G6)</option>
         <option value="g7-9">國中階段 (G7-G9)</option>
       </select>
     </div>
     <div>
-      <button class="reset" id="reset-btn">重置預設值</button>
-      <button class="primary" id="generate-btn">重新排課</button>
+      <button class="reset" id="reset-btn" type="button">重置預設值</button>
+      <button class="primary" id="generate-btn" type="button">重新排課</button>
     </div>
   </div>
 
   <div class="stats-panel" id="stats-display">
     </div>
 
-  <div id="timetable-container"></div>
-  <div id="message" style="margin-top:12px; color:#c62828; font-size:14px;"></div>
+  <div class="table-responsive">
+    <div id="timetable-container">
+      </div>
+  </div>
+  
+  <div id="message"></div>
 </div>
 
 <script>
-(function() {
-  // 課程定義與預設節數 (依據計畫書 Source 288, 325, 362)
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // 1. 定義課程架構與資料
   const curriculumConfig = {
     'g1-2': {
       periodsPerDay: 7,
       totalSlots: 35,
       subjects: [
-        // --- 認知能力課程 (21節) ---
+        // 認知能力 (21節)
         { name: '語文讀寫', type: 'cognitive', count: 6 },
         { name: '數學邏輯', type: 'cognitive', count: 6 },
         { name: '健康體育', type: 'cognitive', count: 3 },
@@ -236,7 +262,7 @@
         { name: '自然科學', type: 'cognitive', count: 1 },
         { name: '社會人文', type: 'cognitive', count: 1 },
         { name: '資訊科技', type: 'cognitive', count: 1 },
-        // --- 非認知能力課程 (14節) ---
+        // 非認知能力 (14節)
         { name: 'Adventure Edu', type: 'explore', count: 4 }, // 週四探索
         { name: '創新解決', type: 'non-cognitive', count: 2 },
         { name: '情緒覺察', type: 'non-cognitive', count: 2 },
@@ -249,7 +275,6 @@
       periodsPerDay: 7,
       totalSlots: 35,
       subjects: [
-        // --- 認知能力課程 (21節) ---
         { name: '語文讀寫', type: 'cognitive', count: 5 },
         { name: '數學邏輯', type: 'cognitive', count: 5 },
         { name: '健康體育', type: 'cognitive', count: 3 },
@@ -257,7 +282,6 @@
         { name: '自然科學', type: 'cognitive', count: 2 },
         { name: '社會人文', type: 'cognitive', count: 2 },
         { name: '資訊科技', type: 'cognitive', count: 1 },
-        // --- 非認知能力課程 (14節) ---
         { name: 'Adventure Edu', type: 'explore', count: 4 },
         { name: '創新解決', type: 'non-cognitive', count: 2 },
         { name: '情緒覺察', type: 'non-cognitive', count: 2 },
@@ -270,7 +294,6 @@
       periodsPerDay: 8,
       totalSlots: 40,
       subjects: [
-        // --- 認知能力課程 (26節) ---
         { name: '語文讀寫', type: 'cognitive', count: 6 },
         { name: '數學邏輯', type: 'cognitive', count: 6 },
         { name: '自然科學', type: 'cognitive', count: 4 },
@@ -278,7 +301,6 @@
         { name: '健康體育', type: 'cognitive', count: 3 },
         { name: '藝術涵養', type: 'cognitive', count: 3 },
         { name: '資訊科技', type: 'cognitive', count: 1 },
-        // --- 非認知能力課程 (14節) ---
         { name: 'Adventure Edu', type: 'explore', count: 4 },
         { name: '創新解決', type: 'non-cognitive', count: 2 },
         { name: '情緒覺察', type: 'non-cognitive', count: 2 },
@@ -289,9 +311,9 @@
     }
   };
 
-  // 時段作息定義 (國小 vs 國中)
+  // 作息時間表 (國小 vs 國中)
   const scheduleTimes = {
-    elem: [ // 國小
+    elem: [ 
       { p: 1, time: '08:40-09:20' },
       { p: 2, time: '09:30-10:10' },
       { p: 'recess1', time: '10:10-10:30', label: '大下課 Recess' },
@@ -304,7 +326,7 @@
       { p: 7, time: '14:50-15:30' },
       { p: 'homeroom', time: '15:30-15:50', label: '班級時間 Home Room' }
     ],
-    junior: [ // 國中 (多一節)
+    junior: [
       { p: 1, time: '08:35-09:20' },
       { p: 2, time: '09:30-10:15' },
       { p: 'recess1', time: '10:15-10:30', label: '大下課 Recess' },
@@ -314,4 +336,200 @@
       { p: 5, time: '13:00-13:45' },
       { p: 6, time: '13:55-14:40' },
       { p: 'recess2', time: '14:40-14:55', label: '休息 Recess' },
-      { p: 7, time: '14:55-15
+      { p: 7, time: '14:55-15:40' },
+      { p: 8, time: '15:50-16:35' },
+      { p: 'homeroom', time: '16:35-16:55', label: '班級時間 Home Room' }
+    ]
+  };
+
+  // 2. 輔助函式：洗牌 (Fisher-Yates)
+  function shuffle(array) {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex != 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+    return array;
+  }
+
+  // 3. 渲染統計數據
+  function renderStats(subjects) {
+    let cogCount = 0;
+    let nonCogCount = 0;
+    subjects.forEach(s => {
+      if (s.type === 'cognitive') cogCount += s.count;
+      else nonCogCount += s.count;
+    });
+
+    const html = `
+      <div class="stat-card cog">
+        <h3>認知課程 (Cognitive)</h3>
+        <div class="number" style="color:#1565c0">${cogCount} 節</div>
+        <div style="font-size:12px; color:#555">語文、數學、自然、社會...</div>
+      </div>
+      <div class="stat-card non-cog">
+        <h3>非認知課程 (Non-Cognitive)</h3>
+        <div class="number" style="color:#558b2f">${nonCogCount} 節</div>
+        <div style="font-size:12px; color:#555">探索、品格、協作、創新...</div>
+      </div>
+      <div class="stat-card">
+        <h3>每週總節數</h3>
+        <div class="number">${cogCount + nonCogCount} 節</div>
+      </div>
+    `;
+    const statsEl = document.getElementById('stats-display');
+    if(statsEl) statsEl.innerHTML = html;
+  }
+
+  // 4. 主程式：生成課表
+  function generateTimetable() {
+    const gradeSelect = document.getElementById('grade-level');
+    const grade = gradeSelect.value;
+    const config = curriculumConfig[grade];
+
+    if (!config) {
+      console.error("找不到對應的年段設定");
+      return;
+    }
+
+    // 複製課程清單以免影響原始設定
+    const subjects = JSON.parse(JSON.stringify(config.subjects));
+    
+    // 更新統計
+    renderStats(subjects);
+
+    // 準備所有的「課程票券」
+    let tickets = [];
+    subjects.forEach(sub => {
+      for(let i=0; i<sub.count; i++) {
+        tickets.push({ name: sub.name, type: sub.type });
+      }
+    });
+
+    // 建立網格 (Day 0-4, Period 1-8)
+    let grid = {}; 
+
+    // --- 步驟 A: 鎖定週四探索課程 (Adventure Edu) ---
+    // 找出探索課程的票券
+    let adventureTickets = tickets.filter(t => t.type === 'explore');
+    let otherTickets = tickets.filter(t => t.type !== 'explore');
+
+    // 填入週四 (Day 3) 的第 1 到 4 節
+    for(let p=1; p<=4; p++) {
+      if (adventureTickets.length > 0) {
+        grid[`3-${p}`] = adventureTickets.shift(); 
+      }
+    }
+    // 如果還有剩餘的探索票券，放回一般票券池 (雖依設定不應發生)
+    if(adventureTickets.length > 0) {
+      otherTickets = otherTickets.concat(adventureTickets);
+    }
+
+    // --- 步驟 B: 隨機排列其餘課程 ---
+    shuffle(otherTickets);
+
+    // --- 步驟 C: 填入網格 ---
+    // 簡單的演算法：依序尋找空格填入
+    // 優化：上午傾向放認知課程，下午傾向放非認知
+    const periods = config.periodsPerDay;
+    for (let d=0; d<5; d++) {
+      for (let p=1; p<=periods; p++) {
+        const key = `${d}-${p}`;
+        if (grid[key]) continue; // 該格已被佔用 (如週四上午)
+
+        if (otherTickets.length > 0) {
+          let ticketIndex = -1;
+
+          // 簡單分流策略
+          if (p <= 4) { 
+            // 上午：優先找 'cognitive'
+            ticketIndex = otherTickets.findIndex(t => t.type === 'cognitive');
+          } else {
+            // 下午：優先找 'non-cognitive'
+            ticketIndex = otherTickets.findIndex(t => t.type === 'non-cognitive');
+          }
+
+          // 如果找不到偏好的類型，就取第一個可用的
+          if (ticketIndex === -1) {
+            ticketIndex = 0;
+          }
+
+          // 取出票券並填入
+          grid[key] = otherTickets.splice(ticketIndex, 1)[0];
+        }
+      }
+    }
+
+    // 5. 生成 HTML 表格
+    const scheduleDef = (grade === 'g7-9') ? scheduleTimes.junior : scheduleTimes.elem;
+    const days = ['週一', '週二', '週三', '週四', '週五'];
+    
+    let html = '<table><thead><tr><th>時段</th>';
+    days.forEach(d => html += `<th>${d}</th>`);
+    html += '</tr></thead><tbody>';
+
+    // 固定晨間活動
+    html += `<tr><th class="row-header">07:40-08:10<br>Morning Exercise</th><td colspan="5" class="fixed-activity">學生朝會 / 體適能 / 晨間閱讀</td></tr>`;
+    html += `<tr><th class="row-header">08:10-08:35<br>Home Room</th><td colspan="5" class="fixed-activity">品德教育 / 班級經營 / 經典導讀</td></tr>`;
+
+    // 依作息表生成列
+    scheduleDef.forEach(row => {
+      // 判斷是否為休息列 (row.p 是字串如 'recess1')
+      if (typeof row.p === 'string') {
+        html += `<tr><th class="row-header">${row.time}<br>${row.label.split(' ')[0]}</th><td colspan="5" class="fixed-activity">${row.label}</td></tr>`;
+      } else {
+        // 課程列
+        html += `<tr><th class="row-header">${row.time}<br>第 ${row.p} 節</th>`;
+        for (let d=0; d<5; d++) {
+          const cellData = grid[`${d}-${row.p}`];
+          
+          if (cellData) {
+            // 決定樣式與標籤文字
+            let cssClass = `type-${cellData.type}`; 
+            let tagText = '';
+            if (cellData.type === 'cognitive') tagText = '認知';
+            else if (cellData.type === 'explore') tagText = '探索';
+            else tagText = '非認知';
+
+            html += `<td class="${cssClass} editable" contenteditable="true">
+              <div class="course-cell">
+                <span style="font-weight:bold; font-size:15px;">${cellData.name}</span>
+                <span class="tag">${tagText}</span>
+              </div>
+            </td>`;
+          } else {
+            // 空白格 (若節數不足)
+            html += `<td class="editable" contenteditable="true"></td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+    });
+
+    html += '</tbody></table>';
+    
+    // 輸出到頁面
+    document.getElementById('timetable-container').innerHTML = html;
+
+    // 檢查是否有未排入的課程
+    const msgEl = document.getElementById('message');
+    if (otherTickets.length > 0) {
+      msgEl.innerHTML = `<span style="color:#d32f2f">⚠️ 注意：尚有 ${otherTickets.length} 節課程未能排入表格 (可能總節數超過了週節數上限)。</span>`;
+    } else {
+      msgEl.innerHTML = `<span style="color:#2e7d32">✅ 排課成功！週四上午固定為全校探索課程。點擊格子可直接修改內容。</span>`;
+    }
+  }
+
+  // 6. 綁定按鈕事件
+  document.getElementById('generate-btn').addEventListener('click', generateTimetable);
+  document.getElementById('reset-btn').addEventListener('click', generateTimetable);
+  document.getElementById('grade-level').addEventListener('change', generateTimetable);
+
+  // 初始化執行一次
+  generateTimetable();
+});
+</script>
+
+</body>
+</html>
