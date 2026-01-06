@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>愛德生實驗教育課表（上午核心優化版）</title>
+  <title>愛德生實驗教育課表（可自訂科目版）</title>
   <style>
     body {
       font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
@@ -37,518 +37,64 @@
       color: #1a237e;
       font-weight: normal;
     }
+    
+    /* 控制面板與設定區 */
     .control-panel {
       background: #f8f9fa;
       border: 1px solid #e0e0e0;
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 24px;
+    }
+
+    .top-controls {
       display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      align-items: center;
       justify-content: space-between;
-    }
-    .grade-selector {
-      display: flex;
-      gap: 12px;
       align-items: center;
-    }
-    select {
-      padding: 8px 12px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      background: #fff;
-      cursor: pointer;
-    }
-    button {
-      padding: 8px 20px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    button.primary {
-      background: #1a237e;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(26, 35, 126, 0.3);
-    }
-    button.primary:hover {
-      background: #0d1560;
-    }
-    button.reset {
-      background: #fff;
-      border: 1px solid #ccc;
-      color: #666;
-    }
-    button.reset:hover {
-      background: #f5f5f5;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 15px;
     }
 
-    /* 統計區塊 */
-    .stats-panel {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #eee;
-      text-align: center;
-      background: #fff;
-    }
-    .stat-card h3 { margin: 0 0 8px 0; font-size: 14px; color: #666; }
-    .stat-card .number { font-size: 24px; font-weight: bold; }
-    .stat-card.cog { background: #e3f2fd; border-color: #bbdefb; }
-    .stat-card.non-cog { background: #f1f8e9; border-color: #c5e1a5; }
-
-    /* 表格樣式 */
-    .table-responsive {
+    /* 科目設定表格 */
+    .config-section {
+      margin-top: 10px;
       overflow-x: auto;
     }
-    table {
+    .config-table {
       width: 100%;
-      min-width: 800px;
-      border-collapse: separate;
-      border-spacing: 0;
-      border: 1px solid #e0e0e0;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: #fff;
+      border: 1px solid #ddd;
       border-radius: 8px;
-      overflow: hidden;
     }
-    th, td {
-      border-bottom: 1px solid #e0e0e0;
-      border-right: 1px solid #e0e0e0;
-      padding: 12px 8px;
-      text-align: center;
-      vertical-align: middle;
-    }
-    th:last-child, td:last-child {
-      border-right: none;
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    thead th {
-      background: #fafafa;
-      color: #444;
+    .config-table th {
+      background: #eef1f6;
+      padding: 10px;
+      text-align: left;
       font-weight: 600;
-      padding: 16px;
-      white-space: nowrap;
+      color: #555;
     }
-    .row-header {
-      background: #fcfcfc;
-      width: 140px;
-      font-size: 13px;
-      color: #666;
-      font-weight: 500;
-      white-space: nowrap;
+    .config-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
     }
-
-    /* 課程儲存格樣式 */
-    .course-cell {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      min-height: 40px;
-    }
-    .tag {
-      font-size: 11px;
-      padding: 2px 6px;
+    .config-table input[type="text"], 
+    .config-table input[type="number"], 
+    .config-table select {
+      padding: 6px;
+      border: 1px solid #ccc;
       border-radius: 4px;
-      white-space: nowrap;
+      width: 100%;
+      box-sizing: border-box;
     }
-    
-    /* 課程類別顏色 */
-    .type-cognitive {
-      background-color: #e3f2fd;
-      color: #0d47a1;
-      border-left: 4px solid #1976d2;
-    }
-    .type-cognitive .tag { background: rgba(255,255,255,0.6); color: #1565c0; }
-
-    .type-non-cognitive {
-      background-color: #f1f8e9;
-      color: #33691e;
-      border-left: 4px solid #7cb342;
-    }
-    .type-non-cognitive .tag { background: rgba(255,255,255,0.6); color: #558b2f; }
-
-    .type-explore {
-      background-color: #fff3e0;
-      color: #e65100;
-      border-left: 4px solid #fb8c00;
-      font-weight: bold;
-    }
-    .type-explore .tag { background: rgba(255,255,255,0.6); color: #ef6c00; }
-
-    /* 固定活動 (不可編輯) */
-    .fixed-activity {
-      background-color: #f5f5f5;
-      color: #888;
-      font-size: 14px;
-      font-style: italic;
+    .config-table input[type="number"] {
+      width: 70px;
     }
 
-    .editable {
-      cursor: text;
-    }
-    .editable:hover {
-      background-color: rgba(0,0,0,0.03);
-    }
-    
-    /* 訊息列 */
-    #message {
-      margin-top: 12px;
-      font-size: 14px;
-      font-weight: 500;
-    }
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <h1>
-    愛德生實驗教育課表
-    <span class="badge">早晨核心優先 × 每日限量</span>
-  </h1>
-
-  <div class="control-panel">
-    <div class="grade-selector">
-      <label for="grade-level">選擇年段：</label>
-      <select id="grade-level">
-        <option value="g1-2" selected>國小低年級 (G1-G2)</option>
-        <option value="g3-6">國小中高年級 (G3-G6)</option>
-        <option value="g7-9">國中階段 (G7-G9)</option>
-      </select>
-    </div>
-    <div>
-      <button class="reset" id="reset-btn" type="button">重置預設值</button>
-      <button class="primary" id="generate-btn" type="button">重新排課</button>
-    </div>
-  </div>
-
-  <div class="stats-panel" id="stats-display"></div>
-
-  <div class="table-responsive">
-    <div id="timetable-container"></div>
-  </div>
-  
-  <div id="message"></div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  
-  // 1. 定義課程架構與資料
-  const curriculumConfig = {
-    'g1-2': {
-      periodsPerDay: 7,
-      subjects: [
-        // 認知能力
-        { name: '語文讀寫', type: 'cognitive', count: 6, priority: 'high' },
-        { name: '數學邏輯', type: 'cognitive', count: 6, priority: 'high' },
-        { name: '健康體育', type: 'cognitive', count: 3 },
-        { name: '藝術涵養', type: 'cognitive', count: 3 },
-        { name: '自然科學', type: 'cognitive', count: 1 },
-        { name: '社會人文', type: 'cognitive', count: 1 },
-        { name: '資訊科技', type: 'cognitive', count: 1 },
-        // 非認知能力
-        { name: 'Adventure Edu', type: 'explore', count: 4 }, // 週四探索
-        { name: '創新解決', type: 'non-cognitive', count: 2 },
-        { name: '情緒覺察', type: 'non-cognitive', count: 2 },
-        { name: '品格自律', type: 'non-cognitive', count: 2 },
-        { name: '協作領導', type: 'non-cognitive', count: 2 },
-        { name: '全球雙語', type: 'non-cognitive', count: 2 }
-      ]
-    },
-    'g3-6': {
-      periodsPerDay: 7,
-      subjects: [
-        { name: '語文讀寫', type: 'cognitive', count: 5, priority: 'high' },
-        { name: '數學邏輯', type: 'cognitive', count: 5, priority: 'high' },
-        { name: '健康體育', type: 'cognitive', count: 3 },
-        { name: '藝術涵養', type: 'cognitive', count: 3 },
-        { name: '自然科學', type: 'cognitive', count: 2 },
-        { name: '社會人文', type: 'cognitive', count: 2 },
-        { name: '資訊科技', type: 'cognitive', count: 1 },
-        { name: 'Adventure Edu', type: 'explore', count: 4 },
-        { name: '創新解決', type: 'non-cognitive', count: 2 },
-        { name: '情緒覺察', type: 'non-cognitive', count: 2 },
-        { name: '品格自律', type: 'non-cognitive', count: 2 },
-        { name: '協作領導', type: 'non-cognitive', count: 2 },
-        { name: '全球雙語', type: 'non-cognitive', count: 2 }
-      ]
-    },
-    'g7-9': {
-      periodsPerDay: 8,
-      subjects: [
-        { name: '語文讀寫', type: 'cognitive', count: 6, priority: 'high' },
-        { name: '數學邏輯', type: 'cognitive', count: 6, priority: 'high' },
-        { name: '自然科學', type: 'cognitive', count: 4 },
-        { name: '社會人文', type: 'cognitive', count: 3 },
-        { name: '健康體育', type: 'cognitive', count: 3 },
-        { name: '藝術涵養', type: 'cognitive', count: 3 },
-        { name: '資訊科技', type: 'cognitive', count: 1 },
-        { name: 'Adventure Edu', type: 'explore', count: 4 },
-        { name: '創新解決', type: 'non-cognitive', count: 2 },
-        { name: '情緒覺察', type: 'non-cognitive', count: 2 },
-        { name: '品格自律', type: 'non-cognitive', count: 2 },
-        { name: '協作領導', type: 'non-cognitive', count: 2 },
-        { name: '全球雙語', type: 'non-cognitive', count: 2 }
-      ]
-    }
-  };
-
-  // 作息時間表
-  const scheduleTimes = {
-    elem: [ 
-      { p: 1, time: '08:40-09:20' },
-      { p: 2, time: '09:30-10:10' },
-      { p: 'recess1', time: '10:10-10:30', label: '大下課 Recess' },
-      { p: 3, time: '10:30-11:10' },
-      { p: 4, time: '11:20-12:00' },
-      { p: 'lunch', time: '12:00-13:00', label: '午餐與休憩 Lunch Break' },
-      { p: 5, time: '13:00-13:40' },
-      { p: 6, time: '13:50-14:30' },
-      { p: 'recess2', time: '14:30-14:50', label: '休息 Recess' },
-      { p: 7, time: '14:50-15:30' },
-      { p: 'homeroom', time: '15:30-15:50', label: '班級時間 Home Room' }
-    ],
-    junior: [
-      { p: 1, time: '08:35-09:20' },
-      { p: 2, time: '09:30-10:15' },
-      { p: 'recess1', time: '10:15-10:30', label: '大下課 Recess' },
-      { p: 3, time: '10:30-11:15' },
-      { p: 4, time: '11:25-12:10' },
-      { p: 'lunch', time: '12:10-13:00', label: '午餐與休憩 Lunch Break' },
-      { p: 5, time: '13:00-13:45' },
-      { p: 6, time: '13:55-14:40' },
-      { p: 'recess2', time: '14:40-14:55', label: '休息 Recess' },
-      { p: 7, time: '14:55-15:40' },
-      { p: 8, time: '15:50-16:35' },
-      { p: 'homeroom', time: '16:35-16:55', label: '班級時間 Home Room' }
-    ]
-  };
-
-  // 2. 輔助函式：洗牌
-  function shuffle(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex != 0) {
-      randomIndex = Math.floor(Math.random() * currentIndex);
-      currentIndex--;
-      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
-  }
-
-  // 3. 渲染統計數據
-  function renderStats(subjects) {
-    let cogCount = 0;
-    let nonCogCount = 0;
-    subjects.forEach(s => {
-      if (s.type === 'cognitive') cogCount += s.count;
-      else nonCogCount += s.count;
-    });
-
-    const html = `
-      <div class="stat-card cog">
-        <h3>認知課程 (Cognitive)</h3>
-        <div class="number" style="color:#1565c0">${cogCount} 節</div>
-        <div style="font-size:12px; color:#555">語文、數學、自然、社會...</div>
-      </div>
-      <div class="stat-card non-cog">
-        <h3>非認知課程 (Non-Cognitive)</h3>
-        <div class="number" style="color:#558b2f">${nonCogCount} 節</div>
-        <div style="font-size:12px; color:#555">探索、品格、協作、創新...</div>
-      </div>
-      <div class="stat-card">
-        <h3>每週總節數</h3>
-        <div class="number">${cogCount + nonCogCount} 節</div>
-      </div>
-    `;
-    const statsEl = document.getElementById('stats-display');
-    if(statsEl) statsEl.innerHTML = html;
-  }
-
-  // 4. 取得票券權重分數 (用於排序)
-  // rule: high priority core subjects should be in morning (period <= 4)
-  function getTicketScore(ticket, period) {
-    const isMorning = period <= 4;
-    const isCore = (ticket.priority === 'high'); // 語文讀寫, 數學邏輯
-    const isCog = (ticket.type === 'cognitive');
-
-    if (isMorning) {
-      if (isCore) return 100;    // 核心課程最優先放上午
-      if (isCog) return 80;      // 其他認知課程次之
-      return 20;                 // 非認知課程放上午分數較低
-    } else {
-      // 下午
-      if (isCore) return 10;     // 核心課程盡量不放下午
-      if (!isCog) return 90;     // 非認知課程優先放下午
-      return 50;                 // 其他認知課程普通
-    }
-  }
-
-  // 5. 主程式：生成課表
-  function generateTimetable() {
-    const gradeSelect = document.getElementById('grade-level');
-    const grade = gradeSelect.value;
-    const config = curriculumConfig[grade];
-
-    if (!config) return;
-
-    // 複製課程資料
-    const subjects = JSON.parse(JSON.stringify(config.subjects));
-    renderStats(subjects);
-
-    // 準備票券
-    let tickets = [];
-    subjects.forEach(sub => {
-      for(let i=0; i<sub.count; i++) {
-        tickets.push({ name: sub.name, type: sub.type, priority: sub.priority || 'normal' });
-      }
-    });
-
-    // 建立網格與計數器
-    let grid = {}; 
-    let dailyCounts = {0:{}, 1:{}, 2:{}, 3:{}, 4:{}}; // 紀錄每天各科出現次數
-
-    // --- 步驟 A: 鎖定週四探索課程 ---
-    let adventureTickets = tickets.filter(t => t.type === 'explore');
-    let otherTickets = tickets.filter(t => t.type !== 'explore');
-
-    for(let p=1; p<=4; p++) {
-      if (adventureTickets.length > 0) {
-        let t = adventureTickets.shift();
-        grid[`3-${p}`] = t;
-        // 探索課程通常不計入單科限制，或視為特例
-      }
-    }
-    // 把多餘的探索票丟回去(理論上不應發生)
-    if (adventureTickets.length > 0) otherTickets = otherTickets.concat(adventureTickets);
-
-    // --- 步驟 B: 填入其餘課程 ---
-    // 我們不直接洗牌填入，而是針對每一個格子，從剩餘票券中「挑選最適合的」
-    
-    // 先打亂以增加隨機性
-    shuffle(otherTickets);
-
-    const periods = config.periodsPerDay;
-
-    // 遍歷所有格子 (先填上午，再填下午，以確保上午優先權能被滿足)
-    // 順序：Day 0-4 的 p1, Day 0-4 的 p2... 這樣可以讓核心課程平均分散在週間
-    let slotQueue = [];
-    for (let p=1; p<=periods; p++) {
-      for (let d=0; d<5; d++) {
-        slotQueue.push({d, p});
-      }
-    }
-
-    slotQueue.forEach(slot => {
-      const {d, p} = slot;
-      const key = `${d}-${p}`;
-      if (grid[key]) return; // 已有課程
-
-      if (otherTickets.length > 0) {
-        // 1. 篩選出符合「單日不超過2節」的票券
-        //    如果是核心課程(語文/數學)，其實通常也希望能分散，所以限制 <2 是合理的
-        let validCandidates = otherTickets.filter(t => {
-          let currentCount = dailyCounts[d][t.name] || 0;
-          return currentCount < 2;
-        });
-
-        // 如果該日限制太嚴格導致無票可選，則放寬限制 (fallback)
-        // 例如某科一週有 8 節(雖然不合理)，那勢必有一天要上 >2 節
-        if (validCandidates.length === 0) {
-           validCandidates = otherTickets; 
-        }
-
-        // 2. 對候選票券進行評分排序
-        //    分數高者優先填入此格
-        validCandidates.sort((a, b) => {
-          return getTicketScore(b, p) - getTicketScore(a, p);
-        });
-
-        // 3. 選出最高分的票 (若分數相同，因前面已 Shuffle 過，故具隨機性)
-        let bestTicket = validCandidates[0];
-        
-        // 4. 從 otherTickets 移除該票券 (需找到對應 index)
-        let indexInPool = otherTickets.indexOf(bestTicket);
-        if (indexInPool !== -1) {
-          otherTickets.splice(indexInPool, 1);
-          grid[key] = bestTicket;
-          
-          // 更新當日計數
-          if (!dailyCounts[d][bestTicket.name]) dailyCounts[d][bestTicket.name] = 0;
-          dailyCounts[d][bestTicket.name]++;
-        }
-      }
-    });
-
-    // 5. 生成 HTML
-    const scheduleDef = (grade === 'g7-9') ? scheduleTimes.junior : scheduleTimes.elem;
-    const days = ['週一', '週二', '週三', '週四', '週五'];
-    
-    let html = '<table><thead><tr><th>時段</th>';
-    days.forEach(d => html += `<th>${d}</th>`);
-    html += '</tr></thead><tbody>';
-
-    html += `<tr><th class="row-header">07:40-08:10<br>Morning Exercise</th><td colspan="5" class="fixed-activity">學生朝會 / 體適能 / 晨間閱讀</td></tr>`;
-    html += `<tr><th class="row-header">08:10-08:35<br>Home Room</th><td colspan="5" class="fixed-activity">品德教育 / 班級經營 / 經典導讀</td></tr>`;
-
-    scheduleDef.forEach(row => {
-      if (typeof row.p === 'string') {
-        html += `<tr><th class="row-header">${row.time}<br>${row.label.split(' ')[0]}</th><td colspan="5" class="fixed-activity">${row.label}</td></tr>`;
-      } else {
-        html += `<tr><th class="row-header">${row.time}<br>第 ${row.p} 節</th>`;
-        for (let d=0; d<5; d++) {
-          const cellData = grid[`${d}-${row.p}`];
-          if (cellData) {
-            let cssClass = `type-${cellData.type}`; 
-            // 若是核心課程，加個小標記色
-            if (cellData.priority === 'high') cssClass += ' type-core';
-
-            let tagText = (cellData.type === 'cognitive') ? '認知' : (cellData.type === 'explore' ? '探索' : '非認知');
-            
-            html += `<td class="${cssClass} editable" contenteditable="true">
-              <div class="course-cell">
-                <span style="font-weight:bold; font-size:15px;">${cellData.name}</span>
-                <span class="tag">${tagText}</span>
-              </div>
-            </td>`;
-          } else {
-            html += `<td class="editable" contenteditable="true"></td>`;
-          }
-        }
-        html += `</tr>`;
-      }
-    });
-
-    html += '</tbody></table>';
-    document.getElementById('timetable-container').innerHTML = html;
-
-    const msgEl = document.getElementById('message');
-    if (otherTickets.length > 0) {
-      msgEl.innerHTML = `<span style="color:#d32f2f">⚠️ 尚有 ${otherTickets.length} 節課程未排入。</span>`;
-    } else {
-      msgEl.innerHTML = `<span style="color:#2e7d32">✅ 排課成功！已優先將語文、數學安排於上午，並避免單日重複過多。</span>`;
-    }
-  }
-
-  document.getElementById('generate-btn').addEventListener('click', generateTimetable);
-  document.getElementById('reset-btn').addEventListener('click', generateTimetable);
-  document.getElementById('grade-level').addEventListener('change', generateTimetable);
-
-  generateTimetable();
-});
-</script>
-
-</body>
-</html>
+    /* 按鈕樣式 */
+    button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border:
