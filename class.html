@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>七至九年級課表產生器（全人教育 × 主題統整）</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px 24px 32px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 20px 0 8px;
+    }
+    .note {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .config {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    label {
+      font-size: 14px;
+    }
+    input[type="text"],
+    input[type="number"],
+    select {
+      padding: 4px 6px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      min-width: 120px;
+    }
+    input[type="number"] {
+      width: 80px;
+    }
+    button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary {
+      background: #1976d2;
+      color: #fff;
+    }
+    button.danger {
+      background: #d32f2f;
+      color: #fff;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    button + button {
+      margin-left: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px 4px;
+      text-align: center;
+      word-break: break-all;
+    }
+    thead th {
+      background: #fafafa;
+    }
+    .row-header {
+      background: #f7f7f7;
+      width: 150px;
+    }
+    #message,
+    #suggestion-message {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #c62828;
+    }
+    .timetable {
+      margin-top: 12px;
+    }
+    .tag {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 0 4px;
+      font-size: 11px;
+      border-radius: 4px;
+      background: #e3f2fd;
+      color: #0d47a1;
+    }
+    .suggest {
+      font-size: 13px;
+      color: #1976d2;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>七至九年級課表產生器（全人教育 × 主題統整）</h1>
+    <div class="note">
+      一週五天、每天八節課：第1–2節語文、第3–4節數學與探究、第5–6節主題探究與跨域、第7–8節延伸課程；週五上午為探索課程專區。
+    </div>
+
+    <!-- 科目設定區 -->
+    <section class="config">
+      <h2>1. 科目設定</h2>
+      <div class="note">
+        新增科目時，請選擇適用的節次類別；週五上午第1–4節會專門使用「探索課」類別的科目。
+      </div>
+      <form id="subject-form">
+        <label>
+          科目名稱：
+          <input type="text" id="subject-name" placeholder="例如：語文讀寫、數學邏輯" required />
+        </label>
+        <label>
+          每週節數：
+          <input type="number" id="subject-count" min="1" max="40" value="2" required />
+        </label>
+        <label>
+          類別：
+          <select id="subject-category">
+            <option value="lang">語文學習（第1、2節）</option>
+            <option value="logic">數學／探究（第3、4節）</option>
+            <option value="theme">主題探究／跨域（第5、6節）</option>
+            <option value="extended">延伸課程（第7、8節）</option>
+            <option value="explore">探索課（週五上午1–4節）</option>
+          </select>
+        </label>
+        <button type="submit" class="primary">新增科目</button>
+      </form>
+
+      <table id="subject-table">
+        <thead>
+          <tr>
+            <th>科目名稱</th>
+            <th>每週節數</th>
+            <th>類別</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JS 動態填入 -->
+        </tbody>
+      </table>
+      <div class="note">
+        小技巧：如果同一門課想同時出現在不同時段（例如：藝術涵養早上＋下午），可以新增兩筆：<br>
+        「藝術涵養（上午）」類別選擇數學／探究，「藝術涵養（下午）」類別選擇主題探究／跨域。
+      </div>
+    </section>
+
+    <!-- 產生課表區 -->
+    <section>
+      <h2>2. 產生課表</h2>
+      <div class="note">
+        依照七至九年級的課程架構自動排課：<br>
+        週一～週四上午：語文＋數學／探究；下午：主題探究與跨域；第7、8節為延伸課程；週五上午為探索課。
+      </div>
+      <button id="generate-btn" class="primary" type="button">產生課表</button>
+      <button id="regenerate-btn" class="primary" type="button" disabled>重新生成</button>
+      <div id="message"></div>
+      <div id="timetable-container"></div>
+
+      <h2>3. 尚未排入課程的建議課表</h2>
+      <div class="note">
+        以下課表在原本課表的基礎上，於空白節次標示「<span class="suggest">建議：某某科目</span>」，提供老師手動調整的參考。<br>
+        若所有課程都已排入，則建議課表會與原課表相同。
+      </div>
+      <div id="suggestion-message"></div>
+      <div id="suggestion-container"></div>
+    </section>
+  </div>
+
+  <script>
+    (function() {
+      const subjects = [];
+
+      const categoryLabels = {
+        lang:     '語文學習（第1、2節）',
+        logic:    '數學／探究（第3、4節）',
+        theme:    '主題探究／跨域（第5、6節）',
+        extended: '延伸課程（第7、8節）',
+        explore:  '探索課（週五上午）'
+      };
+
+      // 渲染科目列表
+      function renderSubjectTable() {
+        const tbody = document.querySelector('#subject-table tbody');
+        tbody.innerHTML = '';
+
+        if (subjects.length === 0) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          td.textContent = '目前尚未新增任何科目。';
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          return;
+        }
+
+        subjects.forEach((sub, index) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${sub.name}<span class="tag">${sub.category in categoryLabels ? categoryLabels[sub.category] : ''}</span></td>
+            <td>${sub.count}</td>
+            <td>${categoryLabels[sub.category] || ''}</td>
+            <td><button type="button" class="danger" data-index="${index}">刪除</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('button[data-index]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const idx = Number(e.currentTarget.getAttribute('data-index'));
+            subjects.splice(idx, 1);
+            renderSubjectTable();
+          });
+        });
+      }
+
+      // Fisher-Yates 洗牌
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      // 回傳某一天某節課允許的「類別」陣列
+      function getSlotCategories(day, period) {
+        const isFriday = (day === 4); // 0:週一 ... 4:週五
+
+        // 週五上午第1–4節：探索課專區
+        if (isFriday && period >= 1 && period <= 4) {
+          return ['explore'];
+        }
+
+        // 一般情況
+        if (period === 1 || period === 2) {
+          return ['lang'];
+        }
+        if (period === 3 || period === 4) {
+          return ['logic'];
+        }
+        if (period === 5 || period === 6) {
+          // 週五第5、6節：主題探究 + 語文，讓語文與英語可以交錯
+          if (isFriday) {
+            return ['theme', 'lang'];
+          }
+          return ['theme'];
+        }
+        if (period === 7 || period === 8) {
+          return ['extended'];
+        }
+        return [];
+      }
+
+      // 建立所有節次格子
+      function generateSlots() {
+        const slots = [];
+        for (let day = 0; day < 5; day++) {       // 週一～週五
+          for (let period = 1; period <= 8; period++) { // 第1～8節
+            const categories = getSlotCategories(day, period);
+            slots.push({ day, period, categories });
+          }
+        }
+        return slots;
+      }
+
+      // 從票券中抽一張符合 allowedCategories 的票
+      function pickTicket(allowedCategories, tickets) {
+        const candidates = [];
+        tickets.forEach((t, idx) => {
+          if (!t.used && allowedCategories.includes(t.category)) {
+            candidates.push(idx);
+          }
+        });
+        if (candidates.length === 0) return null;
+        const chosenIndex = candidates[Math.floor(Math.random() * candidates.length)];
+        tickets[chosenIndex].used = true;
+        return tickets[chosenIndex].name;
+      }
+
+      // 畫出「原始課表」（這裡的科目格可手動編輯）
+      function renderTimetable(map) {
+        const daysLabels = ['週一', '週二', '週三', '週四', '週五'];
+        const periods = [1, 2, 3, 4, 5, 6, 7, 8];
+        const container = document.getElementById('timetable-container');
+
+        const periodLabelMap = {
+          1: '第1節｜語文學習',
+          2: '第2節｜語文學習',
+          3: '第3節｜數學邏輯／自然探究',
+          4: '第4節｜數學邏輯／藝術涵養',
+          5: '第5節｜主題探究／跨域整合',
+          6: '第6節｜主題探究／跨域整合',
+          7: '第7節｜延伸與選修',
+          8: '第8節｜延伸與選修'
+        };
+
+        let html = '<table class="timetable"><thead><tr><th>節次／課程架構</th>';
+        daysLabels.forEach(d => {
+          html += `<th>${d}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        // Morning Exercise（固定，不開放編輯）
+        html += `<tr>
+          <th class="row-header">07:35–08:00<br>Morning Exercise</th>`;
+        for (let d = 0; d < 5; d++) {
+          html += '<td>Morning Exercise</td>';
+        }
+        html += '</tr>';
+
+        // 學生朝會／道德經品德教育／班會（固定，不開放編輯）
+        html += `<tr>
+          <th class="row-header">08:00–08:15<br>學生朝會／道德經品德教育／班會</th>`;
+        for (let d = 0; d < 5; d++) {
+          html += '<td>學生朝會／品德教育／班會</td>';
+        }
+        html += '</tr>';
+
+        periods.forEach(p => {
+          // 10:00 上午休息（固定，不開放編輯）
+          if (p === 3) {
+            html += `<tr>
+              <th class="row-header">10:00<br>上午休息</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>休息</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 11:50–13:15 午休（固定，不開放編輯）
+          if (p === 5) {
+            html += `<tr>
+              <th class="row-header">11:50–13:15<br>午餐／午休</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>午餐／午休</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 15:00 下午休息（固定，不開放編輯）
+          if (p === 7) {
+            html += `<tr>
+              <th class="row-header">15:00<br>下午休息</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>休息</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 該節課程列（這裡每一格可以手動編輯）
+          html += `<tr><th class="row-header">${periodLabelMap[p]}</th>`;
+          for (let day = 0; day < 5; day++) {
+            const key = `${day}-${p}`;
+            const text = map[key] || '';
+            html += `<td contenteditable="true">${text}</td>`;
+          }
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+
+      // 畫出「建議課表」（維持只顯示建議，不開放編輯）
+      function renderSuggestionTimetable(baseMap, suggestionMap) {
+        const daysLabels = ['週一', '週二', '週三', '週四', '週五'];
+        const periods = [1, 2, 3, 4, 5, 6, 7, 8];
+        const container = document.getElementById('suggestion-container');
+
+        const periodLabelMap = {
+          1: '第1節｜語文學習',
+          2: '第2節｜語文學習',
+          3: '第3節｜數學邏輯／自然探究',
+          4: '第4節｜數學邏輯／藝術涵養',
+          5: '第5節｜主題探究／跨域整合',
+          6: '第6節｜主題探究／跨域整合',
+          7: '第7節｜延伸與選修',
+          8: '第8節｜延伸與選修'
+        };
+
+        let html = '<table class="timetable"><thead><tr><th>節次／課程架構（含建議）</th>';
+        daysLabels.forEach(d => {
+          html += `<th>${d}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        // Morning Exercise
+        html += `<tr>
+          <th class="row-header">07:35–08:00<br>Morning Exercise</th>`;
+        for (let d = 0; d < 5; d++) {
+          html += '<td>Morning Exercise</td>';
+        }
+        html += '</tr>';
+
+        // 學生朝會／道德經品德教育／班會
+        html += `<tr>
+          <th class="row-header">08:00–08:15<br>學生朝會／道德經品德教育／班會</th>`;
+        for (let d = 0; d < 5; d++) {
+          html += '<td>學生朝會／品德教育／班會</td>';
+        }
+        html += '</tr>';
+
+        periods.forEach(p => {
+          // 10:00 上午休息
+          if (p === 3) {
+            html += `<tr>
+              <th class="row-header">10:00<br>上午休息</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>休息</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 11:50–13:15 午休
+          if (p === 5) {
+            html += `<tr>
+              <th class="row-header">11:50–13:15<br>午餐／午休</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>午餐／午休</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 15:00 下午休息
+          if (p === 7) {
+            html += `<tr>
+              <th class="row-header">15:00<br>下午休息</th>`;
+            for (let d = 0; d < 5; d++) {
+              html += '<td>休息</td>';
+            }
+            html += '</tr>';
+          }
+
+          // 該節課程列（只顯示原排課＋建議）
+          html += `<tr><th class="row-header">${periodLabelMap[p]}</th>`;
+          for (let day = 0; day < 5; day++) {
+            const key = `${day}-${p}`;
+            const baseText = baseMap[key] || '';
+            const suggest = suggestionMap[key];
+            let cellText = '';
+
+            if (baseText) {
+              cellText = baseText;
+            } else if (suggest) {
+              cellText = `<span class="suggest">建議：${suggest}</span>`;
+            } else {
+              cellText = '';
+            }
+
+            html += `<td>${cellText}</td>`;
+          }
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+
+      // 產生課表主程式
+      function generate() {
+        const messageEl = document.getElementById('message');
+        const suggestionMsgEl = document.getElementById('suggestion-message');
+        const suggestionContainer = document.getElementById('suggestion-container');
+
+        messageEl.textContent = '';
+        suggestionMsgEl.textContent = '';
+        suggestionContainer.innerHTML = '';
+
+        if (subjects.length === 0) {
+          messageEl.textContent = '請先在上方新增至少一個科目。';
+          return;
+        }
+
+        const slots = generateSlots();
+
+        // 依科目設定生成「票券」
+        const tickets = [];
+        subjects.forEach(sub => {
+          for (let i = 0; i < sub.count; i++) {
+            tickets.push({
+              name: sub.name,
+              category: sub.category,
+              used: false
+            });
+          }
+        });
+
+        shuffle(tickets);
+
+        const tableMap = {};
+        slots.forEach(slot => {
+          const key = `${slot.day}-${slot.period}`;
+          const name = pickTicket(slot.categories, tickets);
+          tableMap[key] = name || '';
+        });
+
+        const totalTickets = tickets.length;
+        const usedTickets = tickets.filter(t => t.used).length;
+        const totalSlots = slots.length;
+
+        if (totalTickets > totalSlots) {
+          messageEl.textContent =
+            `⚠️ 所有科目的總節數（${totalTickets}）大於可排節數（${totalSlots}），有 ${totalTickets - usedTickets} 節課無法排入，可調整各科節數。`;
+        } else {
+          messageEl.textContent =
+            `✅ 已完成排課：共使用 ${usedTickets} 節課，尚有 ${totalSlots - usedTickets} 個節次為空白，可依實際需求手動調整。`;
+        }
+
+        // 畫出原始課表（可手動編輯）
+        renderTimetable(tableMap);
+
+        // === 產生「未排入課程」的建議排入位置 ===
+        const leftoverTickets = tickets.filter(t => !t.used);
+        const emptySlots = slots.filter(slot => {
+          const key = `${slot.day}-${slot.period}`;
+          return !tableMap[key]; // 空白節次
+        });
+
+        const suggestionMap = {};
+
+        // 依序為剩餘課程找空白且類別相容的節次
+        leftoverTickets.forEach(ticket => {
+          const idx = emptySlots.findIndex(slot =>
+            slot.categories.includes(ticket.category)
+          );
+          if (idx !== -1) {
+            const slot = emptySlots[idx];
+            const key = `${slot.day}-${slot.period}`;
+            suggestionMap[key] = ticket.name;
+            emptySlots.splice(idx, 1);     // 用掉這個空格
+            ticket.assignedSuggestion = true;
+          } else {
+            ticket.assignedSuggestion = false;
+          }
+        });
+
+        const unplaced = leftoverTickets.filter(t => !t.assignedSuggestion);
+        const suggestionCount = Object.keys(suggestionMap).length;
+
+        if (leftoverTickets.length === 0) {
+          suggestionMsgEl.textContent =
+            '✅ 所有設定的節數皆已排入原課表，沒有尚未排入的課程。';
+        } else {
+          let msg =
+            `共有 ${leftoverTickets.length} 節課尚未排入原課表，已為其中 ${suggestionCount} 節找出可行的建議時段。`;
+          if (unplaced.length > 0) {
+            const countByName = {};
+            unplaced.forEach(t => {
+              countByName[t.name] = (countByName[t.name] || 0) + 1;
+            });
+            const detail = Object.entries(countByName)
+              .map(([name, count]) => `${name}×${count}`)
+              .join('、');
+            msg += ` 目前仍有 ${unplaced.length} 節無相符空白節次，科目分佈為：${detail}`;
+          }
+          suggestionMsgEl.textContent = msg;
+        }
+
+        // 畫出建議課表
+        renderSuggestionTimetable(tableMap, suggestionMap);
+
+        // 啟用重新生成按鈕
+        document.getElementById('regenerate-btn').disabled = false;
+      }
+
+      // 綁定新增科目表單
+      document.getElementById('subject-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('subject-name');
+        const countInput = document.getElementById('subject-count');
+        const categorySelect = document.getElementById('subject-category');
+
+        const name = nameInput.value.trim();
+        const count = parseInt(countInput.value, 10);
+        const category = categorySelect.value;
+
+        if (!name) {
+          alert('請輸入科目名稱');
+          return;
+        }
+        if (isNaN(count) || count <= 0) {
+          alert('每週節數請輸入正整數');
+          return;
+        }
+
+        subjects.push({
+          id: Date.now() + Math.random(),
+          name,
+          count,
+          category
+        });
+
+        nameInput.value = '';
+        countInput.value = 2;
+        categorySelect.value = 'lang';
+
+        renderSubjectTable();
+      });
+
+      // 綁定按鈕
+      document.getElementById('generate-btn').addEventListener('click', generate);
+      document.getElementById('regenerate-btn').addEventListener('click', generate);
+
+      // 預設一些七至九年級的示範科目（可依學校實況修改或刪除）
+      const defaultSubjects = [
+        { name: '語文讀寫',        count: 4, category: 'lang' },
+        { name: 'Language Art',    count: 4, category: 'lang' },
+        { name: '數學邏輯',        count: 4, category: 'logic' },
+        { name: '自然科學',        count: 4, category: 'logic' },
+        { name: '藝術涵養（上午）', count: 2, category: 'logic' },
+        { name: '藝術涵養（下午）', count: 2, category: 'theme' },
+        { name: 'Earth Science System', count: 2, category: 'theme' },
+        { name: '社會人文',        count: 3, category: 'theme' },
+        { name: '健康體育',        count: 3, category: 'theme' },
+        { name: 'Social Studies',  count: 2, category: 'extended' },
+        { name: '資訊科技',        count: 2, category: 'extended' },
+        { name: '創客教育',        count: 2, category: 'extended' },
+        { name: '自然科學（延伸）', count: 1, category: 'extended' },
+        { name: '健康體育（延伸）', count: 1, category: 'extended' },
+        { name: '探索專題',        count: 4, category: 'explore' }
+      ];
+
+      defaultSubjects.forEach(s => {
+        subjects.push({
+          id: Date.now() + Math.random(),
+          name: s.name,
+          count: s.count,
+          category: s.category
+        });
+      });
+      renderSubjectTable();
+    })();
+  </script>
+</body>
+</html>
