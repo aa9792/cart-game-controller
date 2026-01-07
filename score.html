@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成績加分換算器</title>
+    <title>成績換算器（可調權重版）</title>
     <style>
         body {
             font-family: "Microsoft JhengHei", Arial, sans-serif;
@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             padding: 30px;
@@ -23,94 +23,117 @@
         h1 {
             text-align: center;
             color: #2c3e50;
+            margin-bottom: 30px;
         }
         .control-panel {
-            background-color: #e8f4f8;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 5px solid #3498db;
+            background-color: #eef2f5;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid #dbe2e8;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
-        .input-group {
-            margin-bottom: 15px;
+        .control-group {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 8px;
         }
         label {
             font-weight: bold;
-            font-size: 1.1em;
+            color: #34495e;
         }
         input[type="number"] {
-            padding: 8px;
-            font-size: 1em;
-            width: 80px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 10px;
+            font-size: 1.1em;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
         }
-        input[type="range"] {
-            flex-grow: 1;
-            cursor: pointer;
+        input[type="number"]:focus {
+            border-color: #3498db;
+            outline: none;
         }
-        .checkbox-group {
-            margin-top: 10px;
+        .result-preview {
+            grid-column: 1 / -1;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 1.1em;
+            color: #e67e22;
+            font-weight: bold;
+            border: 1px dashed #bdc3c7;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
+            background-color: white;
         }
         th, td {
-            padding: 12px;
+            padding: 14px;
             text-align: center;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #eee;
         }
         th {
-            background-color: #2c3e50;
+            background-color: #34495e;
             color: white;
+            font-weight: 500;
         }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-        .score-A { color: #27ae60; font-weight: bold; } /* 90-100 */
+        tr:nth-child(even) { background-color: #fbfbfb; }
+        tr:hover { background-color: #f1f8ff; }
+        
+        /* 成績顏色區分 */
+        .score-A { color: #27ae60; font-weight: bold; } /* 90+ */
         .score-B { color: #2980b9; font-weight: bold; } /* 80-89 */
-        .high-light {
-            background-color: #fff3cd !important;
+        
+        .cap-option {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
         }
+        input[type="checkbox"] { transform: scale(1.2); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>學生成績加分換算表</h1>
+    <h1>學生成績換算表 (權重調整版)</h1>
     
     <div class="control-panel">
-        <div class="input-group">
-            <label for="bonusInput">加分點數 (0-25)：</label>
-            <input type="number" id="bonusNumber" min="0" max="25" value="0">
-            <input type="range" id="bonusRange" min="0" max="25" value="0">
+        <div class="control-group">
+            <label for="bonusPoints">學生獲得的「加分點數」(0-25)：</label>
+            <input type="number" id="bonusPoints" min="0" max="25" value="5">
         </div>
-        
-        <div class="checkbox-group">
+
+        <div class="control-group">
+            <label for="weight">級距設定 (1點換算幾分?)：</label>
+            <input type="number" id="weight" min="0" step="0.1" value="1.0">
+            <small style="color:#7f8c8d;">例：設 0.5 代表每 2 點才加 1 分</small>
+        </div>
+
+        <div class="result-preview" id="previewText">
+            計算公式：獲得 5 點 × 1.0 倍率 = 總成績 + 5 分
+        </div>
+
+        <div class="cap-option">
             <input type="checkbox" id="cap100" checked>
-            <label for="cap100">設定 100 分為上限 (超過以 100 計算)</label>
+            <label for="cap100" style="font-weight:normal;">超過 100 分以 100 分計算</label>
         </div>
-        
-        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-            目前設定：原始分數區間 <strong>80 ~ 93 分</strong>
-        </p>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>原始分數</th>
-                <th>+ 加分點數</th>
-                <th>換算後成績</th>
+                <th width="25%">原始成績</th>
+                <th width="40%">換算公式 (點數 × 級距)</th>
+                <th width="35%">最終學期成績</th>
             </tr>
         </thead>
         <tbody id="scoreTableBody">
@@ -119,68 +142,75 @@
 </div>
 
 <script>
-    // 設定變數
+    // 參數設定
     const minScore = 80;
     const maxScore = 93;
     
-    // 取得 DOM 元素
-    const bonusNumber = document.getElementById('bonusNumber');
-    const bonusRange = document.getElementById('bonusRange');
-    const cap100 = document.getElementById('cap100');
-    const tableBody = document.getElementById('scoreTableBody');
+    // DOM 元素
+    const elBonusPoints = document.getElementById('bonusPoints');
+    const elWeight = document.getElementById('weight');
+    const elCap100 = document.getElementById('cap100');
+    const elPreview = document.getElementById('previewText');
+    const elTableBody = document.getElementById('scoreTableBody');
+
+    // 監聽所有輸入變化
+    [elBonusPoints, elWeight, elCap100].forEach(item => {
+        item.addEventListener('input', updateTable);
+    });
 
     // 初始化
     updateTable();
 
-    // 監聽事件
-    bonusNumber.addEventListener('input', () => {
-        let val = parseInt(bonusNumber.value) || 0;
-        if(val > 25) val = 25; 
-        if(val < 0) val = 0;
-        bonusRange.value = val;
-        updateTable();
-    });
-
-    bonusRange.addEventListener('input', () => {
-        bonusNumber.value = bonusRange.value;
-        updateTable();
-    });
-
-    cap100.addEventListener('change', updateTable);
-
-    // 更新表格函數
     function updateTable() {
-        tableBody.innerHTML = ""; // 清空表格
-        const bonus = parseInt(bonusNumber.value) || 0;
-        const isCapped = cap100.checked;
+        // 取得數值
+        let points = parseFloat(elBonusPoints.value);
+        let weight = parseFloat(elWeight.value);
+        const isCapped = elCap100.checked;
 
+        // 防呆 (避免空值)
+        if (isNaN(points)) points = 0;
+        if (isNaN(weight)) weight = 0;
+
+        // 計算實際加分數 (取小數點後一位)
+        let actualBonus = Math.round((points * weight) * 10) / 10;
+
+        // 更新預覽文字
+        elPreview.innerHTML = `
+            計算公式：獲得 <strong>${points}</strong> 點 × 級距 <strong>${weight}</strong> 
+            = 總成績 + <strong>${actualBonus}</strong> 分
+        `;
+
+        // 清空表格
+        elTableBody.innerHTML = "";
+
+        // 生成 80-93 分的列表
         for (let original = minScore; original <= maxScore; original++) {
-            let finalScore = original + bonus;
+            let finalScore = original + actualBonus;
             
             // 處理上限
             if (isCapped && finalScore > 100) {
                 finalScore = 100;
             }
 
-            // 判斷顏色樣式
+            // 四捨五入到整數 (通常學期成績不含小數)
+            // 如果您需要保留小數，請移除 Math.round
+            let displayScore = Math.round(finalScore); 
+            // 或者是 displayScore = finalScore.toFixed(1);
+
+            // 判斷顏色
             let scoreClass = "";
-            if (finalScore >= 90) scoreClass = "score-A";
-            else if (finalScore >= 80) scoreClass = "score-B";
+            if (displayScore >= 90) scoreClass = "score-A";
+            else if (displayScore >= 80) scoreClass = "score-B";
 
-            // 建立表格列
             const row = document.createElement('tr');
-            
-            // 如果加分後的成績改變了跨度(例如變成滿分)，高亮顯示
-            if(finalScore === 100 && original < 100) {
-                row.classList.add('high-light');
-            }
-
             row.innerHTML = `
                 <td>${original}</td>
-                <td>+ ${bonus}</td>
-                <td class="${scoreClass}">${finalScore}</td>
+                <td style="color:#7f8c8d; font-size:0.9em;">
+                    ${original} + <span style="color:#e67e22; font-weight:bold;">${actualBonus}</span>
+                </td>
+                <td class="${scoreClass}" style="font-size:1.2em;">${displayScore}</td>
             `;
-            tableBody.appendChild(row);
+            elTableBody.appendChild(row);
         }
     }
 </script>
