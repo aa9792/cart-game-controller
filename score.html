@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成績加分換算器</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .control-panel {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 5px solid #3498db;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        label {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        input[type="number"] {
+            padding: 8px;
+            font-size: 1em;
+            width: 80px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+        .checkbox-group {
+            margin-top: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .score-A { color: #27ae60; font-weight: bold; } /* 90-100 */
+        .score-B { color: #2980b9; font-weight: bold; } /* 80-89 */
+        .high-light {
+            background-color: #fff3cd !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>學生成績加分換算表</h1>
+    
+    <div class="control-panel">
+        <div class="input-group">
+            <label for="bonusInput">加分點數 (0-25)：</label>
+            <input type="number" id="bonusNumber" min="0" max="25" value="0">
+            <input type="range" id="bonusRange" min="0" max="25" value="0">
+        </div>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="cap100" checked>
+            <label for="cap100">設定 100 分為上限 (超過以 100 計算)</label>
+        </div>
+        
+        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+            目前設定：原始分數區間 <strong>80 ~ 93 分</strong>
+        </p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>原始分數</th>
+                <th>+ 加分點數</th>
+                <th>換算後成績</th>
+            </tr>
+        </thead>
+        <tbody id="scoreTableBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // 設定變數
+    const minScore = 80;
+    const maxScore = 93;
+    
+    // 取得 DOM 元素
+    const bonusNumber = document.getElementById('bonusNumber');
+    const bonusRange = document.getElementById('bonusRange');
+    const cap100 = document.getElementById('cap100');
+    const tableBody = document.getElementById('scoreTableBody');
+
+    // 初始化
+    updateTable();
+
+    // 監聽事件
+    bonusNumber.addEventListener('input', () => {
+        let val = parseInt(bonusNumber.value) || 0;
+        if(val > 25) val = 25; 
+        if(val < 0) val = 0;
+        bonusRange.value = val;
+        updateTable();
+    });
+
+    bonusRange.addEventListener('input', () => {
+        bonusNumber.value = bonusRange.value;
+        updateTable();
+    });
+
+    cap100.addEventListener('change', updateTable);
+
+    // 更新表格函數
+    function updateTable() {
+        tableBody.innerHTML = ""; // 清空表格
+        const bonus = parseInt(bonusNumber.value) || 0;
+        const isCapped = cap100.checked;
+
+        for (let original = minScore; original <= maxScore; original++) {
+            let finalScore = original + bonus;
+            
+            // 處理上限
+            if (isCapped && finalScore > 100) {
+                finalScore = 100;
+            }
+
+            // 判斷顏色樣式
+            let scoreClass = "";
+            if (finalScore >= 90) scoreClass = "score-A";
+            else if (finalScore >= 80) scoreClass = "score-B";
+
+            // 建立表格列
+            const row = document.createElement('tr');
+            
+            // 如果加分後的成績改變了跨度(例如變成滿分)，高亮顯示
+            if(finalScore === 100 && original < 100) {
+                row.classList.add('high-light');
+            }
+
+            row.innerHTML = `
+                <td>${original}</td>
+                <td>+ ${bonus}</td>
+                <td class="${scoreClass}">${finalScore}</td>
+            `;
+            tableBody.appendChild(row);
+        }
+    }
+</script>
+
+</body>
+</html>
