@@ -1,270 +1,341 @@
-import React, { useState } from 'react';
-import { Target, BrainCircuit, Activity, BedDouble, ArrowUp, ArrowRight, XCircle, CheckCircle, AlertTriangle, BatteryCharging } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>備考狀態四象限檢測</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* 定義卡片浮現的動畫 */
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fade-in-up 0.5s ease-out forwards;
+        }
+        
+        /* 避免點擊後的藍色外框干擾視覺 */
+        button:focus { outline: none; }
+        
+        /* 自定義字體優化 */
+        body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-800 p-4 md:p-8">
 
-const ExamMatrix = () => {
-  const [selectedZone, setSelectedZone] = useState(null);
-
-  // 定義四個象限的資料
-  const zones = {
-    q2: {
-      id: 'q2',
-      title: '焦慮崩潰區',
-      subtitle: '高策略 / 低心態',
-      icon: <BrainCircuit size={48} />,
-      color: 'bg-orange-100',
-      borderColor: 'border-orange-500',
-      textColor: 'text-orange-700',
-      btnColor: 'bg-orange-600 hover:bg-orange-700',
-      symptoms: [
-        '你很會唸書，筆記做得很完美，但每晚都失眠。',
-        '容易患得患失，覺得「永遠讀不完」。',
-        '考試當天容易因為一題不會就全盤崩潰。'
-      ],
-      solution: {
-        title: '減法生活',
-        desc: '允許自己休息，設定「停損點」。告訴自己「讀完這些就夠了」，而非追求完美。練習正念呼吸。'
-      }
-    },
-    q1: {
-      id: 'q1',
-      title: '精準上岸區',
-      subtitle: '高策略 / 高心態',
-      icon: <Target size={48} />,
-      color: 'bg-green-100',
-      borderColor: 'border-green-500',
-      textColor: 'text-green-700',
-      btnColor: 'bg-green-600 hover:bg-green-700',
-      symptoms: [
-        '你有讀書計畫，也能照著節奏走。',
-        '懂得調整情緒，遇到挫折能快速復原。',
-        '這是最理想的備考狀態。'
-      ],
-      solution: {
-        title: '維持穩態',
-        desc: '保持規律作息，開始模擬考場情境（生理時鐘）。不要過度放鬆，保持適度張力直到考試當天。'
-      }
-    },
-    q4: {
-      id: 'q4',
-      title: '放棄躺平區',
-      subtitle: '低策略 / 低心態',
-      icon: <BedDouble size={48} />,
-      color: 'bg-slate-200',
-      borderColor: 'border-slate-500',
-      textColor: 'text-slate-700',
-      btnColor: 'bg-slate-600 hover:bg-slate-700',
-      symptoms: [
-        '覺得教甄太難，不知道從何開始。',
-        '常因為害怕失敗所以拒絕開始讀書。',
-        '容易被手機、社群媒體綁架時間。'
-      ],
-      solution: {
-        title: '微行動',
-        desc: '不要想「考上」，只要想「今天讀懂這一個概念」就好。先求有，再求好。建立最小成就感。'
-      }
-    },
-    q3: {
-      id: 'q3',
-      title: '盲目衝刺區',
-      subtitle: '低策略 / 高心態',
-      icon: <Activity size={48} />,
-      color: 'bg-blue-100',
-      borderColor: 'border-blue-500',
-      textColor: 'text-blue-700',
-      btnColor: 'bg-blue-600 hover:bg-blue-700',
-      symptoms: [
-        '你充滿熱血，每天讀12小時，但分數上不去。',
-        '只讀自己會的，不檢討錯題。',
-        '陷入「低價值的勤奮」，感動了自己卻沒感動閱卷官。'
-      ],
-      solution: {
-        title: '數據分析',
-        desc: '停止盲目刷題！開始做「錯題分析」。找出弱點章節，用80/20法則讀書，把時間花在刀口上。'
-      }
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-800">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">備考狀態自我檢測</h1>
-          <p className="text-gray-600 text-lg">點擊下方矩陣，找出你現在的位置與解方</p>
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-3xl md:text-4xl font-bold mb-3 text-gray-900 tracking-tight">備考狀態自我檢測</h1>
+            <p class="text-gray-600 text-lg">點擊下方矩陣，找出你現在的位置與解方</p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          
-          {/* 左側：互動矩陣 */}
-          <div className="relative aspect-square w-full max-w-md mx-auto shadow-xl rounded-xl overflow-hidden border-4 border-gray-800 bg-white">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             
-            {/* 縱軸標籤 */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-bold tracking-widest text-gray-400 pointer-events-none z-10 flex items-center gap-1">
-              <span className="text-gray-900">備考策略</span> <ArrowRight size={14}/>
+            <div class="relative aspect-square w-full max-w-md mx-auto shadow-2xl rounded-xl overflow-hidden border-4 border-gray-800 bg-white">
+                
+                <div class="absolute left-3 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-bold tracking-widest text-gray-400 pointer-events-none z-10 flex items-center gap-1">
+                    <span class="text-gray-900 text-sm">備考策略</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
+                
+                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs font-bold tracking-widest text-gray-400 pointer-events-none z-10 flex items-center gap-1">
+                    <span class="text-sm">心態素質</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
+
+                <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-800 z-0"></div>
+                <div class="absolute left-0 right-0 top-1/2 h-0.5 bg-gray-800 z-0"></div>
+
+                <div class="grid grid-cols-2 grid-rows-2 h-full w-full relative z-1">
+                    
+                    <button onclick="selectZone('q2')" id="btn-q2" class="zone-btn p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group bg-orange-50 hover:bg-orange-100">
+                        <div class="icon-wrapper transition-transform duration-300 group-hover:scale-110">
+                            <i data-lucide="brain-circuit" class="w-10 h-10 md:w-12 md:h-12 text-orange-300" id="icon-q2"></i>
+                        </div>
+                        <span class="mt-2 font-bold text-sm md:text-lg text-gray-400" id="text-q2">焦慮崩潰區</span>
+                    </button>
+
+                    <button onclick="selectZone('q1')" id="btn-q1" class="zone-btn p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group bg-green-50 hover:bg-green-100">
+                        <div class="icon-wrapper transition-transform duration-300 group-hover:scale-110">
+                            <i data-lucide="target" class="w-10 h-10 md:w-12 md:h-12 text-green-300" id="icon-q1"></i>
+                        </div>
+                        <span class="mt-2 font-bold text-sm md:text-lg text-gray-400" id="text-q1">精準上岸區</span>
+                    </button>
+
+                    <button onclick="selectZone('q4')" id="btn-q4" class="zone-btn p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group bg-slate-100 hover:bg-slate-200">
+                        <div class="icon-wrapper transition-transform duration-300 group-hover:scale-110">
+                            <i data-lucide="bed-double" class="w-10 h-10 md:w-12 md:h-12 text-slate-400" id="icon-q4"></i>
+                        </div>
+                        <span class="mt-2 font-bold text-sm md:text-lg text-gray-400" id="text-q4">放棄躺平區</span>
+                    </button>
+
+                    <button onclick="selectZone('q3')" id="btn-q3" class="zone-btn p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group bg-blue-50 hover:bg-blue-100">
+                        <div class="icon-wrapper transition-transform duration-300 group-hover:scale-110">
+                            <i data-lucide="activity" class="w-10 h-10 md:w-12 md:h-12 text-blue-300" id="icon-q3"></i>
+                        </div>
+                        <span class="mt-2 font-bold text-sm md:text-lg text-gray-400" id="text-q3">盲目衝刺區</span>
+                    </button>
+                </div>
             </div>
-            
-            {/* 橫軸標籤 */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-bold tracking-widest text-gray-400 pointer-events-none z-10 flex items-center gap-1">
-               心態素質 <ArrowRight size={14}/>
+
+            <div id="detail-panel" class="w-full h-full min-h-[400px]">
+                <div id="placeholder-view" class="h-full flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow border border-gray-200 text-center">
+                    <div class="bg-gray-100 p-4 rounded-full mb-4">
+                        <i data-lucide="arrow-left" class="w-8 h-8 text-gray-400 animate-bounce lg:hidden"></i> <i data-lucide="arrow-left" class="w-8 h-8 text-gray-400 animate-pulse hidden lg:block"></i> </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">請點擊左側象限</h3>
+                    <p class="text-gray-500 max-w-xs">
+                        誠實面對自己現在的「心態」與「策略」狀態，查看專屬您的備考建議。
+                    </p>
+                </div>
+
+                <div id="content-view" class="hidden"></div>
             </div>
-
-            {/* 中心十字線 */}
-            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-800 z-0"></div>
-            <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-gray-800 z-0"></div>
-
-            {/* 四象限網格 */}
-            <div className="grid grid-cols-2 grid-rows-2 h-full w-full relative z-1">
-              
-              {/* Q2: 左上 (高策略 低心態) */}
-              <button 
-                onClick={() => setSelectedZone(zones.q2)}
-                className={`p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group
-                  ${selectedZone?.id === 'q2' ? 'bg-orange-200 ring-inset ring-4 ring-orange-400' : 'bg-orange-50 hover:bg-orange-100'}
-                `}
-              >
-                <div className={`transition-transform duration-300 ${selectedZone?.id === 'q2' ? 'scale-110' : 'group-hover:scale-110'}`}>
-                  <BrainCircuit className={selectedZone?.id === 'q2' ? 'text-orange-700' : 'text-orange-300'} size={40} />
-                </div>
-                <span className={`mt-2 font-bold text-sm md:text-base ${selectedZone?.id === 'q2' ? 'text-orange-900' : 'text-gray-400'}`}>焦慮崩潰區</span>
-              </button>
-
-              {/* Q1: 右上 (高策略 高心態) */}
-              <button 
-                onClick={() => setSelectedZone(zones.q1)}
-                className={`p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group
-                  ${selectedZone?.id === 'q1' ? 'bg-green-200 ring-inset ring-4 ring-green-400' : 'bg-green-50 hover:bg-green-100'}
-                `}
-              >
-                <div className={`transition-transform duration-300 ${selectedZone?.id === 'q1' ? 'scale-110' : 'group-hover:scale-110'}`}>
-                  <Target className={selectedZone?.id === 'q1' ? 'text-green-700' : 'text-green-300'} size={40} />
-                </div>
-                <span className={`mt-2 font-bold text-sm md:text-base ${selectedZone?.id === 'q1' ? 'text-green-900' : 'text-gray-400'}`}>精準上岸區</span>
-              </button>
-
-              {/* Q4: 左下 (低策略 低心態) */}
-              <button 
-                onClick={() => setSelectedZone(zones.q4)}
-                className={`p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group
-                  ${selectedZone?.id === 'q4' ? 'bg-slate-300 ring-inset ring-4 ring-slate-500' : 'bg-slate-100 hover:bg-slate-200'}
-                `}
-              >
-                <div className={`transition-transform duration-300 ${selectedZone?.id === 'q4' ? 'scale-110' : 'group-hover:scale-110'}`}>
-                  <BedDouble className={selectedZone?.id === 'q4' ? 'text-slate-700' : 'text-slate-400'} size={40} />
-                </div>
-                <span className={`mt-2 font-bold text-sm md:text-base ${selectedZone?.id === 'q4' ? 'text-slate-900' : 'text-gray-400'}`}>放棄躺平區</span>
-              </button>
-
-              {/* Q3: 右下 (低策略 高心態) */}
-              <button 
-                onClick={() => setSelectedZone(zones.q3)}
-                className={`p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group
-                  ${selectedZone?.id === 'q3' ? 'bg-blue-200 ring-inset ring-4 ring-blue-400' : 'bg-blue-50 hover:bg-blue-100'}
-                `}
-              >
-                <div className={`transition-transform duration-300 ${selectedZone?.id === 'q3' ? 'scale-110' : 'group-hover:scale-110'}`}>
-                  <Activity className={selectedZone?.id === 'q3' ? 'text-blue-700' : 'text-blue-300'} size={40} />
-                </div>
-                <span className={`mt-2 font-bold text-sm md:text-base ${selectedZone?.id === 'q3' ? 'text-blue-900' : 'text-gray-400'}`}>盲目衝刺區</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 右側：詳細資訊卡片 */}
-          <div className="w-full">
-            {selectedZone ? (
-              <div className={`bg-white rounded-xl shadow-lg border-2 overflow-hidden animate-fade-in-up ${selectedZone.borderColor}`}>
-                {/* Card Header */}
-                <div className={`p-6 ${selectedZone.color} flex items-center justify-between`}>
-                  <div>
-                    <h2 className={`text-2xl font-bold ${selectedZone.textColor}`}>{selectedZone.title}</h2>
-                    <p className={`text-sm font-medium opacity-80 ${selectedZone.textColor}`}>{selectedZone.subtitle}</p>
-                  </div>
-                  <div className={`${selectedZone.textColor} opacity-90`}>
-                    {selectedZone.icon}
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="p-6 space-y-6">
-                  
-                  {/* 症狀列表 */}
-                  <div>
-                    <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-3 text-lg">
-                      <AlertTriangle className="text-gray-500" size={20}/>
-                      你的現狀 (症狀)
-                    </h3>
-                    <ul className="space-y-2">
-                      {selectedZone.symptoms.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-gray-700">
-                          <XCircle className="text-red-400 shrink-0 mt-1" size={16} />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <hr className="border-gray-100"/>
-
-                  {/* 解方 */}
-                  <div>
-                    <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-3 text-lg">
-                      <BatteryCharging className="text-green-600" size={20}/>
-                      行動解方：{selectedZone.solution.title}
-                    </h3>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <p className="text-gray-700 leading-relaxed">
-                        {selectedZone.solution.desc}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => setSelectedZone(null)}
-                    className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium shadow-md mt-2"
-                  >
-                    重新選擇位置
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // 初始提示狀態
-              <div className="h-full min-h-[300px] flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow border border-gray-200 text-center">
-                <div className="bg-gray-100 p-4 rounded-full mb-4">
-                  <ArrowUp className="text-gray-400 animate-bounce" size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">請點擊左側象限</h3>
-                <p className="text-gray-500 max-w-xs">
-                  誠實面對自己現在的「心態」與「策略」狀態，查看專屬您的備考建議。
-                </p>
-              </div>
-            )}
-          </div>
 
         </div>
 
-        {/* Footer */}
-        <footer className="mt-12 text-center text-gray-400 text-sm">
-          © 教甄備考策略講座專用教材
+        <footer class="mt-12 text-center text-gray-400 text-sm">
+            © 教甄備考策略講座專用教材
         </footer>
-      </div>
-      
-      <style>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.5s ease-out forwards;
-        }
-      `}</style>
     </div>
-  );
-};
 
-export default ExamMatrix;
+    <script>
+        // 初始化 Lucide 圖示
+        lucide.createIcons();
+
+        // 資料集 (JSON結構)
+        const zones = {
+            q2: {
+                id: 'q2',
+                title: '焦慮崩潰區',
+                subtitle: '高策略 / 低心態',
+                icon: 'brain-circuit',
+                styles: {
+                    bg: 'bg-orange-100',
+                    border: 'border-orange-500',
+                    text: 'text-orange-700',
+                    textDark: 'text-orange-900',
+                    btnActive: 'bg-orange-200 ring-4 ring-orange-400 ring-inset',
+                    iconActive: 'text-orange-700 scale-110'
+                },
+                symptoms: [
+                    '你很會唸書，筆記做得很完美，但每晚都失眠。',
+                    '容易患得患失，覺得「永遠讀不完」。',
+                    '考試當天容易因為一題不會就全盤崩潰。'
+                ],
+                solution: {
+                    title: '減法生活',
+                    desc: '允許自己休息，設定「停損點」。告訴自己「讀完這些就夠了」，而非追求完美。練習正念呼吸。'
+                }
+            },
+            q1: {
+                id: 'q1',
+                title: '精準上岸區',
+                subtitle: '高策略 / 高心態',
+                icon: 'target',
+                styles: {
+                    bg: 'bg-green-100',
+                    border: 'border-green-500',
+                    text: 'text-green-700',
+                    textDark: 'text-green-900',
+                    btnActive: 'bg-green-200 ring-4 ring-green-400 ring-inset',
+                    iconActive: 'text-green-700 scale-110'
+                },
+                symptoms: [
+                    '你有讀書計畫，也能照著節奏走。',
+                    '懂得調整情緒，遇到挫折能快速復原。',
+                    '這是最理想的備考狀態。'
+                ],
+                solution: {
+                    title: '維持穩態',
+                    desc: '保持規律作息，開始模擬考場情境（生理時鐘）。不要過度放鬆，保持適度張力直到考試當天。'
+                }
+            },
+            q4: {
+                id: 'q4',
+                title: '放棄躺平區',
+                subtitle: '低策略 / 低心態',
+                icon: 'bed-double',
+                styles: {
+                    bg: 'bg-slate-200',
+                    border: 'border-slate-500',
+                    text: 'text-slate-700',
+                    textDark: 'text-slate-900',
+                    btnActive: 'bg-slate-300 ring-4 ring-slate-500 ring-inset',
+                    iconActive: 'text-slate-700 scale-110'
+                },
+                symptoms: [
+                    '覺得教甄太難，不知道從何開始。',
+                    '常因為害怕失敗所以拒絕開始讀書。',
+                    '容易被手機、社群媒體綁架時間。'
+                ],
+                solution: {
+                    title: '微行動',
+                    desc: '不要想「考上」，只要想「今天讀懂這一個概念」就好。先求有，再求好。建立最小成就感。'
+                }
+            },
+            q3: {
+                id: 'q3',
+                title: '盲目衝刺區',
+                subtitle: '低策略 / 高心態',
+                icon: 'activity',
+                styles: {
+                    bg: 'bg-blue-100',
+                    border: 'border-blue-500',
+                    text: 'text-blue-700',
+                    textDark: 'text-blue-900',
+                    btnActive: 'bg-blue-200 ring-4 ring-blue-400 ring-inset',
+                    iconActive: 'text-blue-700 scale-110'
+                },
+                symptoms: [
+                    '你充滿熱血，每天讀12小時，但分數上不去。',
+                    '只讀自己會的，不檢討錯題。',
+                    '陷入「低價值的勤奮」，感動了自己卻沒感動閱卷官。'
+                ],
+                solution: {
+                    title: '數據分析',
+                    desc: '停止盲目刷題！開始做「錯題分析」。找出弱點章節，用80/20法則讀書，把時間花在刀口上。'
+                }
+            }
+        };
+
+        let currentZone = null;
+
+        function selectZone(zoneId) {
+            currentZone = zones[zoneId];
+            updateMatrixVisuals(zoneId);
+            renderContent(currentZone);
+        }
+
+        function resetSelection() {
+            currentZone = null;
+            
+            // 重置所有按鈕樣式
+            document.querySelectorAll('.zone-btn').forEach(btn => {
+                // 移除 Active 樣式
+                btn.className = btn.className.replace(/ring-4.*ring-inset/g, '').replace(/bg-\w+-200/g, `bg-${getOriginalColor(btn.id)}-50`);
+                // 重置 Icon 顏色
+                const icon = btn.querySelector('i');
+                // 簡單處理：移除特定深色 class，回復淺色
+                // 實際操作較複雜，這裡採用重新渲染的方式會更乾淨，但為了效能我們只切換 CSS class
+                resetMatrixVisuals(); 
+            });
+
+            // 顯示 Placeholder
+            document.getElementById('placeholder-view').classList.remove('hidden');
+            document.getElementById('content-view').classList.add('hidden');
+            document.getElementById('content-view').innerHTML = '';
+        }
+
+        // 輔助函式：更新矩陣按鈕的視覺狀態
+        function updateMatrixVisuals(activeId) {
+            // 先重置所有按鈕
+            resetMatrixVisuals();
+
+            // 設定選中按鈕的樣式
+            const activeData = zones[activeId];
+            const btn = document.getElementById(`btn-${activeId}`);
+            const text = document.getElementById(`text-${activeId}`);
+            const icon = document.getElementById(`icon-${activeId}`);
+
+            // 添加 Active Class (模擬 React 的 className 邏輯)
+            // 移除舊背景，添加新背景與 Ring
+            btn.classList.remove(`bg-${activeData.id === 'q4' ? 'slate' : activeData.styles.bg.split('-')[1]}-50`);
+            btn.classList.add(...activeData.styles.btnActive.split(' '));
+            
+            // 文字顏色變深
+            text.classList.remove('text-gray-400');
+            text.classList.add(activeData.styles.textDark);
+
+            // Icon 變色與放大
+            icon.classList.remove(`text-${activeData.styles.bg.split('-')[1]}-300`);
+            icon.classList.add(...activeData.styles.iconActive.split(' '));
+        }
+
+        function resetMatrixVisuals() {
+            Object.keys(zones).forEach(key => {
+                const z = zones[key];
+                const baseColorName = z.styles.bg.split('-')[1]; // orange, green, etc.
+                const btn = document.getElementById(`btn-${key}`);
+                const text = document.getElementById(`text-${key}`);
+                const icon = document.getElementById(`icon-${key}`);
+
+                // 重置按鈕背景與 Ring
+                btn.className = `zone-btn p-2 flex flex-col items-center justify-center transition-all duration-300 hover:opacity-90 active:scale-95 group bg-${baseColorName}-50 hover:bg-${baseColorName}-100`;
+                
+                // 重置文字
+                text.className = `mt-2 font-bold text-sm md:text-lg text-gray-400 transition-colors`;
+
+                // 重置 Icon
+                icon.className = `lucide lucide-${z.icon} w-10 h-10 md:w-12 md:h-12 text-${baseColorName}-300 transition-colors`;
+            });
+        }
+
+        // 渲染右側詳細內容
+        function renderContent(data) {
+            const container = document.getElementById('content-view');
+            const placeholder = document.getElementById('placeholder-view');
+            
+            placeholder.classList.add('hidden');
+            container.classList.remove('hidden');
+
+            // 構建 HTML
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-lg border-2 overflow-hidden animate-fade-in-up ${data.styles.border}">
+                    <div class="p-6 ${data.styles.bg} flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold ${data.styles.text}">${data.title}</h2>
+                            <p class="text-sm font-medium opacity-80 ${data.styles.text}">${data.subtitle}</p>
+                        </div>
+                        <div class="${data.styles.text} opacity-90">
+                            <i data-lucide="${data.icon}" class="w-12 h-12"></i>
+                        </div>
+                    </div>
+
+                    <div class="p-6 space-y-6">
+                        
+                        <div>
+                            <h3 class="flex items-center gap-2 font-bold text-gray-900 mb-3 text-lg">
+                                <i data-lucide="alert-triangle" class="text-gray-500 w-5 h-5"></i>
+                                你的現狀 (症狀)
+                            </h3>
+                            <ul class="space-y-2">
+                                ${data.symptoms.map(s => `
+                                    <li class="flex items-start gap-2 text-gray-700">
+                                        <i data-lucide="x-circle" class="text-red-400 w-4 h-4 mt-1 shrink-0"></i>
+                                        <span>${s}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <hr class="border-gray-100"/>
+
+                        <div>
+                            <h3 class="flex items-center gap-2 font-bold text-gray-900 mb-3 text-lg">
+                                <i data-lucide="battery-charging" class="text-green-600 w-5 h-5"></i>
+                                行動解方：${data.solution.title}
+                            </h3>
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <p class="text-gray-700 leading-relaxed">
+                                    ${data.solution.desc}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button 
+                            onclick="resetSelection()"
+                            class="w-full py-3 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium shadow-md mt-2 flex items-center justify-center gap-2"
+                        >
+                            <span>重新選擇位置</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // 每次注入新 HTML 後，必須重新呼叫 createIcons 讓圖示顯示
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
