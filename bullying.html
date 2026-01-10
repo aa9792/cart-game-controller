@@ -129,6 +129,7 @@
         const Hammer = (props) => <IconBase d={<><path d="M18 6L6 18" /><path d="M8 6L6 8l-2 2a2 2 0 1 0 2.83 2.83L8.83 10l2-2" /><path d="M14 16l2 2a2 2 0 1 0 2.83-2.83L16.83 14l-2-2" /><path d="M20 2L2 20" /></>} {...props} />;
         const BrickWall = (props) => <IconBase d={<><rect x="2" y="2" width="20" height="20" rx="2" ry="2" /><line x1="12" y1="2" x2="12" y2="22" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="2" y1="7" x2="12" y2="7" /><line x1="12" y1="17" x2="22" y2="17" /><line x1="2" y1="17" x2="12" y2="17" /><line x1="12" y1="7" x2="22" y2="7" /></>} {...props} />;
         const Flag = (props) => <IconBase d={<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>} {...props} />;
+        const FileText = (props) => <IconBase d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>} {...props} />;
         const Cloud = ({ className, style }) => (
             <svg viewBox="0 0 24 24" className={className} style={style} fill="white" xmlns="http://www.w3.org/2000/svg">
                 <path d="M17 19C20.3137 19 23 16.3137 23 13C23 9.92784 20.6974 7.39124 17.7265 7.05259C17.3929 3.61901 14.4939 1 11 1C7.50615 1 4.60712 3.61901 4.27352 7.05259C1.30256 7.39124 0 9.92784 0 13C0 16.3137 2.68629 19 6 19H17Z" opacity="0.8"/>
@@ -551,6 +552,8 @@
             const [isScoreSaved, setIsScoreSaved] = useState(false);
             const [isPlayingTest, setIsPlayingTest] = useState(false);
             const [user, setUser] = useState(null);
+            const [questionPool, setQuestionPool] = useState(FULL_QUESTION_POOL);
+            const [importText, setImportText] = useState("");
             
             const { isMuted, setIsMuted, playSound } = useAudio();
             const { speak, cancel: cancelSpeech, isSpeaking } = useTTS();
@@ -589,8 +592,25 @@
             }, [user]);
 
             useEffect(() => {
-                initGame(false);
+                // Check local storage for custom questions
+                const savedQuestions = localStorage.getItem('teacherQuestions');
+                if (savedQuestions) {
+                    try {
+                        const parsed = JSON.parse(savedQuestions);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setQuestionPool(parsed);
+                        }
+                    } catch (e) {
+                        console.error("Failed to load saved questions", e);
+                    }
+                }
             }, []);
+
+            useEffect(() => {
+                if(questionPool.length > 0) {
+                    initGame(false);
+                }
+            }, [questionPool]); // Re-init game when pool changes
 
             useEffect(() => {
                 if (modalState === 'hidden' || modalState === 'result') cancelSpeech();
@@ -618,7 +638,10 @@
             };
 
             const initGame = (shouldStart = true) => {
-                const shuffledQuestions = shuffleArray(FULL_QUESTION_POOL).slice(0, 10);
+                // Ensure we have questions
+                const poolToUse = questionPool.length >= 10 ? questionPool : FULL_QUESTION_POOL;
+                
+                const shuffledQuestions = shuffleArray(poolToUse).slice(0, 10);
                 setCurrentQuestions(shuffledQuestions);
 
                 const newLands = shuffledQuestions.map((q, index) => ({
@@ -753,6 +776,59 @@
                 }
             };
 
+            const openImportModal = () => {
+                setModalState('import');
+                setImportText(JSON.stringify(questionPool, null, 2));
+            };
+
+            const handleImportSave = () => {
+                try {
+                    const parsed = JSON.parse(importText);
+                    if (!Array.isArray(parsed) || parsed.length === 0) {
+                        alert("格式錯誤：請確認輸入的是有效的題目陣列。");
+                        return;
+                    }
+                    // Basic validation of structure
+                    const isValid = parsed.every(q => q.id && q.question && Array.isArray(q.options));
+                    if (!isValid) {
+                        alert("格式錯誤：題目缺少必要欄位 (id, question, options)。");
+                        return;
+                    }
+
+                    setQuestionPool(parsed);
+                    localStorage.setItem('teacherQuestions', JSON.stringify(parsed));
+                    setModalState('intro');
+                    alert("匯入成功！");
+                } catch (e) {
+                    alert("JSON 解析失敗，請檢查格式。");
+                }
+            };
+
+            const handleResetQuestions = () => {
+                if(confirm("確定要回復成預設題庫嗎？")) {
+                    setQuestionPool(FULL_QUESTION_POOL);
+                    localStorage.removeItem('teacherQuestions');
+                    setImportText(JSON.stringify(FULL_QUESTION_POOL, null, 2));
+                    alert("已回復預設值。");
+                }
+            };
+
+            const handleCopyTemplate = () => {
+                const template = [
+                    {
+                        "id": 1,
+                        "question": "這是題目範例？",
+                        "options": [
+                            { "text": "正確選項", "correct": true, "rationale": "解釋為什麼正確" },
+                            { "text": "錯誤選項1", "correct": false, "rationale": "解釋為什麼錯誤" },
+                            { "text": "錯誤選項2", "correct": false, "rationale": "解釋為什麼錯誤" },
+                            { "text": "錯誤選項3", "correct": false, "rationale": "解釋為什麼錯誤" }
+                        ]
+                    }
+                ];
+                setImportText(JSON.stringify(template, null, 2));
+            };
+
             // --- Render Logic ---
             return (
                 <div className="h-full w-full relative flex flex-col">
@@ -875,6 +951,13 @@
                                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
                                     <BrickWall className="w-20 h-20 text-white mx-auto mb-4 relative z-10 drop-shadow-md animate-bounce" />
                                     <h2 className="text-3xl font-black text-white relative z-10 tracking-tight">建造守護之牆</h2>
+                                    <button 
+                                        onClick={openImportModal}
+                                        className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition-colors"
+                                        title="老師匯入題庫"
+                                    >
+                                        <FileText className="w-5 h-5" />
+                                    </button>
                                 </div>
                                 <div className="p-8 bg-white">
                                     <CartoonCoverArt />
@@ -909,6 +992,33 @@
                                             ))}
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Import Modal */}
+                    {modalState === 'import' && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                                <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <FileText className="w-6 h-6 text-indigo-600" />
+                                    老師匯入題庫
+                                </h2>
+                                <p className="text-sm text-slate-500 mb-4">請在下方貼上 JSON 格式的題目資料。系統會隨機從中選取 10 題進行遊戲。</p>
+                                
+                                <textarea 
+                                    className="flex-1 w-full border-2 border-slate-200 rounded-xl p-4 font-mono text-sm focus:border-indigo-500 focus:outline-none resize-none mb-4"
+                                    value={importText}
+                                    onChange={(e) => setImportText(e.target.value)}
+                                    placeholder='[{"id": 1, "question": "...", "options": [...]}]'
+                                ></textarea>
+
+                                <div className="flex gap-3 justify-end">
+                                    <button onClick={handleCopyTemplate} className="mr-auto text-sm text-slate-500 hover:text-indigo-600 underline">複製範例格式</button>
+                                    <button onClick={handleResetQuestions} className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg font-bold transition-colors">回復預設值</button>
+                                    <button onClick={() => setModalState('intro')} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-bold transition-colors">取消</button>
+                                    <button onClick={handleImportSave} className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors">確認匯入</button>
                                 </div>
                             </div>
                         </div>
