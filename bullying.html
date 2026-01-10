@@ -87,19 +87,36 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-purple-50 to-orange-50 min-h-screen w-full relative">
-    <div id="root" class="w-full"></div>
+    <div id="root" class="w-full h-full"></div>
 
     <script type="text/babel" data-type="module">
+        // Import Firebase SDKs (Using dynamic imports to prevent crashing if offline/blocked)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Initialization
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- Firebase Safety Wrapper ---
+        let db = null;
+        let auth = null;
+        let appId = 'default-app-id';
+        let isFirebaseAvailable = false;
+
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                isFirebaseAvailable = true;
+                console.log("Firebase initialized successfully.");
+            } else {
+                console.warn("Firebase config not found. Running in Local Mode (localStorage).");
+            }
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            console.warn("Running in Local Mode (localStorage).");
+        }
 
         const { useState, useEffect, useRef, useCallback } = React;
 
@@ -558,37 +575,56 @@
             const { isMuted, setIsMuted, playSound } = useAudio();
             const { speak, cancel: cancelSpeech, isSpeaking } = useTTS();
 
-            // Auth Logic
+            // Auth Logic (Try Cloud -> Fallback Local)
             useEffect(() => {
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                };
-                initAuth();
-                const unsubscribe = onAuthStateChanged(auth, setUser);
-                return () => unsubscribe();
+                if (isFirebaseAvailable && auth) {
+                    const initAuth = async () => {
+                        try {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (e) {
+                            console.error("Auth failed:", e);
+                        }
+                    };
+                    initAuth();
+                    const unsubscribe = onAuthStateChanged(auth, setUser);
+                    return () => unsubscribe();
+                } else {
+                    // Local mode dummy user
+                    setUser({ uid: 'local-user' });
+                }
             }, []);
 
             // Fetch Scores Logic
             useEffect(() => {
-                if (!user) return;
-                // Fetch public scores
-                const q = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const scores = [];
-                    snapshot.forEach((doc) => {
-                        scores.push(doc.data());
-                    });
-                    // Sort in memory
-                    scores.sort((a, b) => b.score - a.score || b.timeRemaining - a.timeRemaining);
-                    setHighScores(scores.slice(0, MAX_HIGH_SCORES));
-                }, (error) => {
-                    console.error("Error fetching scores:", error);
-                });
-                return () => unsubscribe();
+                if (isFirebaseAvailable && user && db) {
+                    // Fetch public scores from Firebase
+                    try {
+                        const q = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                        const unsubscribe = onSnapshot(q, (snapshot) => {
+                            const scores = [];
+                            snapshot.forEach((doc) => {
+                                scores.push(doc.data());
+                            });
+                            scores.sort((a, b) => b.score - a.score || b.timeRemaining - a.timeRemaining);
+                            setHighScores(scores.slice(0, MAX_HIGH_SCORES));
+                        }, (error) => {
+                            console.error("Error fetching scores:", error);
+                        });
+                        return () => unsubscribe();
+                    } catch (e) {
+                        console.error("Firestore error:", e);
+                    }
+                } else {
+                    // Fetch from LocalStorage
+                    const localScores = localStorage.getItem('antiBullyingScores');
+                    if (localScores) {
+                        setHighScores(JSON.parse(localScores));
+                    }
+                }
             }, [user]);
 
             useEffect(() => {
@@ -610,7 +646,7 @@
                 if(questionPool.length > 0) {
                     initGame(false);
                 }
-            }, [questionPool]); // Re-init game when pool changes
+            }, [questionPool]);
 
             useEffect(() => {
                 if (modalState === 'hidden' || modalState === 'result') cancelSpeech();
@@ -638,9 +674,7 @@
             };
 
             const initGame = (shouldStart = true) => {
-                // Ensure we have questions
                 const poolToUse = questionPool.length >= 10 ? questionPool : FULL_QUESTION_POOL;
-                
                 const shuffledQuestions = shuffleArray(poolToUse).slice(0, 10);
                 setCurrentQuestions(shuffledQuestions);
 
@@ -752,28 +786,37 @@
             };
 
             const saveScore = async () => {
-                if (!playerName.trim() || !user) return;
+                if (!playerName.trim()) return;
                 playSound('correct');
                 const newScore = {
                     name: playerName,
                     score: playerStats.score,
                     timeRemaining: timeLeft,
                     date: new Date().toLocaleDateString(),
-                    userId: user.uid
+                    userId: user ? user.uid : 'anon'
                 };
                 
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard'), newScore);
-                    setIsScoreSaved(true);
-                } catch (e) {
-                    console.error("Error saving score:", e);
-                    // Fallback visual update
-                    const newHighScores = [...highScores, newScore]
-                        .sort((a, b) => b.score - a.score || b.timeRemaining - a.timeRemaining)
-                        .slice(0, MAX_HIGH_SCORES);
-                    setHighScores(newHighScores);
-                    setIsScoreSaved(true);
+                if (isFirebaseAvailable && db) {
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard'), newScore);
+                        setIsScoreSaved(true);
+                    } catch (e) {
+                        console.error("Error saving score to Cloud, falling back:", e);
+                        saveToLocal(newScore);
+                    }
+                } else {
+                    saveToLocal(newScore);
                 }
+            };
+
+            const saveToLocal = (newScore) => {
+                const currentScores = JSON.parse(localStorage.getItem('antiBullyingScores') || '[]');
+                const newHighScores = [...currentScores, newScore]
+                    .sort((a, b) => b.score - a.score || b.timeRemaining - a.timeRemaining)
+                    .slice(0, MAX_HIGH_SCORES);
+                localStorage.setItem('antiBullyingScores', JSON.stringify(newHighScores));
+                setHighScores(newHighScores);
+                setIsScoreSaved(true);
             };
 
             const openImportModal = () => {
@@ -788,7 +831,6 @@
                         alert("格式錯誤：請確認輸入的是有效的題目陣列。");
                         return;
                     }
-                    // Basic validation of structure
                     const isValid = parsed.every(q => q.id && q.question && Array.isArray(q.options));
                     if (!isValid) {
                         alert("格式錯誤：題目缺少必要欄位 (id, question, options)。");
