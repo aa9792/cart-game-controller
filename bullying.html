@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>守護者行動：零霸凌攻防戰</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'sky-start': '#E0F2FE', // Light blue
+                        'sky-end': '#FFF7ED',   // Warm orange/white
+                        'brick-base': '#F3F4F6',
+                        'brick-success': '#10B981',
+                        'brick-error': '#EF4444',
+                        'ui-glass': 'rgba(255, 255, 255, 0.7)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                        'float-delayed': 'float 6s ease-in-out 3s infinite',
+                        'cloud-move': 'cloudMove 60s linear infinite',
+                        'shimmer': 'shimmer 2s linear infinite',
+                    },
+                    keyframes: {
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)', opacity: '1' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-15px)' },
+                        },
+                        cloudMove: {
+                            '0%': { transform: 'translateX(-100%)' },
+                            '100%': { transform: 'translateX(100vw)' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-1000px 0' },
+                            '100%': { backgroundPosition: '1000px 0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Checkpile', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; /* Use a rounder font if available */
+            /* Removed user-select: none to allow easier interaction if needed, but keeping text selection off for game feel */
+            user-select: none;
+            /* Removed overflow: hidden to allow scrolling */
+        }
+        /* Gradient Text */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #4F46E5, #EC4899);
+        }
+        /* Custom Scrollbar for Modal */
+        .modal-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .modal-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .modal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<!-- Removed h-screen and overflow-hidden to allow scrolling -->
+<body class="bg-gradient-to-br from-blue-100 via-purple-50 to-orange-50 min-h-screen w-full relative">
+    <div id="root" class="w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- ICONS (SVG Components) ---
+        const IconBase = ({ d, className, fill = "none", stroke = "currentColor", strokeWidth="2" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {d}
+            </svg>
+        );
+
+        const Shield = (props) => <IconBase d={<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />} {...props} />;
+        const AlertTriangle = (props) => <IconBase d={<><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>} {...props} />;
+        const CheckCircle = (props) => <IconBase d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>} {...props} />;
+        const XCircle = (props) => <IconBase d={<><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></>} {...props} />;
+        const Trophy = (props) => <IconBase d={<><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10" /><path d="M17 4v3a5 5 0 0 1-10 0V4" /><path d="M7 4h-2a2 2 0 0 0-2 2v3a5 5 0 0 0 5 5" /><path d="M17 4h2a2 2 0 0 1 2 2v3a5 5 0 0 1-5 5" /></>} {...props} />;
+        const RefreshCw = (props) => <IconBase d={<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>} {...props} />;
+        const Clock = (props) => <IconBase d={<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>} {...props} />;
+        const ListIcon = (props) => <IconBase d={<><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></>} {...props} />;
+        const Volume2 = (props) => <IconBase d={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></>} {...props} />;
+        const VolumeX = (props) => <IconBase d={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>} {...props} />;
+        const Star = (props) => <IconBase d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />} {...props} />;
+        const Zap = (props) => <IconBase d={<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />} {...props} />;
+        const Mic = (props) => <IconBase d={<><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></>} {...props} />;
+        const StopCircle = (props) => <IconBase d={<><circle cx="12" cy="12" r="10" /><rect x="9" y="9" width="6" height="6" /></>} {...props} />;
+        const PlayCircle = (props) => <IconBase d={<><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></>} {...props} />;
+        const Lock = (props) => <IconBase d={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>} {...props} />;
+        const Hammer = (props) => <IconBase d={<><path d="M18 6L6 18" /><path d="M8 6L6 8l-2 2a2 2 0 1 0 2.83 2.83L8.83 10l2-2" /><path d="M14 16l2 2a2 2 0 1 0 2.83-2.83L16.83 14l-2-2" /><path d="M20 2L2 20" /></>} {...props} />;
+        const BrickWall = (props) => <IconBase d={<><rect x="2" y="2" width="20" height="20" rx="2" ry="2" /><line x1="12" y1="2" x2="12" y2="22" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="2" y1="7" x2="12" y2="7" /><line x1="12" y1="17" x2="22" y2="17" /><line x1="2" y1="17" x2="12" y2="17" /><line x1="12" y1="7" x2="22" y2="7" /></>} {...props} />;
+        const Flag = (props) => <IconBase d={<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>} {...props} />;
+        const Cloud = ({ className, style }) => (
+            <svg viewBox="0 0 24 24" className={className} style={style} fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 19C20.3137 19 23 16.3137 23 13C23 9.92784 20.6974 7.39124 17.7265 7.05259C17.3929 3.61901 14.4939 1 11 1C7.50615 1 4.60712 3.61901 4.27352 7.05259C1.30256 7.39124 0 9.92784 0 13C0 16.3137 2.68629 19 6 19H17Z" opacity="0.8"/>
+            </svg>
+        );
+
+        // --- BACKGROUND DECORATIONS ---
+        const SkyBackground = () => (
+            <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+                {/* Sun */}
+                <div className="absolute top-10 right-10 w-24 h-24 bg-yellow-300 rounded-full blur-2xl opacity-60 animate-pulse-slow"></div>
+                {/* Moving Clouds */}
+                <div className="absolute top-20 -left-20 w-32 h-20 animate-cloud-move opacity-60">
+                    <Cloud className="w-full h-full text-white" />
+                </div>
+                <div className="absolute top-40 -left-20 w-24 h-16 animate-cloud-move opacity-40" style={{ animationDuration: '80s', animationDelay: '20s' }}>
+                    <Cloud className="w-full h-full text-white" />
+                </div>
+                <div className="absolute top-10 -left-20 w-40 h-24 animate-cloud-move opacity-70" style={{ animationDuration: '90s', animationDelay: '5s' }}>
+                    <Cloud className="w-full h-full text-white" />
+                </div>
+                {/* Mountains */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-emerald-100 to-transparent">
+                    <svg viewBox="0 0 1440 320" className="absolute bottom-0 w-full h-auto opacity-30 text-emerald-300 fill-current">
+                        <path d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                    </svg>
+                </div>
+            </div>
+        );
+
+        // --- CUSTOM SVG COVER ART (The Cartoon Picture) ---
+        const CartoonCoverArt = () => (
+            <div className="w-full h-48 bg-gradient-to-b from-sky-300 to-sky-100 rounded-2xl mb-6 shadow-inner relative overflow-hidden border-4 border-white flex items-center justify-center group transform transition-all hover:scale-[1.02]">
+                {/* Background Elements */}
+                <Cloud className="absolute top-4 left-4 w-16 h-10 animate-float" style={{animationDelay: '0s'}} />
+                <Cloud className="absolute top-8 right-8 w-20 h-12 animate-float" style={{animationDelay: '1s'}} />
+                
+                {/* Character Group */}
+                <div className="relative z-10 flex items-end gap-2 animate-bounce-in">
+                    {/* Hero Shield Character */}
+                    <svg width="100" height="100" viewBox="0 0 100 100" className="drop-shadow-lg transform -rotate-6 hover:rotate-0 transition-transform duration-300">
+                        {/* Body */}
+                        <path d="M50 95C50 95 90 75 90 40V15L50 0L10 15V40C10 75 50 95 50 95Z" fill="#6366F1" stroke="#4338CA" strokeWidth="3"/>
+                        {/* Shine */}
+                        <path d="M50 95C50 95 90 75 90 40V15L50 0" fill="white" fillOpacity="0.2"/>
+                        {/* Cute Face */}
+                        <circle cx="35" cy="45" r="6" fill="white"/>
+                        <circle cx="35" cy="45" r="2" fill="black"/>
+                        <circle cx="65" cy="45" r="6" fill="white"/>
+                        <circle cx="65" cy="45" r="2" fill="black"/>
+                        <path d="M40 60 Q50 70 60 60" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                        <circle cx="25" cy="55" r="3" fill="#F472B6" opacity="0.6"/>
+                        <circle cx="75" cy="55" r="3" fill="#F472B6" opacity="0.6"/>
+                    </svg>
+                    
+                    {/* Small Star Character */}
+                    <svg width="60" height="60" viewBox="0 0 100 100" className="mb-2 animate-float-delayed drop-shadow-md">
+                        <path d="M50 5 L63 35 L95 38 L71 60 L78 92 L50 75 L22 92 L29 60 L5 38 L37 35 Z" fill="#FBBF24" stroke="#F59E0B" strokeWidth="3"/>
+                        <circle cx="40" cy="45" r="4" fill="black"/>
+                        <circle cx="60" cy="45" r="4" fill="black"/>
+                        <path d="M45 55 Q50 60 55 55" stroke="black" strokeWidth="2" strokeLinecap="round" fill="none"/>
+                    </svg>
+                </div>
+
+                {/* Sparkling Stars */}
+                <div className="absolute top-10 left-20 text-yellow-300 animate-spin-slow">
+                    <Star className="w-5 h-5 fill-yellow-300" />
+                </div>
+                <div className="absolute bottom-5 right-10 text-yellow-400 animate-pulse">
+                    <Star className="w-6 h-6 fill-yellow-400" />
+                </div>
+            </div>
+        );
+
+        // --- GAME DATA (Identical to previous logic) ---
+        
+        const MAP_POINTS = [
+            // Row 1 (Bottom) - 基礎觀念
+            { id: 1, left: '20%', top: '85%' },
+            { id: 2, left: '40%', top: '85%' },
+            { id: 3, left: '60%', top: '85%' },
+            { id: 4, left: '80%', top: '85%' },
+            // Row 2 (Middle) - 辨識霸凌
+            { id: 5, left: '30%', top: '65%' },
+            { id: 6, left: '50%', top: '65%' },
+            { id: 7, left: '70%', top: '65%' },
+            // Row 3 (Top) - 應對策略
+            { id: 8, left: '40%', top: '45%' },
+            { id: 9, left: '60%', top: '45%' },
+            // Row 4 (Apex) - 守護者核心
+            { id: 10, left: '50%', top: '25%' },
+        ];
+
+        const FULL_QUESTION_POOL = [
+            {
+                id: 1,
+                question: "使用「診斷清單」判斷，下列哪一個狀況最不符合霸凌的定義？",
+                options: [
+                { text: "小華走路不小心滑倒，撞翻了小明的午餐", correct: true, rationale: "正確！這屬於「偶發事件」，缺乏「故意」要素。" },
+                { text: "大雄每天都在下課時故意把胖虎的課本藏起來", correct: false, rationale: "錯。這是霸凌，具備「故意」且「重複」要素。" },
+                { text: "一群高年級生圍住一個低年級生，強迫他跑腿", correct: false, rationale: "錯。這是霸凌，具備「權力不對等」與「故意」要素。" },
+                { text: "小美創立社團專門用來嘲笑某位同學", correct: false, rationale: "錯。這是霸凌，具備「故意」與「重複」特性。" }
+                ]
+            },
+            {
+                id: 2,
+                question: "「霸凌冰山圖」中，藏在水面下 90% 的隱形傷害主要包含什麼？",
+                options: [
+                { text: "明顯的推打與破壞物品", correct: false, rationale: "錯。這是水面上的「肢體攻擊」，只佔約 10%。" },
+                { text: "言語嘲笑、排擠與造謠", correct: true, rationale: "正確！言語與關係攻擊才是冰山最大的部分。" },
+                { text: "回家作業太多的壓力", correct: false, rationale: "錯。這屬於學業壓力。" },
+                { text: "不想上學的心情", correct: false, rationale: "錯。這是受害後的結果。" }
+                ]
+            },
+            {
+                id: 3,
+                question: "遇到「紅燈情境」（對方有武器、人多、你感到害怕）時，首要任務是什麼？",
+                options: [
+                { text: "展現勇氣，直接衝上前制止", correct: false, rationale: "危險！紅燈情境直接對抗太魯莽。" },
+                { text: "拿出手機錄影存證", correct: false, rationale: "錯。這可能會激怒對方，讓自己陷入危險。" },
+                { text: "保護自己，立刻離開並尋求大人協助", correct: true, rationale: "正確！紅燈時最聰明的做法是找幫手 (Delegate)。" },
+                { text: "加入他們以求自保", correct: false, rationale: "絕對不行！這會讓你變成共犯。" }
+                ]
+            },
+            {
+                id: 4,
+                question: "在「綠燈情境」（相對安全）下，哪一句是好的「阻斷金句」？",
+                options: [
+                { text: "「這不好笑。」", correct: true, rationale: "正確！簡短、堅定且不攻擊人。" },
+                { text: "「你很煩耶，走開啦！」", correct: false, rationale: "錯。這帶有情緒與攻擊性，可能讓衝突升級。" },
+                { text: "「拜託你不要這樣好不好？」", correct: false, rationale: "錯。語氣太軟弱，可能助長霸凌氣焰。" },
+                { text: "（什麼都不說，翻白眼走掉）", correct: false, rationale: "錯。沈默可能被解讀為默許。" }
+                ]
+            },
+            {
+                id: 5,
+                question: "網路霸凌的「無處可逃 (No Safe Harbor)」特性是指？",
+                options: [
+                { text: "只要關掉手機就沒事了", correct: false, rationale: "錯。傷害已經造成且難以完全斷網。" },
+                { text: "霸凌訊息透過手機進入家中，家也不再安全", correct: true, rationale: "正確！網路打破了學校與家庭的界線。" },
+                { text: "網路上的東西都是假的", correct: false, rationale: "錯。造成的心理創傷是真實的。" },
+                { text: "只有在電腦教室才會發生", correct: false, rationale: "錯。手機普及，隨時隨地都可能發生。" }
+                ]
+            },
+            {
+                id: 6,
+                question: "同學故意用「大量貼圖洗版」蓋過小明的訊息，這屬於哪種霸凌？",
+                options: [
+                { text: "網路排擠（無聲的群組）", correct: true, rationale: "正確！透過洗版或已讀不回造成孤立。" },
+                { text: "言語謾罵", correct: false, rationale: "錯。此情境沒有使用髒話。" },
+                { text: "帳號盜用", correct: false, rationale: "錯。這是人際互動問題。" },
+                { text: "單純大家想傳貼圖", correct: false, rationale: "錯。特定針對某人發言後洗版通常有惡意。" }
+                ]
+            },
+            {
+                id: 7,
+                question: "阿強踢掉小傑鉛筆盒後說「不小心的」，但臉上帶著「得意表情」。這是？",
+                options: [
+                { text: "真的是意外", correct: false, rationale: "錯。不能只聽他說的話，要觀察表情。" },
+                { text: "肢體挑釁", correct: true, rationale: "正確！得意的表情洩漏了故意與挑釁。" },
+                { text: "小傑自己沒收好", correct: false, rationale: "錯。這是檢討受害者。" },
+                { text: "感情好的打鬧", correct: false, rationale: "錯。一方感到困擾就不是打鬧。" }
+                ]
+            },
+            {
+                id: 8,
+                question: "「言語微歧視」常被霸凌者用什麼藉口包裝？",
+                options: [
+                { text: "「我是為了你好」", correct: false, rationale: "錯。這較像情緒勒索。" },
+                { text: "「我只是開玩笑/取綽號而已」", correct: true, rationale: "正確！他們常指責受害者「開不起玩笑」。" },
+                { text: "「我就是要欺負你」", correct: false, rationale: "錯。霸凌者很少直接承認惡意。" },
+                { text: "「老師叫我說的」", correct: false, rationale: "錯。這不是常見藉口。" }
+                ]
+            },
+            {
+                id: 9,
+                question: "使用「轉移 (Distract)」策略幫助受害者，可以怎麼做？",
+                options: [
+                { text: "大聲尖叫", correct: false, rationale: "錯。這可能會讓場面失控。" },
+                { text: "假裝掉東西，或問：「你要去福利社嗎？」", correct: true, rationale: "正確！打斷節奏並將受害者帶離現場。" },
+                { text: "站在旁邊不說話", correct: false, rationale: "錯。無法停止當下行為。" },
+                { text: "私下傳訊息安慰", correct: false, rationale: "錯。這無法解決當下困境。" }
+                ]
+            },
+            {
+                id: 10,
+                question: "想打破「關係霸凌」這道隱形的牆，守護者最簡單的行動是？",
+                options: [
+                { text: "去罵排擠人的同學", correct: false, rationale: "錯。可能引發新衝突。" },
+                { text: "主動開口邀請：「你要不要跟我們一組？」", correct: true, rationale: "正確！簡單的邀請就能融化冰山。" },
+                { text: "去告訴校長", correct: false, rationale: "錯。這是最後手段。" },
+                { text: "強迫大家當好朋友", correct: false, rationale: "錯。友誼無法強迫。" }
+                ]
+            },
+            // --- New Questions (Expanded) ---
+            {
+                id: 11,
+                question: "根據「盲點偵測」，觀察同學時，哪一個訊號可能是遭受霸凌的徵兆？",
+                options: [
+                { text: "下課時總是獨自一人，變得很沈默", correct: true, rationale: "正確。孤立與沈默常是受害者發出的隱形求救訊號。" },
+                { text: "上課時很踴躍發言", correct: false, rationale: "錯。這通常是自信的表現。" },
+                { text: "和同學在操場開心打球", correct: false, rationale: "錯。這是良好的社交互動。" },
+                { text: "每天都準時交作業", correct: false, rationale: "錯。這是負責的學習態度。" }
+                ]
+            },
+            {
+                id: 12,
+                question: "網路霸凌的特性「24/7 Access」是什麼意思？",
+                options: [
+                { text: "要在24小時內報警", correct: false, rationale: "錯。這是指時間的延續性。" },
+                { text: "霸凌訊息全年無休，隨時隨地都可能出現", correct: true, rationale: "正確。透過網路，霸凌不再受限於上學時間，讓人身心俱疲。" },
+                { text: "只有7個人看得到訊息", correct: false, rationale: "錯。網路的觀眾通常是無限的。" },
+                { text: "每週要上網7次", correct: false, rationale: "錯。與上網頻率無關。" }
+                ]
+            },
+            {
+                id: 13,
+                question: "在「3D 盾牌」策略中，如果你覺得情況危險（紅燈），應該使用哪一招？",
+                options: [
+                { text: "Delegate (求助)", correct: true, rationale: "正確。紅燈代表危險，應立即找大人或老師處理。" },
+                { text: "Direct (直接)", correct: false, rationale: "錯。直接對抗可能會讓自己受傷。" },
+                { text: "Distract (轉移)", correct: false, rationale: "錯。在極度危險下，轉移注意力可能無效且危險。" },
+                { text: "Do nothing (什麼都不做)", correct: false, rationale: "錯。應積極尋求協助。" }
+                ]
+            },
+            {
+                id: 14,
+                question: "關於「旁觀者」，下列哪一個觀念是正確的？",
+                options: [
+                { text: "只要我沒動手，就不關我的事", correct: false, rationale: "錯。冷漠的旁觀會助長霸凌者的氣焰。" },
+                { text: "旁觀者的沈默，往往被霸凌者視為默許", correct: true, rationale: "正確。不表態常被誤認為支持霸凌行為。" },
+                { text: "去告訴老師就是「打小報告」", correct: false, rationale: "錯。這是「報告」，是為了幫助人，這兩者截然不同。" },
+                { text: "霸凌只是他們兩個人的私人恩怨", correct: false, rationale: "錯。霸凌影響的是整個班級的氣氛。" }
+                ]
+            },
+            {
+                id: 15,
+                question: "如果你在網路上看到有人散布關於同學的不實謠言，最好的做法是？",
+                options: [
+                { text: "立刻按讚並分享", correct: false, rationale: "錯。這會讓你成為霸凌的共犯。" },
+                { text: "假裝沒看到，趕快滑過去", correct: false, rationale: "錯。這無法阻止傷害擴大。" },
+                { text: "截圖存證，並告訴老師或家長", correct: true, rationale: "正確。保留證據是處理網路霸凌的關鍵步驟。" },
+                { text: "在底下留言罵回去", correct: false, rationale: "錯。這可能會引發更激烈的筆戰。" }
+                ]
+            },
+            {
+                id: 16,
+                question: "霸凌的三大核心要素，除了「故意」和「重複發生」，還有哪一個？",
+                options: [
+                { text: "權力不對等", correct: true, rationale: "正確。霸凌者通常在體型、人數或地位上佔優勢。" },
+                { text: "成績不對等", correct: false, rationale: "錯。成績好壞與是否構成霸凌無關。" },
+                { text: "心情不好", correct: false, rationale: "錯。心情不好不是霸凌的定義要素。" },
+                { text: "天氣不好", correct: false, rationale: "錯。這完全無關。" }
+                ]
+            },
+            {
+                id: 17,
+                question: "關於「數位足跡 (Digital Footprint)」，我們應該注意什麼？",
+                options: [
+                { text: "凡走過必留下痕跡，網路發言要謹慎", correct: true, rationale: "正確。網路上的言論很難完全刪除，會永久留存。" },
+                { text: "刪掉留言就沒人知道了", correct: false, rationale: "錯。伺服器或截圖仍可能保留紀錄。" },
+                { text: "匿名發言就不用負責任", correct: false, rationale: "錯。警方仍可透過 IP 位址追查。" },
+                { text: "只有名人需要注意", correct: false, rationale: "錯。每個人的數位足跡都會影響未來。" }
+                ]
+            },
+            {
+                id: 18,
+                question: "當霸凌者說：「我只是開玩笑！」但對方已經感到受傷了，這算是玩笑嗎？",
+                options: [
+                { text: "算，是對方太小氣", correct: false, rationale: "錯。這是檢討受害者。" },
+                { text: "不算，只要對方感到不舒服，就是霸凌/微歧視", correct: true, rationale: "正確。玩笑的界線在於「雙方都覺得好笑」。" },
+                { text: "要看全班有沒有笑", correct: false, rationale: "錯。多數人的笑聲不代表行為正當。" },
+                { text: "只要沒動手就算玩笑", correct: false, rationale: "錯。言語傷害也是一種霸凌。" }
+                ]
+            },
+            {
+                id: 19,
+                question: "想要成為「挺身者 (Upstander)」，第一步是什麼？",
+                options: [
+                { text: "練好強壯的肌肉", correct: false, rationale: "錯。挺身而出靠的是勇氣與智慧，不是肌肉。" },
+                { text: "覺察霸凌訊號，並願意採取行動", correct: true, rationale: "正確。看見問題並不冷漠，是改變的開始。" },
+                { text: "成為全校最受歡迎的人", correct: false, rationale: "錯。任何人都可以是挺身者。" },
+                { text: "準備好武器", correct: false, rationale: "錯。暴力不能解決霸凌。" }
+                ]
+            },
+            {
+                id: 20,
+                question: "「Distract (轉移)」策略的核心技巧是什麼？",
+                options: [
+                { text: "比霸凌者更大聲", correct: false, rationale: "錯。這可能引發衝突。" },
+                { text: "打斷當下的氣氛，讓霸凌者分心", correct: true, rationale: "正確。例如假裝掉東西或問問題，讓霸凌行為中斷。" },
+                { text: "加入霸凌者的話題", correct: false, rationale: "錯。這會變成共犯。" },
+                { text: "默默忍受", correct: false, rationale: "錯。這無法改變現狀。" }
+                ]
+            }
+        ];
+
+        const GAME_DURATION = 180;
+        const MAX_HIGH_SCORES = 5;
+
+        // --- Utils ---
+        const shuffleArray = (array) => {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        };
+
+        // --- Custom Hooks ---
+        const useAudio = () => {
+            const [isMuted, setIsMuted] = useState(false);
+            const audioContextRef = useRef(null);
+
+            const getContext = () => {
+                if (!audioContextRef.current) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioContextRef.current = new AudioContext();
+                }
+                return audioContextRef.current;
+            };
+
+            const playTone = (freq, type, duration, startTime = 0) => {
+                if (isMuted) return;
+                const ctx = getContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime + startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + startTime);
+                osc.stop(ctx.currentTime + startTime + duration);
+            };
+
+            const playSound = useCallback(async (soundType) => {
+                if (isMuted) return;
+                const ctx = getContext();
+                if (ctx.state === 'suspended') {
+                    try { await ctx.resume(); } catch (e) { console.error(e); }
+                }
+
+                switch (soundType) {
+                    case 'click': 
+                        playTone(300, 'square', 0.05); 
+                        playTone(200, 'sawtooth', 0.05, 0.05);
+                        break;
+                    case 'test': 
+                        playTone(440, 'square', 0.1); 
+                        playTone(554, 'square', 0.1, 0.1); 
+                        playTone(659, 'square', 0.2, 0.2); 
+                        break;
+                    case 'correct': 
+                        playTone(523, 'sine', 0.1); 
+                        playTone(659, 'sine', 0.1, 0.1); 
+                        playTone(880, 'triangle', 0.4, 0.2); 
+                        break;
+                    case 'wrong': 
+                        playTone(150, 'sawtooth', 0.3); 
+                        playTone(100, 'sawtooth', 0.4, 0.15); 
+                        break;
+                    case 'victory':
+                        [523, 659, 784, 1046, 784, 1046].forEach((freq, i) => playTone(freq, 'square', 0.2, i * 0.12));
+                        break;
+                    case 'alarm': 
+                        playTone(800, 'square', 0.1); 
+                        playTone(800, 'square', 0.1, 0.15); 
+                        break;
+                    default: break;
+                }
+            }, [isMuted]);
+
+            return { isMuted, setIsMuted, playSound };
+        };
+
+        const useTTS = () => {
+            const [isSpeaking, setIsSpeaking] = useState(false);
+            const synth = window.speechSynthesis;
+
+            const speak = (text) => {
+                if (!synth) return;
+                cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.0;
+                utterance.onstart = () => setIsSpeaking(true);
+                utterance.onend = () => setIsSpeaking(false);
+                utterance.onerror = () => setIsSpeaking(false);
+                synth.speak(utterance);
+            };
+
+            const cancel = () => {
+                if (synth) {
+                    synth.cancel();
+                    setIsSpeaking(false);
+                }
+            };
+
+            return { speak, cancel, isSpeaking };
+        };
+
+        // --- Main Component ---
+        function AntiBullyingGame() {
+            const [currentQuestions, setCurrentQuestions] = useState([]);
+            const [lands, setLands] = useState([]);
+            const [playerStats, setPlayerStats] = useState({ energy: 5, score: 0 });
+            const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
+            const [isActive, setIsActive] = useState(false);
+            const [currentLand, setCurrentLand] = useState(null);
+            const [modalState, setModalState] = useState('intro');
+            const [selectedOption, setSelectedOption] = useState(null);
+            const [resultData, setResultData] = useState(null);
+            const [playerName, setPlayerName] = useState("");
+            const [highScores, setHighScores] = useState([]);
+            const [isScoreSaved, setIsScoreSaved] = useState(false);
+            const [isPlayingTest, setIsPlayingTest] = useState(false);
+            
+            const { isMuted, setIsMuted, playSound } = useAudio();
+            const { speak, cancel: cancelSpeech, isSpeaking } = useTTS();
+
+            useEffect(() => {
+                const savedScores = localStorage.getItem('antiBullyingScores');
+                if (savedScores) setHighScores(JSON.parse(savedScores));
+                initGame(false);
+            }, []);
+
+            useEffect(() => {
+                if (modalState === 'hidden' || modalState === 'result') cancelSpeech();
+            }, [modalState]);
+
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft((time) => {
+                            if (time <= 12 && time > 0) playSound('alarm'); 
+                            return time - 1;
+                        });
+                    }, 1000);
+                } else if (timeLeft === 0 && isActive) {
+                    handleGameOver('timeout');
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft]);
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            const initGame = (shouldStart = true) => {
+                const shuffledQuestions = shuffleArray(FULL_QUESTION_POOL).slice(0, 10);
+                setCurrentQuestions(shuffledQuestions);
+
+                const newLands = shuffledQuestions.map((q, index) => ({
+                    id: index + 1,
+                    status: 'neutral',
+                    questionData: q,
+                    mapPos: MAP_POINTS[index] 
+                }));
+                
+                setLands(newLands);
+                setPlayerStats({ energy: 5, score: 0 });
+                setTimeLeft(GAME_DURATION);
+                setIsActive(shouldStart);
+                setPlayerName("");
+                setIsScoreSaved(false);
+                cancelSpeech();
+                
+                if (!shouldStart) setModalState('intro');
+                else {
+                    playSound('click');
+                    setModalState('hidden');
+                }
+            };
+
+            const handleTestAudio = () => {
+                setIsPlayingTest(true);
+                playSound('test');
+                setTimeout(() => setIsPlayingTest(false), 500);
+            };
+
+            const startGame = () => {
+                initGame(true);
+            };
+
+            const handleLandClick = (land) => {
+                if (land.status === 'conquered') return;
+                if (playerStats.energy <= 0 || timeLeft <= 0) return;
+                
+                playSound('click');
+                setCurrentLand(land);
+                setSelectedOption(null);
+                setModalState('question');
+            };
+
+            const handleSpeakQuestion = () => {
+                if (!currentLand) return;
+                const qData = currentLand.questionData;
+                let textToSpeak = `題目：${qData.question}。`;
+                qData.options.forEach((opt, index) => {
+                    textToSpeak += `選項${index + 1}：${opt.text}。`;
+                });
+                speak(textToSpeak);
+            };
+
+            const handleAnswer = (option) => {
+                setSelectedOption(option);
+                cancelSpeech();
+                playSound('click');
+                
+                setTimeout(() => {
+                    const isCorrect = option.correct;
+                    const newLands = [...lands];
+                    const landIndex = lands.findIndex(l => l.id === currentLand.id);
+                    
+                    if (isCorrect) {
+                        playSound('correct');
+                        newLands[landIndex].status = 'conquered';
+                        setPlayerStats(prev => ({ ...prev, score: prev.score + 100 }));
+                    } else {
+                        playSound('wrong');
+                        newLands[landIndex].status = 'failed';
+                        setPlayerStats(prev => ({ ...prev, energy: prev.energy - 1 }));
+                    }
+                    setLands(newLands);
+
+                    setResultData({
+                        isCorrect,
+                        rationale: option.rationale,
+                        question: currentLand.questionData
+                    });
+                    setModalState('result');
+                }, 600);
+            };
+
+            const closeResult = () => {
+                const conqueredCount = lands.filter(l => l.status === 'conquered').length;
+                if (conqueredCount === 10) {
+                    setIsActive(false);
+                    playSound('victory');
+                    setModalState('victory');
+                    return;
+                }
+                if (playerStats.energy <= 0) {
+                    handleGameOver('energy');
+                    return;
+                }
+                playSound('click');
+                setModalState('hidden');
+                setCurrentLand(null);
+            };
+
+            const handleGameOver = (reason) => {
+                setIsActive(false);
+                playSound('wrong');
+                cancelSpeech();
+                setResultData({ gameOverReason: reason });
+                setModalState('gameover');
+            };
+
+            const saveScore = () => {
+                if (!playerName.trim()) return;
+                playSound('correct');
+                const newScore = {
+                    name: playerName,
+                    score: playerStats.score,
+                    timeRemaining: timeLeft,
+                    date: new Date().toLocaleDateString()
+                };
+                const newHighScores = [...highScores, newScore]
+                    .sort((a, b) => b.score - a.score || b.timeRemaining - a.timeRemaining)
+                    .slice(0, MAX_HIGH_SCORES);
+                setHighScores(newHighScores);
+                localStorage.setItem('antiBullyingScores', JSON.stringify(newHighScores));
+                setIsScoreSaved(true);
+            };
+
+            // --- Render Logic ---
+            return (
+                <div className="h-full w-full relative flex flex-col">
+                    <SkyBackground />
+
+                    {/* Header */}
+                    <header className="bg-white/90 backdrop-blur-md shadow-sm border-b border-indigo-100 sticky top-0 z-20 flex-shrink-0">
+                        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-2 rounded-xl text-white shadow-lg transform transition hover:scale-105">
+                                    <Shield className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-black text-slate-800 tracking-tight text-gradient">守護者行動</h1>
+                                    <p className="text-xs text-slate-500 font-medium tracking-wide">零霸凌攻防戰：打造守護之盾</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto justify-center">
+                                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition-all duration-300 ${timeLeft <= 15 ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-white border-slate-200 text-slate-700'}`}>
+                                    <Clock className="w-4 h-4" />
+                                    <span className="font-mono font-bold text-lg">{formatTime(timeLeft)}</span>
+                                </div>
+                                <div className="flex items-center gap-4 bg-white/60 p-1.5 rounded-full border border-slate-200 backdrop-blur-sm">
+                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full shadow-sm">
+                                        <Zap className={`w-4 h-4 ${playerStats.energy <= 2 ? 'text-red-500' : 'text-yellow-500 fill-yellow-500'}`} />
+                                        <span className="font-bold text-slate-700">{playerStats.energy}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full shadow-sm">
+                                        <Trophy className="w-4 h-4 text-indigo-500 fill-indigo-500" />
+                                        <span className="font-bold text-slate-700">{playerStats.score}</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsMuted(!isMuted)} className="p-2 rounded-full hover:bg-white bg-white/50 text-slate-500 transition-colors shadow-sm">
+                                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Map */}
+                    <main className="relative z-10 pt-8 px-4 pb-20 flex justify-center flex-grow">
+                        <div className="relative w-full max-w-2xl h-[800px] bg-white/40 rounded-3xl border-2 border-white shadow-xl overflow-hidden backdrop-blur-md">
+                            
+                            {/* Inner Visual Guide */}
+                            <div className="absolute top-[8%] left-1/2 transform -translate-x-1/2 text-center opacity-60 z-0">
+                                <div className="bg-white/80 p-4 rounded-full shadow-lg mb-2 inline-block">
+                                    <Shield className="w-24 h-24 text-indigo-400" />
+                                </div>
+                                <div className="text-indigo-600 font-black tracking-widest mt-2 uppercase bg-white/60 px-4 py-1 rounded-full text-xs">Protected Zone</div>
+                            </div>
+
+                            {/* Bricks */}
+                            {lands.map((land, index) => {
+                                const isCurrent = land.status === 'neutral' && (index === 0 || lands[index-1].status !== 'neutral');
+                                const isLocked = land.status === 'neutral' && !isCurrent;
+                                
+                                let nodeColor = "bg-brick-base border-slate-300 text-slate-400 border-dashed";
+                                let icon = <Hammer className="w-5 h-5 opacity-40" />; 
+                                let shadow = "shadow-none";
+                                let scale = "scale-100";
+                                let content = <span className="text-xs font-mono font-bold opacity-50">#{index + 1}</span>;
+
+                                if (land.status === 'conquered') {
+                                    nodeColor = "bg-gradient-to-br from-indigo-400 to-purple-500 border-indigo-300 text-white border-solid";
+                                    icon = <BrickWall className="w-6 h-6 drop-shadow-md" />;
+                                    shadow = "shadow-lg shadow-indigo-300/50 ring-2 ring-white";
+                                    content = <span className="text-xs font-bold mt-1 text-white drop-shadow-sm">已建造</span>;
+                                    scale = "scale-105";
+                                } else if (land.status === 'failed') {
+                                    nodeColor = "bg-red-50 border-red-400 text-red-500 border-solid";
+                                    icon = <AlertTriangle className="w-6 h-6" />;
+                                    shadow = "shadow-sm";
+                                    content = <span className="text-xs font-bold mt-1">漏洞</span>;
+                                } else if (isCurrent) {
+                                    nodeColor = "bg-white border-indigo-400 text-indigo-600 border-2 border-dashed animate-pulse";
+                                    icon = <Hammer className="w-6 h-6 animate-bounce text-indigo-500" />;
+                                    shadow = "shadow-xl shadow-indigo-200 ring-4 ring-indigo-50";
+                                    scale = "scale-110";
+                                    content = <span className="text-xs font-bold mt-1 text-indigo-600">施工中</span>;
+                                } else if (isLocked) {
+                                    nodeColor = "bg-slate-100/50 border-slate-200/50 text-slate-300";
+                                    icon = <Lock className="w-4 h-4 opacity-30" />;
+                                    content = null;
+                                }
+
+                                return (
+                                    <button
+                                        key={land.id}
+                                        onClick={() => !isLocked && handleLandClick(land)}
+                                        disabled={land.status === 'conquered' || isLocked}
+                                        style={{ left: land.mapPos.left, top: land.mapPos.top }}
+                                        className={`
+                                            absolute transform -translate-x-1/2 -translate-y-1/2 w-32 h-16 rounded-xl border-2
+                                            flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
+                                            ${nodeColor} ${shadow} ${scale}
+                                            ${!isLocked && land.status !== 'conquered' ? 'hover:-translate-y-1 hover:shadow-xl hover:border-indigo-300 hover:bg-white' : ''}
+                                            ${isLocked ? 'cursor-not-allowed opacity-60' : ''}
+                                        `}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            {icon}
+                                        </div>
+                                        {content}
+                                    </button>
+                                );
+                            })}
+                            
+                            {/* Base Decoration */}
+                            <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-slate-200 to-transparent border-t border-slate-200"></div>
+                        </div>
+                    </main>
+
+                    {/* --- Modals --- */}
+
+                    {/* Intro Modal */}
+                    {modalState === 'intro' && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300 modal-scroll border-4 border-white/50 my-auto">
+                                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 text-center relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
+                                    <BrickWall className="w-20 h-20 text-white mx-auto mb-4 relative z-10 drop-shadow-md animate-bounce" />
+                                    <h2 className="text-3xl font-black text-white relative z-10 tracking-tight">建造守護之牆</h2>
+                                </div>
+                                <div className="p-8 bg-white">
+                                    <CartoonCoverArt />
+                                    <p className="text-slate-600 mb-6 text-center leading-relaxed font-medium">
+                                        霸凌像是一場風暴。請在 <span className="font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">3 分鐘</span> 內，回答正確問題，一磚一瓦砌起堅固的城牆，保護我們的校園！
+                                        <br/><span className="text-xs text-slate-400 mt-2 block">🔊 請確保音效開啟以獲得最佳體驗。</span>
+                                    </p>
+                                    <div className="flex gap-3 mb-8">
+                                        <button onClick={handleTestAudio} className={`flex-1 font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm border-2 ${isPlayingTest ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}>
+                                            {isPlayingTest ? <Volume2 className="w-5 h-5 animate-pulse" /> : <PlayCircle className="w-5 h-5" />}
+                                            {isPlayingTest ? '播放中...' : '測試音效'}
+                                        </button>
+                                        <button onClick={startGame} className="flex-[2] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg">
+                                            <Hammer className="w-5 h-5 text-yellow-300 fill-yellow-300" />
+                                            開始建造
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="border-t border-slate-100 pt-6">
+                                        <p className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider text-center flex items-center justify-center gap-2">
+                                            <Trophy className="w-3 h-3" /> 最佳建造者
+                                        </p>
+                                        <div className="bg-slate-50 rounded-xl p-2 max-h-32 overflow-y-auto modal-scroll">
+                                            {highScores.length === 0 ? <div className="text-xs text-center text-slate-400 py-2 italic">還沒有紀錄，快來當第一名！</div> : highScores.slice(0, 3).map((s, i) => (
+                                            <div key={i} className="flex justify-between items-center text-xs text-slate-600 py-2 px-3 border-b border-slate-100 last:border-0 hover:bg-white rounded-lg transition-colors">
+                                                <span className="flex items-center gap-2">
+                                                    <span className={`w-4 h-4 flex items-center justify-center rounded-full text-[10px] text-white font-bold ${i===0?'bg-yellow-400':i===1?'bg-slate-400':'bg-orange-400'}`}>{i+1}</span>
+                                                    {s.name}
+                                                </span>
+                                                <span className="font-mono font-bold text-indigo-500">{s.score}分</span>
+                                            </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Question Modal */}
+                    {modalState === 'question' && currentLand && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-0 overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border-4 border-white/50 my-auto">
+                                <div className="h-2 bg-slate-100 w-full">
+                                    <div className="h-full bg-indigo-500 transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${(timeLeft / GAME_DURATION) * 100}%` }}></div>
+                                </div>
+                                <div className="p-8 bg-white">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-wider border border-indigo-100">
+                                            BRICK #{currentLand.id}
+                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={isSpeaking ? cancelSpeech : handleSpeakQuestion} className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all ${isSpeaking ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'text-slate-500 border-slate-200 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'}`} title="朗讀題目">
+                                                {isSpeaking ? <StopCircle className="w-3 h-3 animate-pulse"/> : <Mic className="w-3 h-3"/>}
+                                                {isSpeaking ? '停止朗讀' : '念給你聽'}
+                                            </button>
+                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-full"><Clock className="w-3 h-3"/> {formatTime(timeLeft)}</div>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xl md:text-2xl font-bold mb-8 text-slate-800 leading-snug tracking-tight">{currentLand.questionData.question}</h3>
+                                    <div className="space-y-3">
+                                        {currentLand.questionData.options.map((option, idx) => {
+                                            let optionClass = "border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50 text-slate-600 hover:shadow-md";
+                                            if (selectedOption === option) optionClass = "border-indigo-600 bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-200 ring-offset-2";
+                                            return (
+                                                <button key={idx} onClick={() => !selectedOption && handleAnswer(option)} disabled={!!selectedOption} className={`w-full text-left p-5 rounded-2xl border-2 transition-all font-medium text-base md:text-lg ${optionClass} ${!selectedOption ? 'active:scale-[0.98]' : ''}`}>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`mt-1 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${selectedOption === option ? 'border-white bg-white' : 'border-slate-300'}`}>
+                                                            {selectedOption === option && <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full" />}
+                                                        </div>
+                                                        {option.text}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Result Modal */}
+                    {modalState === 'result' && resultData && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className={`bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border-t-8 animate-in zoom-in-95 duration-200 ${resultData.isCorrect ? 'border-emerald-500' : 'border-red-500'} my-auto`}>
+                                <div className="mb-6 flex justify-center relative">
+                                    {resultData.isCorrect ? (
+                                        <div className="relative"><div className="absolute inset-0 bg-emerald-100 rounded-full blur-2xl opacity-50 animate-pulse"></div><BrickWall className="w-24 h-24 text-emerald-500 relative z-10 drop-shadow-md animate-bounce-in" /></div>
+                                    ) : (
+                                        <div className="relative"><div className="absolute inset-0 bg-red-100 rounded-full blur-2xl opacity-50"></div><AlertTriangle className="w-24 h-24 text-red-500 relative z-10 drop-shadow-md animate-bounce-in" /></div>
+                                    )}
+                                </div>
+                                <h3 className={`text-3xl font-black mb-2 tracking-tight ${resultData.isCorrect ? 'text-emerald-600' : 'text-red-600'}`}>{resultData.isCorrect ? '城牆建造成功！' : '防禦出現漏洞'}</h3>
+                                <div className="bg-slate-50 p-6 rounded-2xl text-left my-6 border border-slate-100 shadow-inner">
+                                    <span className="font-bold block mb-3 text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2"><Star className="w-4 h-4 text-yellow-500 fill-yellow-500"/> 專家解析</span>
+                                    <p className="text-slate-600 text-base leading-relaxed">{resultData.rationale}</p>
+                                </div>
+                                <button onClick={closeResult} className={`w-full py-4 rounded-2xl font-bold text-white text-lg transition-all shadow-lg transform hover:scale-[1.02] ${resultData.isCorrect ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-200' : 'bg-slate-700 hover:bg-slate-800 shadow-slate-300'}`}>
+                                    {resultData.isCorrect ? '繼續建造' : '我知道了'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Victory / Game Over Modal */}
+                    {(modalState === 'victory' || modalState === 'gameover') && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-10 text-center animate-bounce-in my-8 relative overflow-hidden border-4 border-white/20">
+                                {modalState === 'victory' && (
+                                    <>
+                                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
+                                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-orange-300 to-pink-300"></div>
+                                    </>
+                                )}
+                                
+                                {modalState === 'victory' ? (
+                                    <>
+                                        <div className="inline-block p-6 bg-yellow-50 rounded-full mb-6 shadow-xl shadow-yellow-100 ring-8 ring-yellow-50/50">
+                                            <Shield className="w-20 h-20 text-yellow-500 drop-shadow-md animate-pulse-slow" />
+                                        </div>
+                                        <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">守護之盾已完成！</h2>
+                                        <p className="text-slate-500 mb-8 font-medium text-lg">你成功建造了堅固的城牆，霸凌再也無法入侵！</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="inline-block p-6 bg-red-50 rounded-full mb-6 shadow-xl shadow-red-100 ring-8 ring-red-50/50">
+                                            <AlertTriangle className="w-20 h-20 text-red-500 drop-shadow-md" />
+                                        </div>
+                                        <h2 className="text-3xl font-black text-slate-800 mb-2">{resultData?.gameOverReason === 'timeout' ? "時間耗盡！" : "行動力耗盡！"}</h2>
+                                        <p className="text-slate-500 mb-8 font-medium">別灰心，修復城牆需要不斷練習。再試一次吧！</p>
+                                    </>
+                                )}
+                                
+                                <div className="flex justify-center gap-4 mb-8">
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 w-1/2 shadow-sm">
+                                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">最終得分</div>
+                                        <div className="text-5xl font-black text-indigo-600">{playerStats.score}</div>
+                                    </div>
+                                    {modalState === 'victory' && (
+                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 w-1/2 shadow-sm">
+                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">剩餘時間</div>
+                                            <div className="text-5xl font-black text-emerald-500">{formatTime(timeLeft)}</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!isScoreSaved ? (
+                                    <div className="mb-8">
+                                        <label className="block text-left text-sm font-bold text-slate-700 mb-2 ml-1">登記你的大名</label>
+                                        <div className="flex gap-2">
+                                            <input type="text" placeholder="請輸入名字..." value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors font-medium text-lg" maxLength={10} />
+                                            <button onClick={saveScore} disabled={!playerName.trim()} className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg transform active:scale-95">登記</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mb-8 bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm"><CheckCircle className="w-5 h-5"/> 成績已儲存</div>
+                                )}
+
+                                {/* Leaderboard List */}
+                                <div className="mt-6 w-full bg-white border border-slate-100 p-6 rounded-2xl text-left shadow-lg">
+                                    <h4 className="flex items-center gap-2 font-bold text-slate-700 mb-4 border-b border-slate-100 pb-3">
+                                        <ListIcon className="w-5 h-5 text-indigo-500" /> 
+                                        榮譽榜 (TOP 5)
+                                    </h4>
+                                    {highScores.length === 0 ? (
+                                        <p className="text-sm text-slate-400 text-center py-4 italic">尚無紀錄，成為第一位守護者吧！</p>
+                                    ) : (
+                                        <ul className="space-y-2">
+                                            {highScores.map((entry, idx) => (
+                                                <li key={idx} className="flex justify-between items-center text-slate-600 bg-slate-50 p-3 rounded-xl hover:bg-indigo-50 transition-colors">
+                                                    <span className="flex items-center gap-3">
+                                                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shadow-sm text-white ${idx === 0 ? 'bg-yellow-400' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-orange-400' : 'bg-slate-200 !text-slate-500'}`}>{idx + 1}</span>
+                                                        <span className="font-bold">{entry.name}</span>
+                                                    </span>
+                                                    <div className="flex items-center gap-3 text-sm">
+                                                        <span className="text-slate-400 font-mono text-xs">{formatTime(entry.timeRemaining)}</span>
+                                                        <span className="font-black text-indigo-600">{entry.score}</span>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <button onClick={() => initGame(false)} className="w-full mt-8 bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all hover:shadow-xl hover:-translate-y-1">
+                                    <RefreshCw className="w-5 h-5" />
+                                    重新挑戰
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AntiBullyingGame />);
+    </script>
+</body>
+</html>
