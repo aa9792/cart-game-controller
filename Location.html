@@ -3,73 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>汪汪隊大反擊：修復版</title>
+    <title>汪汪隊大反擊：防卡死版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
         
+        /* 基礎樣式，防止 CSS 載入失敗時畫面跑版 */
         body {
             font-family: 'Noto Sans TC', sans-serif;
             background-color: #1e293b;
             color: #f1f5f9;
             overscroll-behavior: none;
             min-height: 100vh;
-            user-select: none;
-            -webkit-user-select: none;
-            background-image: radial-gradient(#334155 1px, transparent 1px);
-            background-size: 20px 20px;
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* 預防性 padding */
-            padding: 10px; 
+            padding: 10px;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        .game-font { font-family: 'Noto Sans TC', sans-serif; font-weight: 900; }
-        .title-shadow { text-shadow: 2px 2px 0px #000; }
-
         #game-canvas {
-            cursor: crosshair;
+            background-color: #0f172a;
             border: 4px solid #fbbf24;
             border-radius: 12px;
-            background-color: #0f172a;
-            /* 確保畫布有寬高，即使 CSS 載入失敗 */
             width: 100%;
             height: auto;
             touch-action: none;
-            box-shadow: 0 10px 25px -5px rgba(251, 191, 36, 0.3);
-            display: block; /* 確保顯示 */
+            display: block;
         }
 
-        /* 簡單的動畫定義，確保相容性 */
-        .shake { animation: shakeAnim 0.3s linear; }
-        @keyframes shakeAnim {
-            0% { transform: translate(0, 0); }
-            25% { transform: translate(-5px, 0); }
-            75% { transform: translate(5px, 0); }
-            100% { transform: translate(0, 0); }
+        /* Loading 遮罩樣式 */
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1e293b; z-index: 9999;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.5s;
+        }
+        
+        .loading-text {
+            color: #fbbf24; font-size: 24px; font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* 強制啟動按鈕 (預設隱藏) */
+        #force-start-btn {
+            display: none;
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
-        .center-feedback {
-            position: absolute; left: 50%; top: 45%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            text-align: center;
-            z-index: 150;
-            animation: popUp 1s forwards;
-            width: 100%; 
-        }
-        @keyframes popUp {
-            0% { transform: translate(-50%, 0%) scale(0.5); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-            100% { transform: translate(-50%, -80%) scale(1); opacity: 0; }
-        }
-
-        /* Icon 樣式 */
-        .icon-unit { font-size: 1rem; margin-right: 1px; }
-        .is-lost { opacity: 0.3; filter: grayscale(100%); }
-
+        /* 遊戲內元素 */
         .score-board {
             background: rgba(15, 23, 42, 0.9);
             border: 2px solid #475569;
@@ -78,29 +74,43 @@
             justify-content: space-between;
             padding: 0.5rem 1rem;
             margin-bottom: 0.5rem;
-            font-family: monospace;
             font-weight: bold;
+            font-size: 14px;
         }
 
-        /* 讀取畫面，避免JS載入慢時畫面全黑 */
-        #loading-msg {
-            position: fixed; top: 50%; left: 50%;
+        .center-feedback {
+            position: absolute; left: 50%; top: 45%;
             transform: translate(-50%, -50%);
-            color: yellow; font-size: 20px; font-weight: bold;
-            z-index: 9999;
+            pointer-events: none;
+            text-align: center;
+            z-index: 150;
+            animation: popUp 0.8s forwards;
+            width: 100%; white-space: nowrap;
         }
+        @keyframes popUp {
+            0% { transform: translate(-50%, 0%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -80%) scale(1); opacity: 0; }
+        }
+
+        .icon-unit { font-size: 1rem; margin-right: 1px; }
+        .is-lost { opacity: 0.3; filter: grayscale(100%); }
     </style>
 </head>
 <body>
 
-    <div id="loading-msg">遊戲載入中...</div>
+    <div id="loading-screen">
+        <div class="loading-text">🚀 遊戲載入中...</div>
+        <button id="force-start-btn" onclick="manualStart()">👉 點此直接開始</button>
+        <div style="margin-top:10px; font-size:12px; color:#64748b;">若畫面卡住請點擊按鈕</div>
+    </div>
 
     <div id="screen-effect" class="fixed inset-0 pointer-events-none z-[100]"></div>
 
     <div class="w-full max-w-lg space-y-2 relative" id="game-container" style="display:none;">
         
         <div class="flex flex-row justify-between items-center">
-            <h1 class="text-2xl font-black text-yellow-400 game-font title-shadow transform -rotate-1">
+            <h1 class="text-2xl font-black text-yellow-400 transform -rotate-1" style="text-shadow: 2px 2px 0 #000;">
                 🚀 汪汪隊反擊
             </h1>
             <div class="flex gap-2">
@@ -113,12 +123,12 @@
             </div>
         </div>
 
-        <div class="score-board text-sm">
-            <div class="text-yellow-400">
-                🏆 最高: <span id="high-score" class="text-white">0</span>
+        <div class="score-board">
+            <div style="color:#fbbf24">
+                🏆 最高: <span id="high-score" style="color:white">0</span>
             </div>
-            <div class="text-green-400">
-                ⭐ 得分: <span id="current-score" class="text-white text-lg">0</span>
+            <div style="color:#4ade80">
+                ⭐ 得分: <span id="current-score" style="color:white; font-size:1.1rem">0</span>
             </div>
         </div>
 
@@ -128,3 +138,45 @@
                     <span class="font-black text-blue-300 text-xs">🐶 汪汪隊</span>
                     <span id="dog-percent" class="font-mono text-white text-xs">100%</span>
                 </div>
+                <div class="w-full bg-gray-800 h-2 rounded-full mb-1">
+                    <div id="dog-bar" class="bg-blue-500 h-full rounded-full transition-all duration-300" style="width: 100%;"></div>
+                </div>
+                <div id="dog-icons" class="flex flex-wrap h-4 overflow-hidden"></div>
+            </div>
+
+            <div id="cat-panel" class="bg-red-900/60 p-2 rounded-xl border border-red-400 text-right">
+                <div class="flex justify-between items-center mb-1">
+                    <span id="cat-percent" class="font-mono text-white text-xs">100%</span>
+                    <span class="font-black text-red-300 text-xs">喵喵軍團 😼</span>
+                </div>
+                <div class="w-full bg-gray-800 h-2 rounded-full mb-1 flex justify-end">
+                    <div id="cat-bar" class="bg-red-500 h-full rounded-full transition-all duration-300" style="width: 100%;"></div>
+                </div>
+                <div id="cat-icons" class="flex flex-wrap justify-end h-4 overflow-hidden"></div>
+            </div>
+        </div>
+
+        <div id="coord-banner" class="w-full py-2 px-3 bg-yellow-500 rounded-lg flex items-center justify-between gap-2 shadow-sm">
+            <div class="flex items-center gap-1">
+                <span class="animate-bounce">📡</span>
+                <span class="text-black font-bold text-xs">目標位置：</span>
+            </div>
+            <div class="bg-black/30 rounded px-2 py-1">
+                 <span id="target-coords" class="text-xl font-mono font-black text-white tracking-widest">
+                    Wait...
+                </span>
+            </div>
+        </div>
+
+        <div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-2xl bg-[#0f172a] border-2 border-yellow-600">
+            <canvas id="game-canvas" width="800" height="600" class="w-full h-full object-contain"></canvas>
+            <div id="effect-layer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+        </div>
+
+        <p class="font-bold text-xs mt-1 text-center text-yellow-400 animate-pulse">
+            👇 點擊地圖上的座標點發射！ 👇
+        </p>
+    </div>
+
+    <script>
+        // 將所有變數宣告移到全
