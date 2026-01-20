@@ -1,1125 +1,130 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>招生第一年教職員配課與財務管理系統（完整版）</title>
+{activeTab === "summary" && (
+  <div className="space-y-4 animate-fadeIn">
+    <div className="flex items-start justify-between gap-3">
+      <h2 className="text-lg font-black mb-2 border-l-4 border-indigo-600 pl-3">
+        配課設計（可調整授課節數）
+      </h2>
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
+      <button
+        onClick={addTeachingLoadRow}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700"
+      >
+        <Plus size={16} /> 新增分類
+      </button>
+    </div>
 
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- ✅ Import Map（已修正：補上 react-dom） -->
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18.2.0",
-      "react-dom": "https://esm.sh/react-dom@18.2.0",
-      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-      "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
-      "lucide-react": "https://esm.sh/lucide-react@0.330.0?external=react"
-    }
-  }
-  </script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-    body { font-family: 'Noto Sans TC', sans-serif; }
-
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-    .animate-fadeIn { animation: fadeIn 0.35s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-
-  <!-- ✅ 錯誤面板：不再白畫面無解 -->
-  <script>
-    function showRuntimeError(msg) {
-      const el = document.getElementById("runtime-error");
-      if (!el) return;
-      el.classList.remove("hidden");
-      el.textContent = msg;
-    }
-    window.addEventListener("error", (e) => {
-      showRuntimeError("🚨 JS Error: " + (e?.message || "未知錯誤"));
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      showRuntimeError("🚨 Promise Error: " + (e?.reason?.message || e?.reason || "未知錯誤"));
-    });
-  </script>
-</head>
-
-<body class="bg-slate-50 text-slate-900">
-  <pre id="runtime-error" class="hidden mx-auto max-w-6xl mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm whitespace-pre-wrap"></pre>
-  <div id="root"></div>
-
-  <script type="text/babel" data-type="module">
-    import React, { useMemo, useState, useCallback } from "react";
-    import { createRoot } from "react-dom/client";
-    import {
-      PieChart, Pie, Cell, BarChart, Bar,
-      XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-      ResponsiveContainer
-    } from "recharts";
-    import {
-      Users, Calculator, Calendar, TrendingUp, TrendingDown,
-      DollarSign, Activity, School, LayoutDashboard, Info,
-      Plus, Trash2, UtensilsCrossed, Building2
-    } from "lucide-react";
-
-    const cn = (...xs) => xs.filter(Boolean).join(" ");
-
-    const toNumber = (v, fallback = 0) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : fallback;
-    };
-
-    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-
-    const moneyFormatter = new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0
-    });
-    const formatMoney = (n) => moneyFormatter.format(Math.round(n || 0));
-
-    const COLORS = ["#4f46e5", "#f59e0b", "#10b981", "#f43f5e", "#0ea5e9", "#a855f7"];
-
-    // =========================
-    // ✅ 原本課表資料（完整保留）
-    // =========================
-    const DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五"];
-
-    const TIME_TABLE = [
-      { period: "晨間", time: "07:40 - 08:20", activity: "晨間運動 / 學生朝會" },
-      { period: "導師時間", time: "08:20 - 08:40", activity: "Home Room (中外師協同)" },
-      { period: "第 1 節", time: "08:40 - 09:20", activity: "正式授課", isClass: true },
-      { period: "第 2 節", time: "09:30 - 10:10", activity: "正式授課", isClass: true },
-      { period: "大休息", time: "10:10 - 10:30", activity: "Recess (20 min)" },
-      { period: "第 3 節", time: "10:30 - 11:10", activity: "正式授課", isClass: true },
-      { period: "第 4 節", time: "11:20 - 12:00", activity: "正式授課", isClass: true },
-      { period: "午餐/休", time: "12:00 - 13:20", activity: "Lunch & Nap" },
-      { period: "第 5 節", time: "13:20 - 14:00", activity: "正式授課", isClass: true },
-      { period: "第 6 節", time: "14:10 - 14:50", activity: "正式授課", isClass: true },
-      { period: "大休息", time: "14:50 - 15:10", activity: "Recess (20 min)" },
-      { period: "第 7 節", time: "15:10 - 15:50", activity: "正式授課", isClass: true },
-      { period: "放學", time: "15:50 - 16:00", activity: "Home Room / 放學準備" }
-    ];
-
-    const CLASS_SCHEDULES = {
-      "1A": [
-        ["語文(CT4)", "語文(CT4)", "語文(CT4)", "語文(CT4)", "探索(ET1)"],
-        ["數學(CT5)", "數學(CT5)", "數學(CT5)", "數學(CT5)", "探索(ET1)"],
-        ["LA(ET1)", "LA(ET1)", "LA(ET1)", "LA(ET1)", "探索(ET5)"],
-        ["LA(ET1)", "LA(ET1)", "LA(ET1)", "語文(CT4)", "探索(ET5)"],
-        ["Social(ET1)", "藝術(ET5)", "Science(ET1)", "藝術(ET5)", "LA(ET1)"],
-        ["Social(ET1)", "體育(ET7)", "Science(ET1)", "體育(ET7)", "Social(ET1)"],
-        ["IT(ET7)", "SAEAM(ET5)", "品德(CT1)", "閱讀(CT2)", "社會(CT3)"]
-      ],
-      "1B": [
-        ["LA(ET2)", "LA(ET2)", "LA(ET2)", "LA(ET2)", "探索(ET2)"],
-        ["LA(ET2)", "LA(ET2)", "LA(ET2)", "語文(CT4)", "探索(ET2)"],
-        ["語文(CT4)", "語文(CT4)", "語文(CT4)", "語文(CT4)", "探索(ET5)"],
-        ["數學(CT5)", "數學(CT5)", "數學(CT5)", "數學(CT5)", "探索(ET5)"],
-        ["Science(ET2)", "體育(ET7)", "Social(ET2)", "體育(ET7)", "LA(ET2)"],
-        ["Science(ET2)", "藝術(ET5)", "Social(ET2)", "藝術(ET5)", "Social(ET2)"],
-        ["社會(CT3)", "閱讀(CT2)", "IT(ET7)", "品德(CT1)", "SAEAM(ET5)"]
-      ],
-      "2A": [
-        ["語文(CT6)", "語文(CT6)", "語文(CT6)", "語文(CT6)", "探索(ET3)"],
-        ["數學(CT7)", "數學(CT7)", "數學(CT7)", "數學(CT7)", "探索(ET3)"],
-        ["LA(ET3)", "LA(ET3)", "LA(ET3)", "LA(ET3)", "探索(ET6)"],
-        ["LA(ET3)", "LA(ET3)", "LA(ET3)", "語文(CT6)", "探索(ET6)"],
-        ["體育(ET7)", "Science(ET3)", "藝術(ET5)", "Science(ET3)", "LA(ET3)"],
-        ["藝術(ET5)", "Social(ET3)", "體育(ET7)", "Social(ET3)", "Social(ET3)"],
-        ["SAEAM(ET5)", "IT(ET7)", "社會(CT3)", "品德(CT1)", "閱讀(CT2)"]
-      ],
-      "3A": [
-        ["LA(ET4)", "LA(ET4)", "LA(ET4)", "LA(ET4)", "探索(ET4)"],
-        ["LA(ET4)", "LA(ET4)", "LA(ET4)", "語文(CT6)", "探索(ET4)"],
-        ["語文(CT6)", "語文(CT6)", "語文(CT6)", "語文(CT6)", "探索(ET6)"],
-        ["數學(CT7)", "數學(CT7)", "數學(CT7)", "數學(CT7)", "探索(ET6)"],
-        ["藝術(ET5)", "Social(ET4)", "體育(ET7)", "Social(ET4)", "LA(ET4)"],
-        ["IT(ET7)", "Science(ET4)", "藝術(ET5)", "Science(ET4)", "Social(ET4)"],
-        ["社會(CT3)", "品德(CT1)", "SAEAM(ET5)", "體育(ET7)", "閱讀(CT2)"]
-      ]
-    };
-
-    // =========================
-    // ✅ 預算升級：收入比例自動正規化
-    // =========================
-    const normalizeRatios = (ratios) => {
-      const keys = Object.keys(ratios);
-      const sum = keys.reduce((acc, k) => acc + (toNumber(ratios[k], 0)), 0);
-      if (sum <= 0) return ratios;
-
-      const scaled = {};
-      let running = 0;
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i];
-        if (i === keys.length - 1) {
-          scaled[k] = 100 - running;
-        } else {
-          const v = Math.round((ratios[k] / sum) * 100);
-          scaled[k] = v;
-          running += v;
-        }
-      }
-      return scaled;
-    };
-
-    const calcFinancial = (params) => {
-      const {
-        studentCount,
-        termMonths,
-        tuitionFeeTerm,
-        incomeRatio,
-        autoNormalizeRatio,
-        benefitFactor,
-        salaryTiers,
-        rentMonthly,
-        fixedOtherTerm,
-        materialPerStudentTerm,
-        activityPerStudentTerm,
-        provideMeals,
-        mealCostPerStudentPerMonth
-      } = params;
-
-      const ratioSum = Object.values(incomeRatio).reduce((a, b) => a + toNumber(b, 0), 0);
-      const ratios = autoNormalizeRatio ? normalizeRatios(incomeRatio) : incomeRatio;
-
-      // Income：依「學費占比」反推總收入
-      const tuitionIncome = studentCount * tuitionFeeTerm;
-      const tuitionPct = clamp(toNumber(ratios.tuition, 0), 0, 100);
-      const totalIncome = tuitionPct > 0 ? Math.round(tuitionIncome / (tuitionPct / 100)) : 0;
-
-      const incomeParts = {
-        tuition: Math.round(totalIncome * (toNumber(ratios.tuition, 0) / 100)),
-        subsidy: Math.round(totalIncome * (toNumber(ratios.subsidy, 0) / 100)),
-        donation: Math.round(totalIncome * (toNumber(ratios.donation, 0) / 100)),
-        afterSchool: 0
-      };
-      incomeParts.afterSchool = totalIncome - (incomeParts.tuition + incomeParts.subsidy + incomeParts.donation);
-
-      // Personnel：分層薪資
-      const personnelBaseMonthly = salaryTiers.reduce((acc, t) => {
-        const c = toNumber(t.count, 0);
-        const s = toNumber(t.monthlySalary, 0);
-        return acc + (c * s);
-      }, 0);
-      const personnelCost = Math.round(personnelBaseMonthly * termMonths * benefitFactor);
-
-      // Operational
-      const rentCost = Math.round(rentMonthly * termMonths);
-      const mealCost = provideMeals ? Math.round(studentCount * mealCostPerStudentPerMonth * termMonths) : 0;
-
-      const materialCost = Math.round(studentCount * materialPerStudentTerm);
-      const activityCost = Math.round(studentCount * activityPerStudentTerm);
-      const otherOpCost = Math.round(fixedOtherTerm + materialCost + activityCost);
-
-      const operationCost = rentCost + mealCost + otherOpCost;
-      const totalExpense = personnelCost + operationCost;
-
-      const netProfit = totalIncome - totalExpense;
-      const costPerStudent = Math.round(totalExpense / Math.max(studentCount, 1));
-      const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0;
-
-      const incomePerStudentTotal = tuitionPct > 0 ? (tuitionFeeTerm / (tuitionPct / 100)) : 0;
-      const breakEvenStudents = incomePerStudentTotal > 0 ? Math.ceil(totalExpense / incomePerStudentTotal) : 0;
-
-      const incomePie = [
-        { name: "學費", value: incomeParts.tuition },
-        { name: "政府/補助", value: incomeParts.subsidy },
-        { name: "捐款", value: incomeParts.donation },
-        { name: "課後/其他", value: incomeParts.afterSchool }
-      ];
-
-      const expensePie = [
-        { name: "人事成本", value: personnelCost },
-        { name: "租金", value: rentCost },
-        { name: "供餐", value: mealCost },
-        { name: "其他營運", value: otherOpCost }
-      ];
-
-      const barData = [{ name: "本學期", 總收入: totalIncome, 總支出: totalExpense }];
-
-      return {
-        ratioSum,
-        ratios,
-        totalIncome,
-        tuitionIncome,
-        incomeParts,
-        totalExpense,
-        netProfit,
-        personnelCost,
-        rentCost,
-        mealCost,
-        otherOpCost,
-        operationCost,
-        costPerStudent,
-        profitMargin,
-        breakEvenStudents,
-        incomePie,
-        expensePie,
-        barData
-      };
-    };
-
-    // =========================
-    // ✅ UI 元件
-    // =========================
-    const KpiCard = ({ title, value, icon: Icon, tone = "emerald", sub = "" }) => {
-      const toneMap = {
-        emerald: "bg-emerald-50 border-emerald-100 text-emerald-700",
-        rose: "bg-rose-50 border-rose-100 text-rose-700",
-        indigo: "bg-indigo-50 border-indigo-100 text-indigo-700",
-        red: "bg-red-100 border-red-200 text-red-700",
-        sky: "bg-sky-50 border-sky-100 text-sky-700"
-      };
-      const headerTextMap = {
-        emerald: "text-emerald-600",
-        rose: "text-rose-600",
-        indigo: "text-indigo-600",
-        red: "text-red-600",
-        sky: "text-sky-600"
-      };
-
-      return (
-        <div className={cn("p-5 rounded-xl border flex flex-col justify-between", toneMap[tone])}>
-          <div className="flex justify-between items-start">
-            <div className={cn("text-xs font-black uppercase tracking-wider", headerTextMap[tone])}>
-              {title}
-            </div>
-            <Icon size={16} className="opacity-60" />
-          </div>
-          <div className="text-2xl font-black mt-2">{value}</div>
-          {sub ? <div className="text-xs mt-1 font-black opacity-70">{sub}</div> : null}
-        </div>
-      );
-    };
-
-    const SectionTitle = ({ icon: Icon, title, hint }) => (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-slate-500" />
-          <div className="font-black text-slate-800">{title}</div>
-        </div>
-        {hint ? <div className="text-xs text-slate-500">{hint}</div> : null}
-      </div>
-    );
-
-    const PriorityBadge = () => (
-      <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm border border-white z-10 animate-pulse">
-        優先
-      </span>
-    );
-
-    // ✅ 組織圖（原本完整回來）
-    const OrgChart = () => (
-      <div className="py-8 bg-slate-50 rounded-xl border border-slate-200 overflow-x-auto mb-8 shadow-inner">
-        <div className="flex flex-col items-center min-w-[800px] p-4">
-          <div className="z-10 mb-4">
-            <div className="bg-slate-800 text-white px-8 py-3 rounded-lg shadow-lg font-black text-lg border-2 border-slate-700 relative">
-              校長室 (1)
-              <PriorityBadge />
-            </div>
-          </div>
-
-          <div className="h-8 w-0.5 bg-slate-300"></div>
-          <div className="relative w-[80%] h-0.5 bg-slate-300 mb-8">
-            <div className="absolute left-0 top-0 h-4 w-0.5 bg-slate-300"></div>
-            <div className="absolute left-1/2 top-0 h-4 w-0.5 bg-slate-300 -translate-x-1/2"></div>
-            <div className="absolute right-0 top-0 h-4 w-0.5 bg-slate-300"></div>
-          </div>
-
-          <div className="flex justify-between w-[90%] gap-4">
-            {/* 教導處 */}
-            <div className="flex flex-col items-center w-1/3">
-              <div className="bg-indigo-600 text-white px-6 py-2 rounded shadow-md font-black mb-4 w-full max-w-[200px] text-center relative">
-                教導處 (副校長)
-                <PriorityBadge />
-              </div>
-              <div className="flex flex-col space-y-2 relative pt-4 w-full items-center">
-                <div className="absolute top-0 left-1/2 w-0.5 h-full bg-indigo-100 -z-10"></div>
-                <div className="bg-white border-l-4 border-indigo-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700 relative">
-                  教研組長
-                  <PriorityBadge />
-                </div>
-                <div className="bg-white border-l-4 border-indigo-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700">註冊資料組長</div>
-                <div className="bg-white border-l-4 border-indigo-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700 relative">
-                  資管組長
-                  <PriorityBadge />
-                </div>
-                <div className="bg-emerald-50 border border-emerald-200 p-2 rounded w-full max-w-[200px] text-center text-xs font-black text-emerald-800">
-                  外師教學團隊 (7)
-                </div>
-              </div>
-            </div>
-
-            {/* 學輔處 */}
-            <div className="flex flex-col items-center w-1/3">
-              <div className="bg-sky-600 text-white px-6 py-2 rounded shadow-md font-black mb-4 w-full max-w-[200px] text-center">
-                學輔處 (1)
-              </div>
-              <div className="flex flex-col space-y-2 relative pt-4 w-full items-center">
-                <div className="absolute top-0 left-1/2 w-0.5 h-full bg-sky-100 -z-10"></div>
-                <div className="bg-white border-l-4 border-sky-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700">生教組長 (1)</div>
-                <div className="bg-sky-50 border border-sky-200 p-1.5 rounded w-full max-w-[200px] text-center text-xs font-black text-sky-800">護理師 (1)</div>
-              </div>
-            </div>
-
-            {/* 總務處 */}
-            <div className="flex flex-col items-center w-1/3">
-              <div className="bg-amber-500 text-white px-6 py-2 rounded shadow-md font-black mb-4 w-full max-w-[200px] text-center relative">
-                總務處 (1)
-                <PriorityBadge />
-              </div>
-              <div className="flex flex-col space-y-2 relative pt-4 w-full items-center">
-                <div className="absolute top-0 left-1/2 w-0.5 h-full bg-amber-100 -z-10"></div>
-                <div className="bg-white border-l-4 border-rose-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700">校長秘書</div>
-                <div className="bg-white border-l-4 border-amber-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700">事務組長</div>
-                <div className="bg-white border-l-4 border-amber-500 shadow-sm p-1.5 w-full max-w-[200px] text-center rounded text-xs font-black text-slate-700">文書出納組長</div>
-                <div className="bg-slate-100 border border-slate-300 p-1.5 rounded w-full max-w-[200px] text-center text-xs font-black text-slate-700">人事管理員</div>
-                <div className="bg-slate-100 border border-slate-300 p-1.5 rounded w-full max-w-[200px] text-center text-xs font-black text-slate-700">會計員</div>
-              </div>
-            </div>
-          </div>
+    {/* ✅ 總覽卡 */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="p-4 rounded-xl border bg-slate-50 border-slate-200">
+        <div className="text-xs font-black text-slate-500">總授課人數</div>
+        <div className="text-2xl font-black text-slate-800 mt-1">
+          {teachingLoadComputed.totalStaff} 位
         </div>
       </div>
-    );
 
-    // ✅ 班級課表 Tab（原本完整回來）
-    const ClassScheduleTab = ({ activeTab }) => {
-      const schedule = CLASS_SCHEDULES[activeTab];
-      if (!schedule) return null;
-
-      return (
-        <div className="space-y-6 animate-fadeIn">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-black text-slate-800 flex items-center">
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded mr-3 text-lg shadow">{activeTab}</span>
-              班級課表
-            </h2>
-            <div className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-              導師：{activeTab.includes("1") ? "中師 + 外師 (ET1/ET2)" : "中師 + 外師 (ET3/ET4)"}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-            <table className="w-full border-collapse text-sm text-center">
-              <thead>
-                <tr className="bg-slate-800 text-white">
-                  <th className="border-r border-slate-700 p-3 w-24 whitespace-nowrap">節次</th>
-                  {DAYS.map((d) => (
-                    <th key={d} className="border-r border-slate-700 p-3 min-w-[120px]">{d}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {schedule.map((row, rowIdx) => {
-                  const periodName = `第 ${rowIdx + 1} 節`;
-                  const timeInfo = TIME_TABLE.find(t => t.period === periodName);
-
-                  return (
-                    <tr key={rowIdx} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                      <td className="border-r border-slate-200 p-2 bg-slate-100 font-black text-slate-700">
-                        <div className="whitespace-nowrap">{periodName}</div>
-                        <div className="text-[10px] font-mono text-slate-500 mt-1 whitespace-nowrap">
-                          {timeInfo ? timeInfo.time : ""}
-                        </div>
-                      </td>
-                      {row.map((subject, colIdx) => {
-                        let cellClass = "border-r border-slate-100 p-3 ";
-                        if (subject.includes("ET")) cellClass += "text-emerald-700 bg-emerald-50/30 font-medium";
-                        else if (subject.includes("CT")) cellClass += "text-indigo-700 bg-indigo-50/30 font-medium";
-                        else cellClass += "text-slate-600";
-                        return <td key={colIdx} className={cellClass}>{subject}</td>;
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="text-xs text-slate-500 mt-4 text-right flex justify-end gap-4">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500"></span> CT: 中師授課</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> ET: 外師授課</span>
-          </div>
+      <div className="p-4 rounded-xl border bg-emerald-50 border-emerald-100">
+        <div className="text-xs font-black text-emerald-600">每週總授課量（自動加總）</div>
+        <div className="text-2xl font-black text-emerald-700 mt-1">
+          {teachingLoadComputed.totalPeriods.toFixed(1)} 節
         </div>
-      );
-    };
+      </div>
 
-    // =========================
-    // ✅ 主 App：預算 + 組織 + 配課 + 課表（全部整合）
-    // =========================
-    const SchoolManagementApp = () => {
-      const [activeTab, setActiveTab] = useState("budget");
-
-      // ✅ 預算參數（升級版）
-      const [params, setParams] = useState({
-        studentCount: 90,
-        termMonths: 6,
-
-        tuitionFeeTerm: 65000,
-        incomeRatio: { tuition: 80, subsidy: 15, donation: 3, afterSchool: 2 },
-        autoNormalizeRatio: true,
-
-        benefitFactor: 1.2,
-        salaryTiers: [
-          { role: "中師導師", count: 4, monthlySalary: 55000 },
-          { role: "外師導師", count: 4, monthlySalary: 85000 },
-          { role: "行政/助理", count: 5, monthlySalary: 42000 },
-          { role: "兼任/鐘點", count: 2, monthlySalary: 35000 }
-        ],
-
-        rentMonthly: 300000,
-        fixedOtherTerm: 500000,
-        materialPerStudentTerm: 3000,
-        activityPerStudentTerm: 2000,
-
-        provideMeals: true,
-        mealCostPerStudentPerMonth: 2500
-      });
-
-      const data = useMemo(() => calcFinancial(params), [params]);
-
-      const update = useCallback((key, value) => {
-        setParams(prev => ({ ...prev, [key]: value }));
-      }, []);
-
-      const updateNumber = useCallback((e) => {
-        const { name, value } = e.target;
-        setParams(prev => ({ ...prev, [name]: toNumber(value, prev[name] ?? 0) }));
-      }, []);
-
-      const updateRatio = useCallback((key, v) => {
-        setParams(prev => ({
-          ...prev,
-          incomeRatio: { ...prev.incomeRatio, [key]: clamp(toNumber(v, 0), 0, 100) }
-        }));
-      }, []);
-
-      const addTier = () => {
-        setParams(prev => ({
-          ...prev,
-          salaryTiers: [...prev.salaryTiers, { role: "新增職務", count: 1, monthlySalary: 40000 }]
-        }));
-      };
-
-      const removeTier = (idx) => {
-        setParams(prev => {
-          const next = prev.salaryTiers.filter((_, i) => i !== idx);
-          return { ...prev, salaryTiers: next.length ? next : prev.salaryTiers };
-        });
-      };
-
-      const updateTier = (idx, field, value) => {
-        setParams(prev => {
-          const tiers = [...prev.salaryTiers];
-          tiers[idx] = { ...tiers[idx], [field]: value };
-          return { ...prev, salaryTiers: tiers };
-        });
-      };
-
-      // ✅ Tabs：三大頁 + 班級課表
-      const baseTabs = [
-        { key: "org", label: "組織職掌", icon: Users, activeClass: "text-indigo-700" },
-        { key: "budget", label: "經費預算估算", icon: Calculator, activeClass: "text-rose-600" },
-        { key: "summary", label: "配課統計", icon: LayoutDashboard, activeClass: "text-indigo-700" }
-      ];
-
-      const classTabs = Object.keys(CLASS_SCHEDULES).map(cls => ({
-        key: cls,
-        label: `${cls} 課表`,
-        icon: Calendar,
-        activeClass: "text-indigo-700"
-      }));
-
-      const tabs = [...baseTabs, ...classTabs];
-
-      return (
-        <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8">
-          <div className="mb-6 max-w-7xl mx-auto w-full">
-            <div className="flex items-center gap-2 mb-2">
-              <School className="w-8 h-8 text-indigo-600" />
-              <h1 className="text-2xl font-black text-slate-800">招生第一年校務管理系統</h1>
-            </div>
-            <div className="text-sm text-slate-500 pl-1">
-              模組：組織職掌 / 經費預算 / 配課統計 / 班級課表
-            </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col">
-            {/* 主選單 */}
-            <div className="flex flex-wrap gap-2 mb-6 bg-slate-200 p-1.5 rounded-xl w-full md:w-fit shadow-inner">
-              {tabs.map(t => {
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => setActiveTab(t.key)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black transition-all",
-                      activeTab === t.key
-                        ? `bg-white shadow ring-1 ring-black/5 ${t.activeClass}`
-                        : "hover:bg-slate-300 text-slate-600"
-                    )}
-                  >
-                    <Icon size={16} /> {t.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-hidden">
-
-              {/* ================= 組織職掌 ================= */}
-              {activeTab === "org" && (
-                <div className="space-y-6 animate-fadeIn">
-                  <h2 className="text-xl font-black text-slate-800 border-l-4 border-indigo-600 pl-3">
-                    行政組織架構
-                  </h2>
-
-                  <OrgChart />
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600">
-                    <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 hover:shadow-md transition">
-                      <div className="font-black text-indigo-800 mb-2 flex items-center gap-2">
-                        <Users size={16}/> 教導處 (11人)
-                      </div>
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li>副校長兼教導主任 (1) <span className="text-rose-500 font-black text-[10px] bg-rose-50 border border-rose-200 px-1 rounded ml-1">優先</span></li>
-                        <li>教研組長 (1) <span className="text-rose-500 font-black text-[10px] bg-rose-50 border border-rose-200 px-1 rounded ml-1">優先</span></li>
-                        <li>註冊資料組長 (1)</li>
-                        <li>資管組長 (1) <span className="text-rose-500 font-black text-[10px] bg-rose-50 border border-rose-200 px-1 rounded ml-1">優先</span></li>
-                        <li>外師團隊 (7) [含4導師3兼任]</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-4 bg-sky-50 rounded-xl border border-sky-100 hover:shadow-md transition">
-                      <div className="font-black text-sky-800 mb-2 flex items-center gap-2">
-                        <Activity size={16}/> 學輔處 (3人)
-                      </div>
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li>學輔主任 (1)</li>
-                        <li>生教組長 (1)</li>
-                        <li>護理師 (1)</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 hover:shadow-md transition">
-                      <div className="font-black text-amber-800 mb-2 flex items-center gap-2">
-                        <LayoutDashboard size={16}/> 總務處 (6人)
-                      </div>
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li>總務主任 (1) <span className="text-rose-500 font-black text-[10px] bg-rose-50 border border-rose-200 px-1 rounded ml-1">優先</span></li>
-                        <li>校長秘書 (1)</li>
-                        <li>事務組長 (1)</li>
-                        <li>文書出納組長 (1)</li>
-                        <li>人事管理員 (1)</li>
-                        <li>會計員 (1)</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ================= 配課統計（原本完整回來） ================= */}
-              {activeTab === "summary" && (
-                <div className="space-y-4 animate-fadeIn">
-                  <h2 className="text-lg font-black mb-4 border-l-4 border-indigo-600 pl-3">
-                    教學配課統計 (14 師 / 140 節)
-                  </h2>
-
-                  <div className="overflow-x-auto rounded-lg border border-slate-200">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-600 text-left">
-                          <th className="border-b p-4 font-black">人員分類</th>
-                          <th className="border-b p-4 font-black">代碼與科目</th>
-                          <th className="border-b p-4 text-right font-black">每人節數</th>
-                          <th className="border-b p-4 text-right font-black">小計</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="hover:bg-slate-50">
-                          <td className="border-b p-4 font-black">中師主任 (3位)</td>
-                          <td className="border-b p-4 text-slate-500">CT1-3 品德/閱讀/社會</td>
-                          <td className="border-b p-4 text-right">2 節</td>
-                          <td className="border-b p-4 text-right">6 節</td>
-                        </tr>
-                        <tr className="hover:bg-slate-50">
-                          <td className="border-b p-4 font-black">中師組長 (4位)</td>
-                          <td className="border-b p-4 text-slate-500">CT4-7 國語/數學</td>
-                          <td className="border-b p-4 text-right">8.5 節</td>
-                          <td className="border-b p-4 text-right">34 節</td>
-                        </tr>
-                        <tr className="bg-emerald-50/50 hover:bg-emerald-50">
-                          <td className="border-b p-4 font-black text-emerald-800">外師導師 (4位)</td>
-                          <td className="border-b p-4 text-emerald-600">ET1-4 LA/Social/Science/部分探索</td>
-                          <td className="border-b p-4 text-right">15 節</td>
-                          <td className="border-b p-4 text-right">60 節</td>
-                        </tr>
-                        <tr className="bg-emerald-50/50 hover:bg-emerald-50">
-                          <td className="border-b p-4 font-black text-emerald-800">外師兼任 (3位)</td>
-                          <td className="border-b p-4 text-emerald-600">ET5-7 Arts/PE/部分探索</td>
-                          <td className="border-b p-4 text-right">12 節</td>
-                          <td className="border-b p-4 text-right">36 節</td>
-                        </tr>
-                        <tr className="bg-slate-800 text-white font-black">
-                          <td colSpan="3" className="p-4 text-right">每週總授課量</td>
-                          <td className="p-4 text-right">140 節</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ================= 預算估算器（升級版） ================= */}
-              {activeTab === "budget" && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fadeIn">
-                  {/* 左：輸入區 */}
-                  <div className="lg:col-span-5 space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                    <SectionTitle
-                      icon={Users}
-                      title="規模設定"
-                      hint="以「學期」為單位計算（可調整學期月數）"
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">學生人數</label>
-                        <input
-                          type="number"
-                          name="studentCount"
-                          value={params.studentCount}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">學期月數</label>
-                        <input
-                          type="number"
-                          name="termMonths"
-                          value={params.termMonths}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200"></div>
-                    <SectionTitle
-                      icon={TrendingUp}
-                      title="收入模型（依學費占比反推總收入）"
-                      hint="妳只要填學費與占比，系統自動估算：補助/捐款/課後等其他收入"
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">每生學費（每學期）</label>
-                        <div className="relative">
-                          <DollarSign size={14} className="absolute left-3 top-3 text-slate-400" />
-                          <input
-                            type="number"
-                            name="tuitionFeeTerm"
-                            value={params.tuitionFeeTerm}
-                            onChange={updateNumber}
-                            className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          目前「學費收入」= {formatMoney(data.tuitionIncome)}
-                        </div>
-                      </div>
-
-                      <div className="flex items-end">
-                        <label className="flex items-center gap-2 text-xs font-black text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={params.autoNormalizeRatio}
-                            onChange={(e) => update("autoNormalizeRatio", e.target.checked)}
-                            className="accent-indigo-600"
-                          />
-                          自動正規化比例（確保總和=100%）
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { key: "tuition", label: "學費%", color: "text-indigo-700" },
-                        { key: "subsidy", label: "補助%", color: "text-emerald-700" },
-                        { key: "donation", label: "捐款%", color: "text-amber-700" },
-                        { key: "afterSchool", label: "課後/其他%", color: "text-rose-700" }
-                      ].map(item => (
-                        <div key={item.key}>
-                          <label className={cn("block text-xs font-black mb-1", item.color)}>
-                            {item.label}
-                          </label>
-                          <input
-                            type="number"
-                            value={params.incomeRatio[item.key]}
-                            onChange={(e) => updateRatio(item.key, e.target.value)}
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={cn(
-                      "text-xs p-3 rounded-lg border",
-                      data.ratioSum === 100 || params.autoNormalizeRatio
-                        ? "bg-white border-slate-200 text-slate-600"
-                        : "bg-rose-50 border-rose-200 text-rose-700"
-                    )}>
-                      <div className="font-black">
-                        目前比例總和：{data.ratioSum}%
-                        {params.autoNormalizeRatio ? "（已自動修正為 100% 用於計算）" : ""}
-                      </div>
-                      <div className="mt-1">
-                        估算「總收入」= {formatMoney(data.totalIncome)}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200"></div>
-                    <SectionTitle
-                      icon={Users}
-                      title="人事成本（分層薪資）"
-                      hint="可新增職務列：主任/組長/導師/外師/行政/鐘點等"
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">福利/雇主係數</label>
-                        <input
-                          type="number"
-                          step="0.05"
-                          name="benefitFactor"
-                          value={params.benefitFactor}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          建議 1.1～1.3（含勞健保/提撥/年終攤提）
-                        </div>
-                      </div>
-
-                      <div className="flex items-end justify-end">
-                        <button
-                          onClick={addTier}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700"
-                        >
-                          <Plus size={16} /> 新增職務
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-100 text-slate-700">
-                          <tr>
-                            <th className="p-3 text-left font-black">職務</th>
-                            <th className="p-3 text-right font-black">人數</th>
-                            <th className="p-3 text-right font-black">月薪</th>
-                            <th className="p-3 text-right font-black">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {params.salaryTiers.map((t, idx) => (
-                            <tr key={idx} className="border-t border-slate-200 hover:bg-slate-50">
-                              <td className="p-3">
-                                <input
-                                  value={t.role}
-                                  onChange={(e) => updateTier(idx, "role", e.target.value)}
-                                  className="w-full border border-slate-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                                />
-                              </td>
-                              <td className="p-3 text-right">
-                                <input
-                                  type="number"
-                                  value={t.count}
-                                  onChange={(e) => updateTier(idx, "count", toNumber(e.target.value, 0))}
-                                  className="w-24 text-right border border-slate-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                                />
-                              </td>
-                              <td className="p-3 text-right">
-                                <input
-                                  type="number"
-                                  value={t.monthlySalary}
-                                  onChange={(e) => updateTier(idx, "monthlySalary", toNumber(e.target.value, 0))}
-                                  className="w-32 text-right border border-slate-200 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                                />
-                              </td>
-                              <td className="p-3 text-right">
-                                <button
-                                  onClick={() => removeTier(idx)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 font-black hover:bg-rose-100"
-                                >
-                                  <Trash2 size={14} /> 刪除
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200"></div>
-                    <SectionTitle
-                      icon={Building2}
-                      title="營運成本"
-                      hint="租金以月租×學期月數，教材/活動以每生計算"
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">每月租金</label>
-                        <input
-                          type="number"
-                          name="rentMonthly"
-                          value={params.rentMonthly}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">其他固定成本（學期）</label>
-                        <input
-                          type="number"
-                          name="fixedOtherTerm"
-                          value={params.fixedOtherTerm}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                        <div className="text-[11px] text-slate-500 mt-1">例：水電、系統、保全、清潔、修繕</div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">教材費（每生/學期）</label>
-                        <input
-                          type="number"
-                          name="materialPerStudentTerm"
-                          value={params.materialPerStudentTerm}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black text-slate-700 mb-1">活動費（每生/學期）</label>
-                        <input
-                          type="number"
-                          name="activityPerStudentTerm"
-                          value={params.activityPerStudentTerm}
-                          onChange={updateNumber}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200"></div>
-                    <SectionTitle
-                      icon={UtensilsCrossed}
-                      title="供餐設定"
-                      hint="勾選後會自動計算：每生每月餐費×學期月數×學生數"
-                    />
-                    <div className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-4">
-                      <label className="flex items-center gap-2 font-black text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={params.provideMeals}
-                          onChange={(e) => update("provideMeals", e.target.checked)}
-                          className="accent-emerald-600"
-                        />
-                        本校是否供餐
-                      </label>
-
-                      <div className={cn("flex items-center gap-2", !params.provideMeals && "opacity-40 pointer-events-none")}>
-                        <span className="text-xs font-black text-slate-600">每生每月餐費</span>
-                        <input
-                          type="number"
-                          name="mealCostPerStudentPerMonth"
-                          value={params.mealCostPerStudentPerMonth}
-                          onChange={updateNumber}
-                          className="w-32 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-right"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 右：結果區 */}
-                  <div className="lg:col-span-7 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <KpiCard
-                        title="預估總收入 (學期)"
-                        value={formatMoney(data.totalIncome)}
-                        icon={TrendingUp}
-                        tone="emerald"
-                        sub={`學費占比：${data.ratios.tuition}%`}
-                      />
-                      <KpiCard
-                        title="預估總支出 (學期)"
-                        value={formatMoney(data.totalExpense)}
-                        icon={TrendingDown}
-                        tone="rose"
-                        sub={`人事：${formatMoney(data.personnelCost)}`}
-                      />
-                      <KpiCard
-                        title="淨損益 (學期)"
-                        value={formatMoney(data.netProfit)}
-                        icon={Activity}
-                        tone={data.netProfit >= 0 ? "indigo" : "red"}
-                        sub={`獲利率：${data.profitMargin}%`}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <KpiCard
-                        title="生均成本"
-                        value={formatMoney(data.costPerStudent)}
-                        icon={Users}
-                        tone="sky"
-                        sub="總支出 ÷ 學生數"
-                      />
-                      <KpiCard
-                        title="損益平衡學生數"
-                        value={`${data.breakEvenStudents} 人`}
-                        icon={Calculator}
-                        tone="indigo"
-                        sub="達到收支平衡"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[460px] md:h-96">
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-                        <h4 className="text-sm font-black text-slate-700 mb-3 text-center">學期收支對比</h4>
-                        <div className="flex-1 w-full min-h-0">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.barData} margin={{ top: 20, right: 20, left: 5, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="name" />
-                              <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}萬`} width={52} fontSize={12} />
-                              <Tooltip formatter={(v) => formatMoney(v)} />
-                              <Legend />
-                              <Bar dataKey="總收入" fill="#10b981" barSize={42} radius={[6, 6, 0, 0]} />
-                              <Bar dataKey="總支出" fill="#f43f5e" barSize={42} radius={[6, 6, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-                        <h4 className="text-sm font-black text-slate-700 mb-3 text-center">支出結構</h4>
-                        <div className="flex-1 w-full min-h-0">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={data.expensePie}
-                                dataKey="value"
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={55}
-                                outerRadius={85}
-                                paddingAngle={4}
-                              >
-                                {data.expensePie.map((_, i) => (
-                                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(v) => formatMoney(v)} />
-                              <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                      <h4 className="text-sm font-black text-slate-700 mb-3 text-center">收入來源結構（依占比拆分）</h4>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={data.incomePie}
-                              dataKey="value"
-                              cx="50%"
-                              cy="45%"
-                              innerRadius={55}
-                              outerRadius={90}
-                              paddingAngle={4}
-                            >
-                              {data.incomePie.map((_, i) => (
-                                <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(v) => formatMoney(v)} />
-                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                      <h4 className="font-black text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                        <Info size={16} className="text-indigo-500" /> 計算邏輯（透明可調）
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
-                        <div className="bg-white border border-slate-200 rounded-xl p-3">
-                          <div className="font-black text-slate-700 mb-1">總收入（學期）</div>
-                          <div className="font-mono text-slate-500">學費收入 ÷ (學費占比)</div>
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-xl p-3">
-                          <div className="font-black text-slate-700 mb-1">人事成本（學期）</div>
-                          <div className="font-mono text-slate-500">Σ(人數×月薪) × 月數 × 福利係數</div>
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-xl p-3">
-                          <div className="font-black text-slate-700 mb-1">租金</div>
-                          <div className="font-mono text-slate-500">月租 × 學期月數</div>
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-xl p-3">
-                          <div className="font-black text-slate-700 mb-1">供餐（若勾選）</div>
-                          <div className="font-mono text-slate-500">每生每月餐費 × 月數 × 學生數</div>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              )}
-
-              {/* ================= 班級課表 ================= */}
-              {CLASS_SCHEDULES[activeTab] && <ClassScheduleTab activeTab={activeTab} />}
-
-            </div>
-          </div>
+      <div className="p-4 rounded-xl border bg-indigo-50 border-indigo-100">
+        <div className="text-xs font-black text-indigo-600">平均每人節數</div>
+        <div className="text-2xl font-black text-indigo-700 mt-1">
+          {(teachingLoadComputed.totalStaff > 0
+            ? (teachingLoadComputed.totalPeriods / teachingLoadComputed.totalStaff)
+            : 0
+          ).toFixed(1)} 節
         </div>
-      );
-    };
+      </div>
+    </div>
 
-    try {
-      const root = createRoot(document.getElementById("root"));
-      root.render(<SchoolManagementApp />);
-    } catch (err) {
-      const el = document.getElementById("runtime-error");
-      el.classList.remove("hidden");
-      el.textContent = "🚨 Render Error: " + (err?.message || err);
-      console.error(err);
-    }
-  </script>
-</body>
-</html>
+    {/* ✅ 可編輯表格 */}
+    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-slate-100 text-slate-700 text-left">
+            <th className="border-b p-4 font-black">人員分類</th>
+            <th className="border-b p-4 font-black">代碼與科目</th>
+            <th className="border-b p-4 text-right font-black">人數</th>
+            <th className="border-b p-4 text-right font-black">每人節數</th>
+            <th className="border-b p-4 text-right font-black">小計</th>
+            <th className="border-b p-4 text-right font-black">操作</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {teachingLoadComputed.rows.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50 border-b border-slate-100">
+              {/* 分類 */}
+              <td className="p-3">
+                <input
+                  value={row.group}
+                  onChange={(e) => updateTeachingLoadRow(row.id, "group", e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </td>
+
+              {/* 科目 */}
+              <td className="p-3">
+                <input
+                  value={row.code}
+                  onChange={(e) => updateTeachingLoadRow(row.id, "code", e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </td>
+
+              {/* 人數 */}
+              <td className="p-3 text-right">
+                <input
+                  type="number"
+                  value={row.staffCount}
+                  onChange={(e) => updateTeachingLoadRow(row.id, "staffCount", Number(e.target.value))}
+                  className="w-24 text-right border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </td>
+
+              {/* 每人節數 */}
+              <td className="p-3 text-right">
+                <input
+                  type="number"
+                  step="0.5"
+                  value={row.periodsPerPerson}
+                  onChange={(e) => updateTeachingLoadRow(row.id, "periodsPerPerson", Number(e.target.value))}
+                  className="w-24 text-right border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </td>
+
+              {/* 小計 */}
+              <td className="p-3 text-right font-black text-slate-800">
+                {row.subtotal.toFixed(1)} 節
+              </td>
+
+              {/* 操作 */}
+              <td className="p-3 text-right">
+                <button
+                  onClick={() => removeTeachingLoadRow(row.id)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 font-black hover:bg-rose-100"
+                >
+                  <Trash2 size={14} /> 刪除
+                </button>
+              </td>
+            </tr>
+          ))}
+
+          {/* ✅ 表尾總節數 */}
+          <tr className="bg-slate-800 text-white font-black">
+            <td colSpan="4" className="p-4 text-right">每週總授課量</td>
+            <td className="p-4 text-right">{teachingLoadComputed.totalPeriods.toFixed(1)} 節</td>
+            <td className="p-4"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div className="text-xs text-slate-500">
+      計算方式：小計＝人數 × 每人節數；總節數＝所有小計加總（可用 0.5 節做微調）
+    </div>
+  </div>
+)}
