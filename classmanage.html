@@ -49,16 +49,18 @@
     </nav>
 
     <main class="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
-        <!-- 警告區域：偵測配置狀態 -->
-        <div id="configWarning" class="hidden bg-rose-50 border border-rose-100 p-6 rounded-3xl flex items-start gap-4">
-            <i data-lucide="alert-triangle" class="text-rose-500 w-6 h-6 shrink-0 mt-1"></i>
-            <div>
-                <h4 class="font-black text-rose-800">偵測到 Firebase 配置不完整</h4>
-                <p class="text-sm text-rose-600 mt-1 leading-relaxed">
-                    您目前的程式碼仍在使用預設的預留文字。上傳至 GitHub 後，您必須在程式碼第 187 行附近的 <code class="bg-rose-100 px-1 rounded font-bold">githubFirebaseConfig</code> 填入您專屬的 Firebase 金鑰，否則無法連線至雲端資料庫。
-                </p>
-                <div class="flex gap-4 mt-4">
-                    <a href="https://console.firebase.google.com/" target="_blank" class="text-xs font-black bg-rose-500 text-white px-4 py-2 rounded-xl hover:bg-rose-600 transition-colors">前往 Firebase 控制台</a>
+        <!-- 診斷區域：幫助用戶排除故障 -->
+        <div id="debugArea" class="hidden bg-amber-50 border border-amber-200 p-6 rounded-3xl">
+            <div class="flex items-start gap-4">
+                <i data-lucide="help-circle" class="text-amber-600 w-6 h-6 shrink-0 mt-1"></i>
+                <div>
+                    <h4 class="font-black text-amber-800">連線診斷提示</h4>
+                    <p id="debugMessage" class="text-sm text-amber-700 mt-1 leading-relaxed">偵測到連線異常，請檢查下方步驟...</p>
+                    <ul class="text-xs text-amber-600 mt-3 space-y-2 list-disc pl-4">
+                        <li><strong>確認匿名登入：</strong>至 Firebase Console > Authentication > Sign-in method 啟用「匿名」。</li>
+                        <li><strong>確認資料庫規則：</strong>至 Firestore Database > Rules 確保為測試模式 (allow read, write: if true)。</li>
+                        <li><strong>確認金鑰：</strong>確保程式碼第 190 行的內容完全正確。</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -137,7 +139,7 @@
         </div>
     </main>
 
-    <!-- Modals -->
+    <!-- Modals (不變) -->
     <div id="addModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl p-8 w-full max-md shadow-2xl relative">
             <button onclick="toggleModal('addModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -203,7 +205,7 @@
         import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase 配置 ---
-        // 🚨 已經根據您的截圖 image_5e71d7.png 自動填入
+        // 根據您的截圖 image_5e71d7.png
         const githubFirebaseConfig = {
             apiKey: "AIzaSyCMbLKKZ6UXSPS4nM8XwCfKuYIjcB0LY1E",
             authDomain: "grade-system-eefe9.firebaseapp.com",
@@ -218,12 +220,6 @@
             ? JSON.parse(__firebase_config) 
             : githubFirebaseConfig;
 
-        // 偵測配置是否為預設值
-        const isDefaultConfig = (firebaseConfig.apiKey && firebaseConfig.apiKey.includes("請貼上")) || !firebaseConfig.apiKey;
-        if (isDefaultConfig && typeof __firebase_config === 'undefined') {
-            document.getElementById('configWarning').classList.remove('hidden');
-        }
-
         // 初始化
         let app, auth, db;
         let currentUser = null;
@@ -233,6 +229,8 @@
 
         const statusDot = document.getElementById('connectionStatus');
         const statusLabel = document.getElementById('statusText');
+        const debugArea = document.getElementById('debugArea');
+        const debugMsg = document.getElementById('debugMessage');
         const tableBody = document.getElementById('studentTableBody');
         const refreshIcons = () => lucide.createIcons();
 
@@ -246,10 +244,11 @@
                 if (user) {
                     statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
                     statusLabel.textContent = "Cloud Connected";
+                    debugArea.classList.add('hidden');
                     listenData();
                 } else {
                     statusDot.className = "w-2 h-2 rounded-full bg-slate-300";
-                    statusLabel.textContent = "Not Connected";
+                    statusLabel.textContent = "Connecting...";
                 }
             });
 
@@ -261,16 +260,25 @@
                         await signInAnonymously(auth);
                     }
                 } catch (error) {
-                    console.error("Auth Error:", error);
-                    statusLabel.textContent = "AUTH FAILED - CHECK CONFIG";
+                    console.error("Auth Error Code:", error.code);
+                    statusLabel.textContent = "AUTH FAILED";
                     statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+                    debugArea.classList.remove('hidden');
+                    
+                    if (error.code === 'auth/operation-not-allowed') {
+                        debugMsg.textContent = "❌ 錯誤：您尚未在 Firebase 後台啟用「匿名登入」功能。";
+                    } else if (error.code === 'auth/invalid-api-key') {
+                        debugMsg.textContent = "❌ 錯誤：API Key 無效，請確認金鑰是否複製完整。";
+                    } else {
+                        debugMsg.textContent = "❌ 錯誤代碼：" + error.code + "。請檢查金鑰或網路連線。";
+                    }
                 }
             };
             initAuth();
 
         } catch (e) {
             console.error("Firebase Init Error:", e);
-            statusLabel.textContent = "FIREBASE INIT ERROR";
+            statusLabel.textContent = "INIT ERROR";
             statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
         }
 
@@ -284,8 +292,9 @@
                 });
                 updateFilteredData();
             }, (err) => {
-                console.error("Listen Error:", err);
-                showToast("權限不足：請確保 Firestore 規則已設為允許讀寫", false);
+                console.error("Firestore Listen Error:", err);
+                debugArea.classList.remove('hidden');
+                debugMsg.textContent = "❌ 錯誤：無法讀取資料。這通常是因為 Firestore 規則 (Rules) 拒絕存取。請確認已將規則設為允許讀寫。";
             });
         };
 
@@ -324,7 +333,7 @@
                 toggleModal('bulkModal');
                 document.getElementById('bulkText').value = '';
                 showToast(`匯入完成 (${success} 筆)`);
-            } else { showToast("格式不正確或連線失敗", false); }
+            } else { showToast("匯入失敗，請檢查資料庫規則設定", false); }
         };
 
         window.updateFilteredData = () => {
