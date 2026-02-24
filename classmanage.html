@@ -59,7 +59,7 @@
                     <ul class="text-xs text-amber-600 mt-3 space-y-2 list-disc pl-4">
                         <li><strong>確認匿名登入：</strong>至 Firebase Console > Authentication > Sign-in method 啟用「匿名」。</li>
                         <li><strong>確認資料庫規則：</strong>至 Firestore Database > Rules 確保為測試模式 (allow read, write: if true)。</li>
-                        <li><strong>確認金鑰：</strong>確保程式碼第 190 行的內容完全正確。</li>
+                        <li><strong>確認金鑰：</strong>確保專案已在 Google Cloud Console 中啟用。</li>
                     </ul>
                 </div>
             </div>
@@ -139,7 +139,7 @@
         </div>
     </main>
 
-    <!-- Modals (不變) -->
+    <!-- Modals -->
     <div id="addModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl p-8 w-full max-md shadow-2xl relative">
             <button onclick="toggleModal('addModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -187,7 +187,7 @@
             <button onclick="toggleModal('settingsModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
             <h3 class="text-2xl font-black mb-8 flex items-center gap-3 text-indigo-700"><i data-lucide="settings" class="w-6 h-6"></i> 系統同步設定</h3>
             <div class="space-y-8">
-                <input id="gasUrlInput" type="text" class="w-full border border-slate-200 rounded-2xl px-5 py-4 focus:ring-4 focus:ring-indigo-100 outline-none font-mono text-xs shadow-inner bg-slate-50" placeholder="https://script.google.com/macros/s/AKfycbzGR-8MvhbWFgYGL7S7x9Mg0R52RMSzJU2x86Ze1nlpPOLx6ZK_tBiHuFDz1rwr83zfLA/exec">
+                <input id="gasUrlInput" type="text" class="w-full border border-slate-200 rounded-2xl px-5 py-4 focus:ring-4 focus:ring-indigo-100 outline-none font-mono text-xs shadow-inner bg-slate-50" placeholder="https://script.google.com/macros/s/.../exec">
                 <button onclick="saveSettings()" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98]">儲存設定</button>
             </div>
         </div>
@@ -205,14 +205,15 @@
         import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase 配置 ---
-        // 根據您的截圖 image_5e71d7.png
+        // 🚨 重要：已根據您的截圖 image_5e71d7.png 更新
         const githubFirebaseConfig = {
             apiKey: "AIzaSyCMbLKKZ6UXSPS4nM8XwCfKuYIjcB0LY1E",
             authDomain: "grade-system-eefe9.firebaseapp.com",
             projectId: "grade-system-eefe9",
             storageBucket: "grade-system-eefe9.firebasestorage.app",
             messagingSenderId: "52746754502",
-            appId: "1:52746754502:web:699724e48d53a9cd4cbac7"
+            appId: "1:52746754502:web:699724e48d53a9cd4cbac7",
+            measurementId: "G-QS0TW9Q2B6"
         };
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-github-grade-system';
@@ -220,7 +221,7 @@
             ? JSON.parse(__firebase_config) 
             : githubFirebaseConfig;
 
-        // 初始化
+        // 初始化變數
         let app, auth, db;
         let currentUser = null;
         let students = [];
@@ -267,10 +268,10 @@
                     
                     if (error.code === 'auth/operation-not-allowed') {
                         debugMsg.textContent = "❌ 錯誤：您尚未在 Firebase 後台啟用「匿名登入」功能。";
-                    } else if (error.code === 'auth/invalid-api-key') {
-                        debugMsg.textContent = "❌ 錯誤：API Key 無效，請確認金鑰是否複製完整。";
+                    } else if (error.code === 'auth/invalid-api-key' || error.code === 'auth/api-key-not-valid') {
+                        debugMsg.textContent = "❌ 錯誤：API 金鑰無效。請確認 Firebase 專案是否已被停用，或該金鑰是否有網域限制。";
                     } else {
-                        debugMsg.textContent = "❌ 錯誤代碼：" + error.code + "。請檢查金鑰或網路連線。";
+                        debugMsg.textContent = "❌ 錯誤代碼：" + error.code + "。請檢查 Firebase Console 設定。";
                     }
                 }
             };
@@ -287,14 +288,16 @@
             onSnapshot(q, (snapshot) => {
                 students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 students.sort((a, b) => {
-                    if (a.className !== b.className) return a.className.localeCompare(b.className);
+                    const classA = a.className || "";
+                    const classB = b.className || "";
+                    if (classA !== classB) return classA.localeCompare(classB);
                     return (parseInt(a.seatNumber) || 0) - (parseInt(b.seatNumber) || 0);
                 });
                 updateFilteredData();
             }, (err) => {
                 console.error("Firestore Listen Error:", err);
                 debugArea.classList.remove('hidden');
-                debugMsg.textContent = "❌ 錯誤：無法讀取資料。這通常是因為 Firestore 規則 (Rules) 拒絕存取。請確認已將規則設為允許讀寫。";
+                debugMsg.textContent = "❌ 錯誤：無法讀取資料。請確認 Firestore Database > Rules 已設為測試模式 (allow read, write: if true)。";
             });
         };
 
@@ -333,12 +336,13 @@
                 toggleModal('bulkModal');
                 document.getElementById('bulkText').value = '';
                 showToast(`匯入完成 (${success} 筆)`);
-            } else { showToast("匯入失敗，請檢查資料庫規則設定", false); }
+            } else { showToast("格式不正確或資料庫拒絕寫入", false); }
         };
 
         window.updateFilteredData = () => {
             const term = document.getElementById('searchInput').value.toLowerCase();
             const filtered = students.filter(s => (s.name || "").toLowerCase().includes(term) || (s.seatNumber || "").toString().includes(term));
+            
             document.getElementById('statTotal').textContent = filtered.length;
             document.getElementById('statPresent').textContent = filtered.filter(s => s.attendance).length;
             const avg = filtered.length ? (filtered.reduce((acc, s) => acc + (s.score || 0) + (s.bonusPoints || 0), 0) / filtered.length).toFixed(1) : 0;
@@ -378,7 +382,7 @@
         };
 
         window.handleToggle = async (id, cur) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { attendance: !cur }); };
-        window.handleScore = async (id, cur, delta) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { bonusPoints: cur + delta }); };
+        window.handleScore = async (id, cur, delta) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { bonusPoints: (cur || 0) + delta }); };
         window.handleRawScore = async (id, val) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { score: parseInt(val) || 0 }); };
         window.handleDelete = async (id, name) => { if(!currentUser) return; if(confirm(`刪除 ${name}?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); };
 
