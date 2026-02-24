@@ -49,6 +49,20 @@
     </nav>
 
     <main class="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
+        <!-- 警告區域：偵測配置狀態 -->
+        <div id="configWarning" class="hidden bg-rose-50 border border-rose-100 p-6 rounded-3xl flex items-start gap-4">
+            <i data-lucide="alert-triangle" class="text-rose-500 w-6 h-6 shrink-0 mt-1"></i>
+            <div>
+                <h4 class="font-black text-rose-800">偵測到 Firebase 配置不完整</h4>
+                <p class="text-sm text-rose-600 mt-1 leading-relaxed">
+                    您目前的程式碼仍在使用預設的預留文字。上傳至 GitHub 後，您必須在程式碼第 187 行附近的 <code class="bg-rose-100 px-1 rounded font-bold">githubFirebaseConfig</code> 填入您專屬的 Firebase 金鑰，否則無法連線至雲端資料庫。
+                </p>
+                <div class="flex gap-4 mt-4">
+                    <a href="https://console.firebase.google.com/" target="_blank" class="text-xs font-black bg-rose-500 text-white px-4 py-2 rounded-xl hover:bg-rose-600 transition-colors">前往 Firebase 控制台</a>
+                </div>
+            </div>
+        </div>
+
         <!-- 統計資訊 -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-5 transition-transform hover:scale-[1.02]">
@@ -100,7 +114,6 @@
                 </div>
             </div>
 
-            <!-- 表格區塊 -->
             <div class="overflow-x-auto">
                 <table class="w-full text-left min-w-[1000px] border-collapse">
                     <thead class="bg-slate-50/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-black border-b border-slate-200">
@@ -117,7 +130,6 @@
                         </tr>
                     </thead>
                     <tbody id="studentTableBody" class="divide-y divide-slate-100">
-                        <!-- 資料由 JavaScript 動態插入 -->
                         <tr><td colspan="9" class="px-8 py-32 text-center text-slate-400 font-bold">正在連線至雲端服務...</td></tr>
                     </tbody>
                 </table>
@@ -125,8 +137,7 @@
         </div>
     </main>
 
-    <!-- Modals (保持不變) -->
-    <!-- ... [Modal HTML代碼省略以節省篇幅，與前版相同] ... -->
+    <!-- Modals -->
     <div id="addModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl p-8 w-full max-md shadow-2xl relative">
             <button onclick="toggleModal('addModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -191,12 +202,8 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /**
-         * 重要：如果您在 GitHub Pages 上執行，請填寫下方的 Firebase 配置。
-         * 1. 到 Firebase Console (console.firebase.google.com)
-         * 2. 點擊「專案設定」 -> 「您的應用程式」 -> 選擇 Web (網頁)
-         * 3. 複製 firebaseConfig 物件並貼到下方 {} 中。
-         */
+        // --- Firebase 配置 ---
+        // 🚨 已經根據您的截圖 image_5e71d7.png 自動填入
         const githubFirebaseConfig = {
             apiKey: "AIzaSyCMbLKKZ6UXSPS4nM8XwCfKuYIjcB0LY1E",
             authDomain: "grade-system-eefe9.firebaseapp.com",
@@ -211,28 +218,29 @@
             ? JSON.parse(__firebase_config) 
             : githubFirebaseConfig;
 
-        // 初始化變數
+        // 偵測配置是否為預設值
+        const isDefaultConfig = (firebaseConfig.apiKey && firebaseConfig.apiKey.includes("請貼上")) || !firebaseConfig.apiKey;
+        if (isDefaultConfig && typeof __firebase_config === 'undefined') {
+            document.getElementById('configWarning').classList.remove('hidden');
+        }
+
+        // 初始化
         let app, auth, db;
         let currentUser = null;
         let students = [];
         let lastAction = null;
         let gasUrl = localStorage.getItem('gasUrl') || '';
 
-        // DOM 元素
         const statusDot = document.getElementById('connectionStatus');
         const statusLabel = document.getElementById('statusText');
         const tableBody = document.getElementById('studentTableBody');
-        const syncBtn = document.getElementById('syncBtn');
-
         const refreshIcons = () => lucide.createIcons();
 
-        // 核心邏輯
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
 
-            // 監聽登入狀態
             onAuthStateChanged(auth, (user) => {
                 currentUser = user;
                 if (user) {
@@ -245,7 +253,6 @@
                 }
             });
 
-            // 嘗試自動登入
             const initAuth = async () => {
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -255,7 +262,7 @@
                     }
                 } catch (error) {
                     console.error("Auth Error:", error);
-                    statusLabel.textContent = "Auth Failed - Check Config";
+                    statusLabel.textContent = "AUTH FAILED - CHECK CONFIG";
                     statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
                 }
             };
@@ -263,11 +270,10 @@
 
         } catch (e) {
             console.error("Firebase Init Error:", e);
-            statusLabel.textContent = "Firebase Config Error";
+            statusLabel.textContent = "FIREBASE INIT ERROR";
             statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
         }
 
-        // 資料監聽 (維持其餘邏輯...)
         const listenData = () => {
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
             onSnapshot(q, (snapshot) => {
@@ -277,10 +283,12 @@
                     return (parseInt(a.seatNumber) || 0) - (parseInt(b.seatNumber) || 0);
                 });
                 updateFilteredData();
+            }, (err) => {
+                console.error("Listen Error:", err);
+                showToast("權限不足：請確保 Firestore 規則已設為允許讀寫", false);
             });
         };
 
-        // 全域函數綁定
         window.showToast = (message, success = true) => {
             const toast = document.getElementById('toast');
             document.getElementById('toastMessage').textContent = message;
@@ -308,7 +316,7 @@
                             attendance: true, bonusPoints: 0, score: 0, updatedAt: Date.now()
                         });
                         success++;
-                    } catch (e) {}
+                    } catch (e) { console.error(e); }
                 }
             }
             btn.disabled = false; btn.textContent = "確認匯入資料";
@@ -316,18 +324,22 @@
                 toggleModal('bulkModal');
                 document.getElementById('bulkText').value = '';
                 showToast(`匯入完成 (${success} 筆)`);
-            } else { showToast("格式不正確", false); }
+            } else { showToast("格式不正確或連線失敗", false); }
         };
 
         window.updateFilteredData = () => {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = students.filter(s => s.name?.includes(term) || s.seatNumber?.includes(term));
-            
-            // 更新統計
+            const filtered = students.filter(s => (s.name || "").toLowerCase().includes(term) || (s.seatNumber || "").toString().includes(term));
             document.getElementById('statTotal').textContent = filtered.length;
             document.getElementById('statPresent').textContent = filtered.filter(s => s.attendance).length;
-            
+            const avg = filtered.length ? (filtered.reduce((acc, s) => acc + (s.score || 0) + (s.bonusPoints || 0), 0) / filtered.length).toFixed(1) : 0;
+            document.getElementById('statAvg').textContent = avg;
+
             tableBody.innerHTML = '';
+            if (!filtered.length && !students.length) {
+                tableBody.innerHTML = '<tr><td colspan="9" class="px-8 py-32 text-center text-slate-400 font-bold">目前無學生資料，請點擊「新增學生」或「批量匯入」</td></tr>';
+                return;
+            }
             filtered.forEach(s => {
                 const tr = document.createElement('tr');
                 tr.className = "group hover:bg-indigo-50/30 transition-all border-b border-slate-100";
@@ -356,10 +368,10 @@
             refreshIcons();
         };
 
-        window.handleToggle = async (id, cur) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { attendance: !cur });
-        window.handleScore = async (id, cur, delta) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { bonusPoints: cur + delta });
-        window.handleRawScore = async (id, val) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { score: parseInt(val) || 0 });
-        window.handleDelete = async (id, name) => { if(confirm(`刪除 ${name}?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); };
+        window.handleToggle = async (id, cur) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { attendance: !cur }); };
+        window.handleScore = async (id, cur, delta) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { bonusPoints: cur + delta }); };
+        window.handleRawScore = async (id, val) => { if(!currentUser) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id), { score: parseInt(val) || 0 }); };
+        window.handleDelete = async (id, name) => { if(!currentUser) return; if(confirm(`刪除 ${name}?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); };
 
         refreshIcons();
     </script>
