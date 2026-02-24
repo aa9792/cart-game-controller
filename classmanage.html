@@ -172,7 +172,7 @@
             <textarea id="bulkText" class="w-full h-64 border border-slate-200 rounded-3xl p-6 font-mono text-sm focus:ring-4 focus:ring-indigo-100 outline-none resize-none bg-slate-50/50 shadow-inner" placeholder="範例：&#10;701 01 王大明&#10;701 02 李小華"></textarea>
             <div class="flex gap-4 pt-8">
                 <button onclick="toggleModal('bulkModal')" class="flex-1 py-4 border border-slate-200 rounded-2xl font-black text-slate-400 hover:bg-slate-50 transition-all">取消</button>
-                <button onclick="handleBulkImport()" class="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]">確認匯入資料</button>
+                <button id="bulkImportBtn" onclick="handleBulkImport()" class="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]">確認匯入資料</button>
             </div>
         </div>
     </div>
@@ -302,7 +302,10 @@
                 });
                 updateClassFilter();
                 updateFilteredData();
-            }, (err) => console.error("Firestore Error:", err));
+            }, (err) => {
+                console.error("Firestore Error:", err);
+                showToast("連線資料庫失敗", false);
+            });
         };
 
         // 更新班級選單
@@ -406,12 +409,18 @@
 
         // 操作處理
         window.handleAddStudent = async () => {
-            if (!currentUser) return;
-            const name = document.getElementById('newName').value;
-            const className = document.getElementById('newClass').value;
-            const seatNumber = document.getElementById('newSeat').value;
+            if (!currentUser) {
+                showToast("尚未登入雲端系統", false);
+                return;
+            }
+            const name = document.getElementById('newName').value.trim();
+            const className = document.getElementById('newClass').value.trim();
+            const seatNumber = document.getElementById('newSeat').value.trim();
 
-            if (!name || !className || !seatNumber) return;
+            if (!name || !className || !seatNumber) {
+                showToast("請填寫完整學生資料", false);
+                return;
+            }
 
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
@@ -429,13 +438,32 @@
         };
 
         window.handleBulkImport = async () => {
+            if (!currentUser) {
+                showToast("尚未登入雲端系統，請稍候", false);
+                return;
+            }
+
             const text = document.getElementById('bulkText').value.trim();
-            if (!text) return;
+            if (!text) {
+                showToast("請輸入名單資料", false);
+                return;
+            }
+
+            const importBtn = document.getElementById('bulkImportBtn');
+            importBtn.disabled = true;
+            importBtn.textContent = "匯入中...";
 
             const lines = text.split('\n');
-            let count = 0;
+            let successCount = 0;
+            let failCount = 0;
+
             for (const line of lines) {
-                const parts = line.trim().split(/[\t, ]+/);
+                const cleanLine = line.trim();
+                if (!cleanLine) continue;
+
+                // 改良後的正規表達式，支援更多分隔符（包含 Tab、全形空白、逗號）
+                const parts = cleanLine.split(/[\t, \s　]+/).filter(p => p !== "");
+                
                 if (parts.length >= 3) {
                     try {
                         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
@@ -447,21 +475,36 @@
                             score: 0,
                             updatedAt: Date.now()
                         });
-                        count++;
-                    } catch (e) { console.error(e); }
+                        successCount++;
+                    } catch (e) { 
+                        console.error("Firebase 寫入失敗:", line, e);
+                        failCount++; 
+                    }
+                } else {
+                    failCount++;
                 }
             }
-            document.getElementById('bulkText').value = '';
-            toggleModal('bulkModal');
-            showToast(`成功匯入 ${count} 位學生`);
+
+            importBtn.disabled = false;
+            importBtn.textContent = "確認匯入資料";
+            
+            if (successCount > 0) {
+                document.getElementById('bulkText').value = '';
+                toggleModal('bulkModal');
+                showToast(`成功匯入 ${successCount} 位學生${failCount > 0 ? ` (${failCount} 筆格式錯誤)` : ''}`);
+            } else {
+                showToast("匯入失敗，請確認每行包含：班級 座號 姓名", false);
+            }
         };
 
         window.handleToggleAttendance = async (id, current) => {
+            if (!currentUser) return;
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
             await updateDoc(ref, { attendance: !current });
         };
 
         window.handleUpdateBonus = async (id, current, delta) => {
+            if (!currentUser) return;
             lastAction = { id, prev: current };
             document.getElementById('undoContainer').classList.remove('hidden');
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
@@ -469,7 +512,7 @@
         };
 
         window.handleUndo = async () => {
-            if (!lastAction) return;
+            if (!lastAction || !currentUser) return;
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', lastAction.id);
             await updateDoc(ref, { bonusPoints: lastAction.prev });
             lastAction = null;
@@ -478,14 +521,20 @@
         };
 
         window.handleUpdateScore = async (id, val) => {
+            if (!currentUser) return;
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
             await updateDoc(ref, { score: parseInt(val) || 0 });
         };
 
         window.handleDeleteStudent = async (id, name) => {
-            if (confirm(`確定要刪除學生：${name}？`)) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
-                showToast("已刪除學生");
+            if (!currentUser) return;
+            if (window.confirm(`確定要刪除學生：${name}？`)) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
+                    showToast("已刪除學生");
+                } catch (e) {
+                    showToast("刪除失敗", false);
+                }
             }
         };
 
