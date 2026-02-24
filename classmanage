@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生成績管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+        body { font-family: 'Inter', 'PingFang TC', sans-serif; }
+        .modal-active { overflow: hidden; }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900 selection:bg-indigo-100">
+
+    <!-- 導覽列 -->
+    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-200">
+                    <i data-lucide="clipboard-check" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 tracking-tight">學生成績管理系統</h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cloud Database Connected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div id="undoContainer" class="hidden">
+                    <button onclick="handleUndo()" class="group flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-xs font-black border border-amber-200 hover:bg-amber-100 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 group-hover:rotate-[-45deg] transition-transform"></i> 撤銷
+                    </button>
+                </div>
+                <button id="syncBtn" onclick="handleSyncToSheets()" class="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50 active:scale-95">
+                    <i data-lucide="send" class="w-4 h-4"></i> <span id="syncBtnText">雲端同步</span>
+                </button>
+                <button onclick="toggleModal('settingsModal')" class="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-slate-400 hover:text-indigo-600">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
+        <!-- 統計資訊 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-5 transition-transform hover:scale-[1.02]">
+                <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><i data-lucide="users" class="w-6 h-6"></i></div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">總學生數</p>
+                    <p id="statTotal" class="text-3xl font-black text-slate-800 leading-none">0</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-5 transition-transform hover:scale-[1.02]">
+                <div class="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><i data-lucide="user-check" class="w-6 h-6"></i></div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">今日出席</p>
+                    <p id="statPresent" class="text-3xl font-black text-slate-800 leading-none">0</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-5 transition-transform hover:scale-[1.02]">
+                <div class="p-4 bg-amber-50 text-amber-600 rounded-2xl"><i data-lucide="trophy" class="w-6 h-6"></i></div>
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">全班平均</p>
+                    <p id="statAvg" class="text-3xl font-black text-slate-800 leading-none">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+            <div class="p-6 bg-slate-50/50 border-b border-slate-200 flex flex-col lg:flex-row justify-between items-center gap-4">
+                <div class="flex flex-col md:flex-row w-full lg:w-auto gap-3 flex-1">
+                    <div class="relative group">
+                        <i data-lucide="filter" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                        <select id="classFilter" onchange="updateFilteredData()" class="w-full pl-10 pr-6 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 appearance-none text-sm font-black cursor-pointer shadow-sm outline-none">
+                            <option value="All">所有班級</option>
+                        </select>
+                    </div>
+                    <div class="relative flex-1 group">
+                        <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                        <input id="searchInput" oninput="updateFilteredData()" type="text" placeholder="搜尋姓名或座號..." class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 outline-none text-sm font-medium transition-all shadow-sm">
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 w-full lg:w-auto">
+                    <button onclick="toggleModal('bulkModal')" class="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-2xl font-black text-xs border border-slate-200 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="file-up" class="w-4 h-4"></i> 批量匯入
+                    </button>
+                    <button onclick="toggleModal('addModal')" class="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-xl shadow-indigo-100 transition-all active:scale-95">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> 新增學生
+                    </button>
+                </div>
+            </div>
+
+            <!-- 表格區塊 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left min-w-[1000px] border-collapse">
+                    <thead class="bg-slate-50/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-black border-b border-slate-200">
+                        <tr>
+                            <th class="px-8 py-5 w-24 text-center">座號</th>
+                            <th class="px-6 py-5 w-24">班級</th>
+                            <th class="px-6 py-5">學生姓名</th>
+                            <th class="px-6 py-5 text-center">出席狀態</th>
+                            <th class="px-6 py-5 text-center">評分工具</th>
+                            <th class="px-6 py-5 text-center w-28">加分</th>
+                            <th class="px-6 py-5 text-center w-32">評量分</th>
+                            <th class="px-8 py-5 text-right w-32">最終總分</th>
+                            <th class="px-4 py-5 w-16"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody" class="divide-y divide-slate-100">
+                        <!-- 資料由 JavaScript 動態插入 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- 新增學生 -->
+    <div id="addModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative">
+            <button onclick="toggleModal('addModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <h3 class="text-2xl font-black mb-6 flex items-center gap-3"><i data-lucide="plus-circle" class="text-indigo-600"></i> 單筆新增學生</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1.5 block">班級</label>
+                        <input id="newClass" type="text" placeholder="如: 701" class="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:ring-4 focus:ring-indigo-100 outline-none font-bold shadow-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-1.5 block">座號</label>
+                        <input id="newSeat" type="number" placeholder="如: 01" class="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:ring-4 focus:ring-indigo-100 outline-none font-bold shadow-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-1.5 block">姓名</label>
+                    <input id="newName" type="text" placeholder="輸入完整姓名" class="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:ring-4 focus:ring-indigo-100 outline-none font-bold shadow-sm">
+                </div>
+                <button onclick="handleAddStudent()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all mt-4 active:scale-[0.98]">確認新增</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量匯入 -->
+    <div id="bulkModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl shadow-2xl relative">
+            <button onclick="toggleModal('bulkModal')" class="absolute top-8 right-8 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <div class="flex items-center gap-4 mb-8">
+                <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm"><i data-lucide="file-up" class="w-8 h-8"></i></div>
+                <div>
+                    <h3 class="text-3xl font-black text-slate-800">批量匯入名單</h3>
+                    <p class="text-slate-400 text-sm mt-1">從 Excel 或試算表快速貼上學生資料</p>
+                </div>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 p-5 rounded-2xl mb-6 text-[11px] leading-relaxed text-amber-900 flex gap-4">
+                <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0"></i>
+                <div>
+                    <p class="font-black mb-1">格式指南：</p>
+                    <p>每行一個學生，格式為：<code class="bg-white/80 px-2 py-0.5 rounded border border-amber-200 font-bold mx-1 text-indigo-700">班級 座號 姓名</code></p>
+                    <p class="mt-1">範例：<span class="italic">701 01 王大明</span></p>
+                </div>
+            </div>
+            <textarea id="bulkText" class="w-full h-64 border border-slate-200 rounded-3xl p-6 font-mono text-sm focus:ring-4 focus:ring-indigo-100 outline-none resize-none bg-slate-50/50 shadow-inner" placeholder="範例：&#10;701 01 王大明&#10;701 02 李小華"></textarea>
+            <div class="flex gap-4 pt-8">
+                <button onclick="toggleModal('bulkModal')" class="flex-1 py-4 border border-slate-200 rounded-2xl font-black text-slate-400 hover:bg-slate-50 transition-all">取消</button>
+                <button onclick="handleBulkImport()" class="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]">確認匯入資料</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定 -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl relative">
+            <button onclick="toggleModal('settingsModal')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <h3 class="text-2xl font-black mb-8 flex items-center gap-3 text-indigo-700"><i data-lucide="settings" class="w-6 h-6"></i> 系統同步設定</h3>
+            <div class="space-y-8">
+                <div>
+                    <div class="flex justify-between items-center mb-2.5">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Google Apps Script URL</label>
+                    </div>
+                    <input id="gasUrlInput" type="text" class="w-full border border-slate-200 rounded-2xl px-5 py-4 focus:ring-4 focus:ring-indigo-100 outline-none font-mono text-xs shadow-inner bg-slate-50" placeholder="https://script.google.com/macros/s/.../exec">
+                </div>
+                <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 text-[11px] text-indigo-700 leading-relaxed shadow-sm">
+                    請確保您的 Google Apps Script 部署權限設定為「所有人 (Anyone)」。
+                </div>
+                <button onclick="saveSettings()" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98]">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知 Toast -->
+    <div id="toast" class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4 transition-all transform translate-y-20">
+        <i id="toastIcon" data-lucide="check-circle-2" class="w-5 h-5"></i>
+        <p id="toastMessage" class="text-sm font-black tracking-wide"></p>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 全域變數
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-grade-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
+
+        // 初始化
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let students = [];
+        let lastAction = null;
+        let gasUrl = localStorage.getItem('gasUrl') || '';
+
+        // DOM 元素引用
+        const tableBody = document.getElementById('studentTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const classFilter = document.getElementById('classFilter');
+        const syncBtn = document.getElementById('syncBtn');
+        const syncBtnText = document.getElementById('syncBtnText');
+
+        // 初始化 Lucide 圖標
+        const refreshIcons = () => lucide.createIcons();
+
+        // 顯示通知
+        window.showToast = (message, success = true) => {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMessage');
+            const iconEl = document.getElementById('toastIcon');
+            
+            toast.classList.remove('hidden', 'translate-y-20');
+            msgEl.textContent = message;
+            iconEl.setAttribute('data-lucide', success ? 'check-circle-2' : 'alert-circle');
+            iconEl.classList.toggle('text-emerald-400', success);
+            iconEl.classList.toggle('text-rose-400', !success);
+            refreshIcons();
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        };
+
+        // 彈窗控制
+        window.toggleModal = (modalId) => {
+            const el = document.getElementById(modalId);
+            el.classList.toggle('hidden');
+            document.body.classList.toggle('modal-active');
+            if (modalId === 'settingsModal') {
+                document.getElementById('gasUrlInput').value = gasUrl;
+            }
+        };
+
+        // 儲存設定
+        window.saveSettings = () => {
+            gasUrl = document.getElementById('gasUrlInput').value;
+            localStorage.setItem('gasUrl', gasUrl);
+            toggleModal('settingsModal');
+            showToast("設定已儲存");
+        };
+
+        // 身份驗證
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) listenData();
+        });
+
+        // 資料監聽
+        const listenData = () => {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+            onSnapshot(q, (snapshot) => {
+                students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // 排序：班級 -> 座號
+                students.sort((a, b) => {
+                    if (a.className !== b.className) return a.className.localeCompare(b.className);
+                    return (parseInt(a.seatNumber) || 0) - (parseInt(b.seatNumber) || 0);
+                });
+                updateClassFilter();
+                updateFilteredData();
+            }, (err) => console.error("Firestore Error:", err));
+        };
+
+        // 更新班級選單
+        const updateClassFilter = () => {
+            const classes = [...new Set(students.map(s => s.className).filter(Boolean))].sort();
+            const currentVal = classFilter.value;
+            classFilter.innerHTML = '<option value="All">所有班級</option>';
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = `${c} 班`;
+                classFilter.appendChild(opt);
+            });
+            classFilter.value = currentVal;
+        };
+
+        // 計算總分
+        const calculateTotal = (s) => {
+            const base = s.score || 0;
+            const bonus = s.bonusPoints || 0;
+            return Math.min(100, Math.max(0, base + bonus)).toFixed(1);
+        };
+
+        // 渲染表格內容
+        window.updateFilteredData = () => {
+            const term = searchInput.value.toLowerCase();
+            const selected = classFilter.value;
+
+            const filtered = students.filter(s => {
+                const nameMatch = s.name?.toLowerCase().includes(term);
+                const seatMatch = s.seatNumber?.toString().includes(term);
+                const classMatch = selected === 'All' || s.className === selected;
+                return (nameMatch || seatMatch) && classMatch;
+            });
+
+            // 更新統計
+            document.getElementById('statTotal').textContent = filtered.length;
+            document.getElementById('statPresent').textContent = filtered.filter(s => s.attendance).length;
+            const avg = filtered.length ? (filtered.reduce((acc, s) => acc + parseFloat(calculateTotal(s)), 0) / filtered.length).toFixed(1) : 0;
+            document.getElementById('statAvg').textContent = avg;
+
+            renderTable(filtered);
+        };
+
+        const renderTable = (data) => {
+            tableBody.innerHTML = '';
+            data.forEach(student => {
+                const tr = document.createElement('tr');
+                tr.className = 'group hover:bg-indigo-50/30 transition-all';
+                tr.innerHTML = `
+                    <td class="px-8 py-5 text-center font-mono font-black text-slate-300 group-hover:text-indigo-600 transition-colors">
+                        ${student.seatNumber.toString().padStart(2, '0')}
+                    </td>
+                    <td class="px-6 py-5">
+                        <span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-black border border-slate-200">
+                            ${student.className}
+                        </span>
+                    </td>
+                    <td class="px-6 py-5 font-bold text-slate-700">${student.name}</td>
+                    <td class="px-6 py-5 text-center">
+                        <button onclick="handleToggleAttendance('${student.id}', ${student.attendance})" 
+                            class="px-4 py-1.5 rounded-full text-[10px] font-black transition-all border ${
+                                student.attendance 
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                : 'bg-rose-100 text-rose-700 border-rose-200 opacity-50'
+                            }">
+                            ${student.attendance ? '已出席' : '未到'}
+                        </button>
+                    </td>
+                    <td class="px-6 py-5">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="handleUpdateBonus('${student.id}', ${student.bonusPoints || 0}, 1)" class="bg-white border border-slate-200 text-slate-600 text-[9px] px-2 py-1.5 rounded-lg font-black shadow-sm hover:border-indigo-500 hover:text-indigo-600 active:scale-90 transition-all">+1</button>
+                            <button onclick="handleUpdateBonus('${student.id}', ${student.bonusPoints || 0}, 2)" class="bg-indigo-600 text-white text-[9px] px-2 py-1.5 rounded-lg font-black shadow-sm hover:brightness-110 active:scale-90 transition-all">+2</button>
+                            <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                            <button onclick="handleUpdateBonus('${student.id}', ${student.bonusPoints || 0}, -1)" class="bg-white border border-slate-200 text-rose-500 text-[9px] px-2 py-1.5 rounded-lg font-black shadow-sm hover:border-rose-500 active:scale-90 transition-all">-1</button>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 text-center">
+                        <span class="font-black text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 min-w-[48px] inline-block">
+                            ${student.bonusPoints || 0}
+                        </span>
+                    </td>
+                    <td class="px-6 py-5 text-center">
+                        <input type="number" value="${student.score || 0}" 
+                            onchange="handleUpdateScore('${student.id}', this.value)"
+                            class="w-16 border border-slate-200 rounded-xl px-2 py-2 text-center text-sm font-black focus:ring-4 focus:ring-indigo-100 outline-none hover:border-indigo-300 transition-all bg-slate-50 focus:bg-white">
+                    </td>
+                    <td class="px-8 py-5 text-right font-black text-xl text-slate-800 tracking-tight">
+                        ${calculateTotal(student)}
+                    </td>
+                    <td class="px-4 py-5 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="handleDeleteStudent('${student.id}', '${student.name}')" class="text-slate-300 hover:text-rose-500 transition-colors p-2">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+            refreshIcons();
+        };
+
+        // 操作處理
+        window.handleAddStudent = async () => {
+            if (!currentUser) return;
+            const name = document.getElementById('newName').value;
+            const className = document.getElementById('newClass').value;
+            const seatNumber = document.getElementById('newSeat').value;
+
+            if (!name || !className || !seatNumber) return;
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+                    name, className, seatNumber,
+                    attendance: true,
+                    bonusPoints: 0,
+                    score: 0,
+                    updatedAt: Date.now()
+                });
+                document.getElementById('newName').value = '';
+                document.getElementById('newSeat').value = parseInt(seatNumber) + 1;
+                toggleModal('addModal');
+                showToast("已新增學生");
+            } catch (err) { console.error(err); }
+        };
+
+        window.handleBulkImport = async () => {
+            const text = document.getElementById('bulkText').value.trim();
+            if (!text) return;
+
+            const lines = text.split('\n');
+            let count = 0;
+            for (const line of lines) {
+                const parts = line.trim().split(/[\t, ]+/);
+                if (parts.length >= 3) {
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+                            className: parts[0],
+                            seatNumber: parts[1],
+                            name: parts[2],
+                            attendance: true,
+                            bonusPoints: 0,
+                            score: 0,
+                            updatedAt: Date.now()
+                        });
+                        count++;
+                    } catch (e) { console.error(e); }
+                }
+            }
+            document.getElementById('bulkText').value = '';
+            toggleModal('bulkModal');
+            showToast(`成功匯入 ${count} 位學生`);
+        };
+
+        window.handleToggleAttendance = async (id, current) => {
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
+            await updateDoc(ref, { attendance: !current });
+        };
+
+        window.handleUpdateBonus = async (id, current, delta) => {
+            lastAction = { id, prev: current };
+            document.getElementById('undoContainer').classList.remove('hidden');
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
+            await updateDoc(ref, { bonusPoints: current + delta });
+        };
+
+        window.handleUndo = async () => {
+            if (!lastAction) return;
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', lastAction.id);
+            await updateDoc(ref, { bonusPoints: lastAction.prev });
+            lastAction = null;
+            document.getElementById('undoContainer').classList.add('hidden');
+            showToast("已撤銷評分");
+        };
+
+        window.handleUpdateScore = async (id, val) => {
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'students', id);
+            await updateDoc(ref, { score: parseInt(val) || 0 });
+        };
+
+        window.handleDeleteStudent = async (id, name) => {
+            if (confirm(`確定要刪除學生：${name}？`)) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
+                showToast("已刪除學生");
+            }
+        };
+
+        window.handleSyncToSheets = async () => {
+            if (!gasUrl) {
+                toggleModal('settingsModal');
+                showToast("請先設定 Google Script 網址", false);
+                return;
+            }
+            
+            syncBtn.disabled = true;
+            syncBtnText.textContent = '同步中...';
+            
+            const payload = students.map(s => ({
+                "班級": s.className, "座號": s.seatNumber, "姓名": s.name,
+                "出勤": s.attendance ? "出席" : "未到", "加分": s.bonusPoints || 0,
+                "分數": s.score || 0, "總分": calculateTotal(s)
+            }));
+
+            try {
+                await fetch(gasUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                showToast("同步成功！資料已送至雲端");
+            } catch (error) {
+                showToast("同步失敗，請檢查設定", false);
+            } finally {
+                syncBtn.disabled = false;
+                syncBtnText.textContent = '雲端同步';
+                refreshIcons();
+            }
+        };
+
+        // 啟動
+        initAuth();
+        refreshIcons();
+    </script>
+</body>
+</html>
