@@ -7,610 +7,569 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .student-card { transition: all 0.2s ease-in-out; }
-        .student-card.present { border-color: #22c55e; background-color: #f0fdf4; }
-        .student-card.absent { border-color: #e5e7eb; background-color: #ffffff; opacity: 0.7; }
-        .point-pop { animation: pop 0.3s ease-out forwards; }
-        @keyframes pop {
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-transition { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-transition:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .present-card { border-color: #10b981; background-color: #ecfdf5; }
+        .absent-card { border-color: #e5e7eb; background-color: #ffffff; opacity: 0.7; filter: grayscale(50%); }
+        
+        /* 能量條動畫 */
+        .progress-bar-fill { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* 抽籤動畫 */
+        .picking-animation { animation: pulse-fast 0.1s infinite; color: #6366f1; }
+        @keyframes pulse-fast {
             0% { transform: scale(1); }
-            50% { transform: scale(1.3); color: #eab308; }
+            50% { transform: scale(1.05); }
             100% { transform: scale(1); }
+        }
+
+        /* 標章彈出動畫 */
+        .badge-pop { animation: pop-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes pop-up {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans text-gray-800">
+<body class="bg-slate-50 min-h-screen text-slate-800">
 
-<div class="container mx-auto p-4 md:p-6 max-w-6xl">
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
-        <h1 class="text-2xl font-bold text-indigo-700"><i class="fas fa-chalkboard-teacher mr-2"></i>課堂互動點名系統</h1>
-        <div class="flex flex-wrap gap-3 mt-4 md:mt-0 items-center justify-center">
-            <select id="classSelect" class="border p-2 rounded-lg bg-gray-50 text-sm md:text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">選擇/建立班級</option>
-                <!-- 動態生成 -->
-            </select>
-            <button onclick="toggleImportModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition">
-                <i class="fas fa-file-import mr-1"></i> 手動匯入
-            </button>
-            <button onclick="loadFromCloud()" class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-md transition flex items-center">
-                <i class="fas fa-cloud-download-alt mr-1"></i> 雲端下載
-            </button>
-            <button onclick="syncToCloud()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-md transition flex items-center">
-                <i class="fas fa-cloud-upload-alt mr-1"></i> 同步上傳
-            </button>
+<div class="container mx-auto p-4 max-w-7xl">
+    <!-- Header Area -->
+    <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-extrabold text-indigo-600 tracking-tight flex items-center">
+                <i class="fas fa-meteor mr-3 text-yellow-400"></i>星火課堂
+            </h1>
+            
+            <div class="flex items-center gap-3">
+                <select id="classSelect" class="bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                    <option value="demo">✨ 示範班級 (六年一班)</option>
+                </select>
+                <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center">
+                    <i class="fas fa-plus mr-2"></i> 建立班級
+                </button>
+            </div>
+        </div>
+
+        <!-- Cooperative Goal Bar (全班共同目標) -->
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <div class="flex justify-between items-end mb-2">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">全班共同目標：解鎖期末同樂會</h3>
+                    <div class="text-2xl font-black text-slate-800 mt-1"><span id="classTotalScore" class="text-indigo-600">0</span> <span class="text-base text-slate-400 font-medium">/ 100 點</span></div>
+                </div>
+                <i class="fas fa-treasure-chest text-2xl text-yellow-400"></i>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner">
+                <div id="classProgressBar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-4 rounded-full progress-bar-fill w-0 relative">
+                    <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                </div>
+            </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <div id="workspace" class="hidden">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-            <h2 id="currentClassTitle" class="text-xl font-bold text-gray-700"></h2>
-            <div class="space-x-2 flex flex-wrap gap-y-2">
-                <button onclick="showAddStudentModal()" class="text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded-full shadow-sm transition"><i class="fas fa-user-plus mr-1"></i>新增學生</button>
-                <button onclick="markAllPresent()" class="text-sm bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-full shadow-sm transition"><i class="fas fa-check-double mr-1"></i>全班出席</button>
-                <button onclick="resetPoints()" class="text-sm bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded-full shadow-sm transition"><i class="fas fa-undo mr-1"></i>本堂歸零</button>
-            </div>
+    <!-- Learning Progress Board (進度任務看板) -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-200 mb-6 flex flex-col md:flex-row gap-4 relative overflow-hidden">
+        <div class="absolute left-0 top-0 bottom-0 w-2 bg-amber-400"></div>
+        <div class="flex-1 pl-4">
+            <h3 class="text-sm font-bold text-amber-600 mb-1 flex items-center"><i class="fas fa-history mr-2"></i>上週回顧 (上一次我們學了什麼？)</h3>
+            <textarea id="lastWeekProgress" class="w-full bg-amber-50/50 border-none resize-none text-slate-600 text-sm p-2 rounded-lg outline-none focus:ring-1 focus:ring-amber-300 transition" rows="2" placeholder="點擊此處輸入上週學習重點..."></textarea>
         </div>
-
-        <!-- Progress Tracking Section (NEW) -->
-        <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
-                <label class="block text-sm font-bold text-blue-800 mb-2">
-                    <i class="fas fa-history mr-2"></i>上週學習任務/進度 (雲端下載)
-                </label>
-                <div id="lastWeekProgressDisplay" class="text-sm text-gray-700 min-h-[3rem] p-3 bg-white rounded-lg border border-blue-200 whitespace-pre-line">
-                    尚無資料，請點擊上方「雲端下載」取得最新紀錄。
-                </div>
-            </div>
-            <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-100">
-                <label class="block text-sm font-bold text-green-800 mb-2">
-                    <i class="fas fa-edit mr-2"></i>本週學習進度 (將同步上傳)
-                </label>
-                <textarea id="thisWeekProgressInput" rows="2" class="w-full border border-green-200 p-3 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white" placeholder="請輸入本週預定或實際完成的教學進度... (例如：完成第三單元實驗操作)"></textarea>
-            </div>
-        </div>
-
-        <!-- Class Note Section -->
-        <div class="mb-5 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <label class="block text-sm font-bold text-gray-700 mb-2">
-                <i class="fas fa-book-open text-indigo-500 mr-2"></i>單堂整體學習內容與表現紀錄
-            </label>
-            <textarea id="classNoteInput" rows="2" class="w-full border p-3 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="例如：今日全班討論熱烈，但小組發言常規需加強... (此紀錄將隨分數一同上傳至「歷史日誌表」中)"></textarea>
-        </div>
-
-        <!-- Student Grid -->
-        <div id="studentGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            <!-- 學生卡片由 JS 動態生成 -->
+        <div class="hidden md:block w-px bg-slate-200"></div>
+        <div class="flex-1">
+            <h3 class="text-sm font-bold text-emerald-600 mb-1 flex items-center"><i class="fas fa-rocket mr-2"></i>本週目標 (今天我們要挑戰什麼？)</h3>
+            <textarea id="thisWeekProgress" class="w-full bg-emerald-50/50 border-none resize-none text-slate-600 text-sm p-2 rounded-lg outline-none focus:ring-1 focus:ring-emerald-300 transition" rows="2" placeholder="點擊此處輸入本週學習任務..."></textarea>
         </div>
     </div>
 
-    <div id="emptyState" class="text-center py-20 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
-        <i class="fas fa-users text-gray-300 text-6xl mb-4"></i>
-        <h3 class="text-lg font-medium text-gray-500">請先選擇班級、手動匯入或從雲端下載名單</h3>
+    <!-- Toolbar -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+        <div class="flex bg-slate-100 p-1 rounded-lg">
+            <button id="tabIndividual" onclick="switchView('individual')" class="px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition">個人檢視</button>
+            <button id="tabGroup" onclick="switchView('group')" class="px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition">小組檢視</button>
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="startRandomPicker()" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md transition transform hover:scale-105 flex items-center">
+                <i class="fas fa-dice text-lg mr-2"></i> 隨機抽籤
+            </button>
+            <button onclick="markAllPresent()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+                <i class="fas fa-check-double mr-1"></i> 全班出席
+            </button>
+        </div>
     </div>
 
+    <!-- Main Workspace -->
+    <div id="individualView" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <!-- 學生卡片動態生成區 -->
+    </div>
+
+    <div id="groupView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 小組卡片動態生成區 -->
+    </div>
+
+</div>
+
+<!-- Edit Student Modal -->
+<div id="editStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">
+        <h2 class="text-xl font-bold mb-4 text-slate-800 flex items-center"><i class="fas fa-user-edit text-indigo-500 mr-2"></i>編輯學生資料</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">學生座號</label>
+                <input type="text" id="editStudentId" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">學生姓名</label>
+                <input type="text" id="editStudentName" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">所屬小組</label>
+                <input type="number" min="1" id="editStudentGroup" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700" placeholder="請輸入組別數字">
+            </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeEditModal()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition">取消</button>
+            <button onclick="saveStudentEdit()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-xl shadow-md transition">儲存變更</button>
+        </div>
+    </div>
+</div>
+
+<!-- Random Picker Modal -->
+<div id="randomPickerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex justify-center items-center z-50">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center transform scale-95 transition-transform duration-300" id="pickerContainer">
+        <h2 class="text-xl font-bold mb-6 text-slate-500">命運的輪盤</h2>
+        <div class="h-32 flex items-center justify-center mb-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <h1 id="pickedName" class="text-5xl font-black text-slate-800">準備中...</h1>
+        </div>
+        <div class="grid grid-cols-3 gap-2" id="pickerActions" style="display: none;">
+            <button onclick="awardPicked(1, '神隊友', 'fa-handshake')" class="bg-blue-100 text-blue-700 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-handshake text-xl"></i><span>神隊友</span>
+            </button>
+            <button onclick="awardPicked(2, '金頭腦', 'fa-lightbulb')" class="bg-amber-100 text-amber-700 py-3 rounded-xl font-bold hover:bg-amber-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-lightbulb text-xl"></i><span>金頭腦</span>
+            </button>
+            <button onclick="awardPicked(1, '專注力', 'fa-eye')" class="bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold hover:bg-emerald-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-eye text-xl"></i><span>專注力</span>
+            </button>
+        </div>
+        <button id="closePickerBtn" onclick="closePicker()" class="mt-6 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 hidden">完成</button>
+    </div>
 </div>
 
 <!-- Import Modal -->
-<div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
-        <h2 class="text-xl font-bold mb-4">手動匯入班級名單</h2>
+<div id="importModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg">
+        <h2 class="text-xl font-bold mb-4 text-slate-800">建立新班級</h2>
         <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">班級名稱</label>
-            <input type="text" id="importClassName" class="w-full border p-2 rounded-lg mb-3" placeholder="例如：六年一班">
-            <label class="block text-sm font-medium text-gray-700 mb-1">貼上名單 (座號,姓名 - 每行一位，可留空)</label>
-            <textarea id="importData" rows="6" class="w-full border p-2 rounded-lg font-mono text-sm" placeholder="1,王小明&#10;2,陳小華&#10;3,林小美"></textarea>
-            <p class="text-xs text-gray-500 mt-1">支援從 Excel 複製貼上，容許全形(，)、半形(,)與空白分隔。</p>
+            <input type="text" id="importClassName" class="w-full border-2 border-slate-200 p-3 rounded-xl mb-3 focus:border-indigo-500 outline-none font-bold text-slate-700" placeholder="班級名稱 (例如：五年二班)">
+            <label class="block text-sm font-bold text-slate-500 mb-2">貼上名單 (座號,姓名,組別)</label>
+            <textarea id="importData" rows="6" class="w-full border-2 border-slate-200 p-3 rounded-xl font-mono text-sm focus:border-indigo-500 outline-none" placeholder="1,王小明,1&#10;2,陳小華,1&#10;3,林小美,2"></textarea>
+            <p class="text-xs text-slate-400 mt-2"><i class="fas fa-info-circle"></i> 支援逗號或空格分隔。若未填寫組別，系統將自動以4人為一組分配。</p>
         </div>
-        <div class="flex justify-end gap-2">
-            <button onclick="toggleImportModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
-            <button onclick="processImport()" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg">儲存並建立</button>
-        </div>
-    </div>
-</div>
-
-<!-- GAS URL Setup Modal -->
-<div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
-        <h2 class="text-xl font-bold mb-4">系統設定</h2>
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Google Apps Script Web App URL</label>
-            <input type="text" id="gasUrlInput" class="w-full border p-2 rounded-lg" placeholder="https://script.google.com/macros/s/...">
-            <p class="text-xs text-gray-500 mt-1">請填入您部署的 GAS 網址，才能進行雲端下載與同步上傳。</p>
-        </div>
-        <div class="flex justify-end gap-2">
-            <button onclick="closeSettingsModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">稍後設定</button>
-            <button onclick="saveSettings()" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg">儲存設定</button>
-        </div>
-    </div>
-</div>
-
-<!-- Add Student Custom Modal -->
-<div id="addStudentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-        <h2 class="text-lg font-bold mb-4 text-gray-800"><i class="fas fa-user-plus text-indigo-500 mr-2"></i>新增學生</h2>
-        <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">學生座號</label>
-            <input type="text" id="newStudentId" class="w-full border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" autocomplete="off">
-        </div>
-        <div class="mb-5">
-            <label class="block text-sm font-medium text-gray-700 mb-1">學生姓名</label>
-            <input type="text" id="newStudentName" class="w-full border p-2 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" autocomplete="off">
-        </div>
-        <div class="flex justify-end gap-2">
-            <button onclick="closeAddStudentModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">取消</button>
-            <button onclick="submitNewStudent()" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-sm font-medium">確認新增</button>
-        </div>
-    </div>
-</div>
-
-<!-- Custom Confirm Modal -->
-<div id="customConfirmModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-        <h2 class="text-lg font-bold mb-2 text-gray-800"><i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>系統確認</h2>
-        <p id="confirmMessage" class="text-gray-600 mb-6 text-sm whitespace-pre-line"></p>
-        <div class="flex justify-end gap-2">
-            <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">取消</button>
-            <button id="confirmBtn" class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-medium">確定執行</button>
-        </div>
-    </div>
-</div>
-
-<!-- Custom Alert Modal -->
-<div id="customAlertModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-        <h2 class="text-lg font-bold mb-2 text-gray-800"><i class="fas fa-info-circle text-blue-500 mr-2"></i>系統提示</h2>
-        <p id="alertMessage" class="text-gray-600 mb-6 text-sm whitespace-pre-line"></p>
-        <div class="flex justify-end">
-            <button onclick="closeAlertModal()" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-sm font-medium">了解</button>
+        <div class="flex justify-end gap-3">
+            <button onclick="document.getElementById('importModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition">取消</button>
+            <button onclick="processImport()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-xl shadow-md transition">建立班級</button>
         </div>
     </div>
 </div>
 
 <script>
-    // 系統狀態
-    let appData = JSON.parse(localStorage.getItem('classData')) || {};
-    let currentClass = '';
-    let gasUrl = localStorage.getItem('gasUrl') || '';
-
-    // --- 資料結構相容性遷移與升級 (包含舊版升級為新版結構) ---
-    Object.keys(appData).forEach(cls => {
-        // 如果舊資料直接是陣列，轉換為新版物件結構
-        if (Array.isArray(appData[cls])) {
-            appData[cls] = {
-                students: appData[cls],
-                lastWeekProgress: '',
-                thisWeekProgress: ''
-            };
+    // --- 核心資料結構 (In-Memory 記憶體運行模式，確保單次課堂穩定) ---
+    // 專家建議：移除手動雙向覆蓋的 localStorage，避免實體教室換電腦時的災難。
+    let classGoal = 100;
+    let appData = {
+        'demo': {
+            progress: { lastWeek: '第六單元：分數的乘法 (課本 P.68-72)', thisWeek: '第七單元：小數與分數的換算\n任務：完成學習單與分組闖關' },
+            students: [
+                { id: '1', name: '王大明', group: 1, present: true, points: 0, badges: [] },
+                { id: '2', name: '林小美', group: 1, present: true, points: 0, badges: [] },
+                { id: '3', name: '陳建宏', group: 1, present: false, points: 0, badges: [] },
+                { id: '4', name: '張雅婷', group: 2, present: true, points: 0, badges: [] },
+                { id: '5', name: '李智偉', group: 2, present: true, points: 0, badges: [] },
+                { id: '6', name: '黃詩涵', group: 2, present: true, points: 0, badges: [] },
+            ]
         }
-        
-        // 修正舊版學生屬性
-        appData[cls].students.forEach(s => {
-            if (s.totalPoints === undefined) {
-                s.totalPoints = s.points || 0;
-                s.sessionPoints = 0;
-                delete s.points;
-            }
-        });
-    });
-
-    // --- Custom UI Modal Functions ---
-    function customAlert(message) {
-        document.getElementById('alertMessage').innerText = message;
-        document.getElementById('customAlertModal').classList.remove('hidden');
-    }
-    
-    function closeAlertModal() {
-        document.getElementById('customAlertModal').classList.add('hidden');
-    }
-
-    let confirmCallback = null;
-    function customConfirm(message, callback) {
-        document.getElementById('confirmMessage').innerText = message;
-        confirmCallback = callback;
-        document.getElementById('customConfirmModal').classList.remove('hidden');
-    }
-
-    function closeConfirmModal() {
-        document.getElementById('customConfirmModal').classList.add('hidden');
-        confirmCallback = null;
-    }
-
-    document.getElementById('confirmBtn').onclick = () => {
-        if (confirmCallback) confirmCallback();
-        closeConfirmModal();
     };
-    // -----------------------------------------------------------
+    let currentClass = 'demo';
+    let currentMode = 'individual'; // 'individual' or 'group'
+    let currentPickedStudent = null;
+    let editingStudentIndex = null; // 紀錄當前正在編輯的學生索引
 
-    // 初始化
+    // --- 初始化 ---
     window.onload = () => {
-        if(!gasUrl) document.getElementById('settingsModal').classList.remove('hidden');
         updateClassSelect();
-        
-        // 監聽進度輸入，即時儲存至 appData
-        document.getElementById('thisWeekProgressInput').addEventListener('input', (e) => {
-            if (currentClass && appData[currentClass]) {
-                appData[currentClass].thisWeekProgress = e.target.value;
-                saveDataLocally();
-            }
-        });
+        renderWorkspace();
+        updateProgressBar();
     };
 
-    function saveSettings() {
-        gasUrl = document.getElementById('gasUrlInput').value.trim();
-        if(gasUrl) {
-            localStorage.setItem('gasUrl', gasUrl);
-            document.getElementById('settingsModal').classList.add('hidden');
+    // --- UI 渲染邏輯 ---
+    function switchView(mode) {
+        currentMode = mode;
+        const btnInd = document.getElementById('tabIndividual');
+        const btnGrp = document.getElementById('tabGroup');
+        
+        if (mode === 'individual') {
+            btnInd.className = 'px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition';
+            btnGrp.className = 'px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition';
+            document.getElementById('individualView').classList.remove('hidden');
+            document.getElementById('groupView').classList.add('hidden');
         } else {
-            customAlert('請輸入有效的網址');
+            btnGrp.className = 'px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition';
+            btnInd.className = 'px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition';
+            document.getElementById('individualView').classList.add('hidden');
+            document.getElementById('groupView').classList.remove('hidden');
         }
+        renderWorkspace();
     }
 
-    function closeSettingsModal() {
-        document.getElementById('settingsModal').classList.add('hidden');
+    function renderWorkspace() {
+        if (currentMode === 'individual') renderIndividual();
+        else renderGroups();
+        updateProgressBar();
+        renderProgressBoard();
     }
 
-    function toggleImportModal() {
-        const modal = document.getElementById('importModal');
-        modal.classList.toggle('hidden');
-    }
-
-    // 處理手動資料匯入
-    function processImport() {
-        const className = document.getElementById('importClassName').value.trim();
-        const rawData = document.getElementById('importData').value.trim();
+    function renderProgressBoard() {
+        const lastWeekEl = document.getElementById('lastWeekProgress');
+        const thisWeekEl = document.getElementById('thisWeekProgress');
         
-        if (!className) return customAlert('請至少填寫班級名稱');
+        // 移除先前的監聽器以避免重複綁定
+        lastWeekEl.oninput = null;
+        thisWeekEl.oninput = null;
 
-        const studentsArray = [];
-        if (rawData) {
-            const lines = rawData.split('\n');
-            lines.forEach(line => {
-                const parts = line.trim().split(/[\t,，\s]+/); 
-                if (parts.length >= 2) {
-                    studentsArray.push({
-                        id: parts[0].trim(),
-                        name: parts.slice(1).join(' ').trim(),
-                        present: false,
-                        sessionPoints: 0,
-                        totalPoints: 0,
-                        log: []
-                    });
-                }
-            });
-        }
+        // 載入當前班級進度
+        const classData = appData[currentClass];
+        if(!classData.progress) classData.progress = { lastWeek: '', thisWeek: '' };
+        
+        lastWeekEl.value = classData.progress.lastWeek;
+        thisWeekEl.value = classData.progress.thisWeek;
 
-        // 使用新結構建立班級
-        appData[className] = {
-            students: studentsArray,
-            lastWeekProgress: '',
-            thisWeekProgress: ''
-        };
-        
-        saveDataLocally();
-        updateClassSelect();
-        document.getElementById('classSelect').value = className;
-        loadClass(className);
-        toggleImportModal();
-        
-        document.getElementById('importClassName').value = '';
-        document.getElementById('importData').value = '';
+        // 綁定即時存入記憶體
+        lastWeekEl.oninput = (e) => classData.progress.lastWeek = e.target.value;
+        thisWeekEl.oninput = (e) => classData.progress.thisWeek = e.target.value;
     }
 
-    function showAddStudentModal() {
-        if (!currentClass) return;
-        document.getElementById('newStudentId').value = '';
-        document.getElementById('newStudentName').value = '';
-        document.getElementById('addStudentModal').classList.remove('hidden');
-        document.getElementById('newStudentId').focus();
-    }
-
-    function closeAddStudentModal() {
-        document.getElementById('addStudentModal').classList.add('hidden');
-    }
-
-    function submitNewStudent() {
-        const id = document.getElementById('newStudentId').value.trim();
-        const name = document.getElementById('newStudentName').value.trim();
-        
-        if (!id || !name) {
-            customAlert('學生座號與姓名皆不可空白！');
-            return;
-        }
-        
-        appData[currentClass].students.push({
-            id: id,
-            name: name,
-            present: false,
-            sessionPoints: 0,
-            totalPoints: 0,
-            log: []
-        });
-        saveDataLocally();
-        renderGrid();
-        closeAddStudentModal();
-    }
-
-    function updateClassSelect() {
-        const select = document.getElementById('classSelect');
-        select.innerHTML = '<option value="">選擇/建立班級</option>';
-        Object.keys(appData).forEach(cls => {
-            select.innerHTML += `<option value="${cls}">${cls} 班</option>`;
-        });
-    }
-
-    document.getElementById('classSelect').addEventListener('change', (e) => {
-        loadClass(e.target.value);
-    });
-
-    // 載入班級畫面
-    function loadClass(className) {
-        currentClass = className;
-        const workspace = document.getElementById('workspace');
-        const emptyState = document.getElementById('emptyState');
-        const noteInput = document.getElementById('classNoteInput');
-        const lastWeekDisplay = document.getElementById('lastWeekProgressDisplay');
-        const thisWeekInput = document.getElementById('thisWeekProgressInput');
-        
-        if (!className || !appData[className]) {
-            workspace.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-            return;
-        }
-
-        workspace.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-        document.getElementById('currentClassTitle').innerText = `${className} 班 課堂互動區`;
-        noteInput.value = ''; // 切換班級時清空單堂課堂紀錄
-        
-        // 載入班級進度狀態
-        lastWeekDisplay.innerText = appData[className].lastWeekProgress || '尚無上週紀錄，請點擊上方「雲端下載」更新。';
-        thisWeekInput.value = appData[className].thisWeekProgress || '';
-        
-        renderGrid();
-    }
-
-    // 渲染學生網格
-    function renderGrid() {
-        const grid = document.getElementById('studentGrid');
+    function renderIndividual() {
+        const grid = document.getElementById('individualView');
         grid.innerHTML = '';
-        
-        appData[currentClass].students.forEach((student, index) => {
-            const card = document.createElement('div');
-            card.className = `student-card border-2 rounded-xl p-4 flex flex-col justify-between shadow-sm ${student.present ? 'present' : 'absent'}`;
+        const students = appData[currentClass].students || [];
+
+        students.forEach((student, index) => {
+            const isPresent = student.present;
+            const badgeHtml = student.badges.slice(-3).map(b => `<i class="fas ${b} text-slate-300 text-xs"></i>`).join('');
             
+            const card = document.createElement('div');
+            card.className = `card-transition border-2 rounded-2xl p-4 flex flex-col justify-between relative ${isPresent ? 'present-card' : 'absent-card'}`;
             card.innerHTML = `
-                <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="toggleAttendance(${index})">
-                    <div class="flex flex-col">
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-sm font-bold text-gray-500">${student.id}</span>
-                            <span class="text-lg font-bold text-gray-800">${student.name}</span>
+                <!-- 編輯按鈕 -->
+                <button onclick="openEditModal(${index}, event)" class="absolute top-4 right-4 text-slate-300 hover:text-indigo-500 transition z-10 p-1">
+                    <i class="fas fa-edit"></i>
+                </button>
+                
+                <div class="flex justify-between items-start mb-4 cursor-pointer pt-1" onclick="toggleAttendance(${index})">
+                    <div class="pr-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-slate-200 text-slate-600 text-xs font-black px-2 py-0.5 rounded-md">${student.id}</span>
+                            <span class="text-xs font-bold text-slate-400">第${student.group}組</span>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1 font-medium"><i class="fas fa-star text-yellow-400 mr-1"></i>總計: <span id="total-${index}">${student.totalPoints}</span></div>
+                        <h3 class="text-xl font-black text-slate-800">${student.name}</h3>
+                        <div class="flex gap-1 mt-1">${badgeHtml}</div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <div class="text-xs text-indigo-400 font-bold mb-1">本日</div>
-                        <div class="text-2xl font-black text-indigo-600 leading-none" id="pts-${index}">+${student.sessionPoints}</div>
+                    <div class="bg-indigo-100 text-indigo-700 font-black text-xl w-10 h-10 flex items-center justify-center rounded-full shadow-inner shrink-0" id="pts-${index}">
+                        ${student.points}
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-1 mt-2">
-                    <button onclick="addPoint(${index}, 1, '出席/基本', event)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 rounded text-sm font-bold transition">+1</button>
-                    <button onclick="addPoint(${index}, 2, '表現優良', event)" class="bg-orange-100 hover:bg-orange-200 text-orange-700 py-1 rounded text-sm font-bold transition">+2</button>
-                    <button onclick="addPoint(${index}, 5, '任務完成', event)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 py-1 rounded text-sm font-bold transition">+5</button>
+                <div class="grid grid-cols-3 gap-2 mt-auto">
+                    <button onclick="addBadge(${index}, 1, '神隊友', 'fa-handshake', event)" class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-handshake mb-1"></i>神隊友
+                    </button>
+                    <button onclick="addBadge(${index}, 2, '金頭腦', 'fa-lightbulb', event)" class="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-lightbulb mb-1"></i>金頭腦
+                    </button>
+                    <button onclick="addBadge(${index}, 1, '專注力', 'fa-eye', event)" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-eye mb-1"></i>專注力
+                    </button>
                 </div>
             `;
             grid.appendChild(card);
         });
     }
 
-    // 點名切換
+    function renderGroups() {
+        const grid = document.getElementById('groupView');
+        grid.innerHTML = '';
+        const students = appData[currentClass].students || [];
+        
+        // 依組別重組資料
+        const groups = {};
+        students.forEach((s, idx) => {
+            if(!groups[s.group]) groups[s.group] = { points: 0, members: [] };
+            groups[s.group].points += s.points;
+            groups[s.group].members.push({ ...s, originalIndex: idx });
+        });
+
+        Object.keys(groups).sort((a,b) => a-b).forEach(groupId => {
+            const group = groups[groupId];
+            const presentCount = group.members.filter(m => m.present).length;
+            
+            const card = document.createElement('div');
+            card.className = `bg-white border-2 border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition ${presentCount === 0 ? 'opacity-75 bg-slate-50' : ''}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
+                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        第 ${groupId} 組
+                        <button onclick="toggleGroupAttendance(${groupId}, event)" class="text-xs bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 px-2 py-1 rounded transition" title="設為全組出席">
+                            <i class="fas fa-user-check"></i>
+                        </button>
+                    </h2>
+                    <div class="bg-purple-100 text-purple-700 font-black text-2xl px-4 py-1 rounded-xl shadow-inner">
+                        ${group.points} <span class="text-sm font-bold text-purple-400">pt</span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${group.members.map(m => `
+                        <span onclick="toggleAttendance(${m.originalIndex})" class="cursor-pointer px-2 py-1 rounded text-xs font-bold transition hover:scale-105 shadow-sm ${m.present ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-400 line-through'}" title="點擊切換出席/缺席狀態">${m.name}</span>
+                    `).join('')}
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="addGroupBadge(${groupId}, 2, '小組合作', 'fa-users')" class="bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${presentCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+                        <i class="fas fa-users"></i> 絕佳默契 (+2)
+                    </button>
+                    <button onclick="addGroupBadge(${groupId}, 5, '任務達標', 'fa-flag-checkered')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${presentCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+                        <i class="fas fa-flag-checkered"></i> 任務達標 (+5)
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // --- 編輯學生邏輯 ---
+    function openEditModal(index, event) {
+        if(event) event.stopPropagation();
+        editingStudentIndex = index;
+        const student = appData[currentClass].students[index];
+        
+        document.getElementById('editStudentId').value = student.id;
+        document.getElementById('editStudentName').value = student.name;
+        document.getElementById('editStudentGroup').value = student.group;
+        
+        document.getElementById('editStudentModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editStudentModal').classList.add('hidden');
+        editingStudentIndex = null;
+    }
+
+    function saveStudentEdit() {
+        if (editingStudentIndex === null) return;
+        
+        const newId = document.getElementById('editStudentId').value.trim();
+        const newName = document.getElementById('editStudentName').value.trim();
+        const newGroup = parseInt(document.getElementById('editStudentGroup').value.trim());
+
+        if (!newId || !newName || isNaN(newGroup) || newGroup < 1) {
+            alert('請確保座號、姓名不為空，且組別為大於0的數字。');
+            return;
+        }
+
+        appData[currentClass].students[editingStudentIndex].id = newId;
+        appData[currentClass].students[editingStudentIndex].name = newName;
+        appData[currentClass].students[editingStudentIndex].group = newGroup;
+
+        closeEditModal();
+        renderWorkspace();
+    }
+
+    // --- 核心邏輯 ---
     function toggleAttendance(index) {
         appData[currentClass].students[index].present = !appData[currentClass].students[index].present;
-        
-        if(appData[currentClass].students[index].present) {
-            addPoint(index, 1, '出席預設', null, false);
-        }
-        
-        saveDataLocally();
-        renderGrid();
+        renderWorkspace();
     }
 
     function markAllPresent() {
-        appData[currentClass].students.forEach((s, idx) => {
-            if(!s.present) {
-                s.present = true;
-                s.sessionPoints += 1;
-                s.totalPoints += 1;
-                s.log.push({type: '全班出席', value: 1});
-            }
-        });
-        saveDataLocally();
-        renderGrid();
+        appData[currentClass].students.forEach(s => s.present = true);
+        renderWorkspace();
     }
 
-    // 加分邏輯
-    function addPoint(index, value, reason, event = null, reRender = true) {
-        if (event) {
-            event.stopPropagation();
-        }
-
-        appData[currentClass].students[index].present = true;
-        appData[currentClass].students[index].sessionPoints += value;
-        appData[currentClass].students[index].totalPoints += value;
-        appData[currentClass].students[index].log.push({
-            type: reason,
-            value: value,
-            time: new Date().toLocaleTimeString()
-        });
+    function addBadge(index, value, reason, iconClass, event = null) {
+        if (event) event.stopPropagation();
         
-        saveDataLocally();
+        let student = appData[currentClass].students[index];
+        student.present = true; // 預設加分即出席
+        student.points += value;
+        student.badges.push(iconClass);
+        if(student.badges.length > 5) student.badges.shift(); // 最多顯示近期5個
 
-        if (reRender) {
-            renderGrid();
-        }
+        // UI 特效
+        renderWorkspace();
         
         setTimeout(() => {
             const ptsEl = document.getElementById(`pts-${index}`);
-            const totalEl = document.getElementById(`total-${index}`);
             if(ptsEl) {
-                ptsEl.classList.remove('point-pop');
+                ptsEl.classList.remove('badge-pop');
                 void ptsEl.offsetWidth;
-                ptsEl.classList.add('point-pop');
-            }
-            if(totalEl) {
-                totalEl.classList.remove('point-pop');
-                void totalEl.offsetWidth;
-                totalEl.classList.add('point-pop');
+                ptsEl.classList.add('badge-pop');
             }
         }, 10);
     }
 
-    function resetPoints() {
-        customConfirm('確定要將「本節課」的加分、點名與課堂紀錄歸零嗎？\n(注意：學生的「總累計積分」不受影響，依然會被保留)', () => {
-            appData[currentClass].students.forEach(s => {
-                s.present = false;
-                s.sessionPoints = 0;
-                s.log = [];
-            });
-            document.getElementById('classNoteInput').value = '';
-            
-            // 可選：是否要將本週進度一起清空？通常老師填好就留著，所以這裡保留不清除 thisWeekProgress
-            saveDataLocally();
-            renderGrid();
-        });
-    }
+    function addGroupBadge(groupId, value, reason, iconClass) {
+        const groupStudents = appData[currentClass].students.filter(s => s.group == groupId);
+        const anyPresent = groupStudents.some(s => s.present);
 
-    function saveDataLocally() {
-        localStorage.setItem('classData', JSON.stringify(appData));
-    }
-
-    // --- 從雲端下載名單 (對應後端 doGet) ---
-    async function loadFromCloud() {
-        if (!gasUrl) {
-            document.getElementById('settingsModal').classList.remove('hidden');
+        if (!anyPresent) {
+            alert(`第 ${groupId} 組目前「全員缺席」！\n請先點擊小組標題旁的「打勾圖示」確認出席，以免將分數給到未到校的學生。`);
             return;
         }
 
-        customConfirm('【更新確認】\n確定要從雲端載入最新名單與「上週進度紀錄」嗎？\n這將會覆蓋您目前本地端尚未同步的加分紀錄！', async () => {
-            const btn = document.querySelector('button[onclick="loadFromCloud()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 下載中...';
-            btn.disabled = true;
-
-            try {
-                const response = await fetch(gasUrl);
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    // 處理雲端資料格式，確保轉換為新版結構
-                    const cloudData = result.data;
-                    Object.keys(cloudData).forEach(cls => {
-                        if (Array.isArray(cloudData[cls])) {
-                            cloudData[cls] = {
-                                students: cloudData[cls],
-                                lastWeekProgress: '',
-                                thisWeekProgress: ''
-                            };
-                        }
-                    });
-
-                    appData = cloudData;
-                    saveDataLocally();
-                    updateClassSelect();
-                    
-                    if (currentClass && appData[currentClass]) {
-                        document.getElementById('classSelect').value = currentClass;
-                        loadClass(currentClass);
-                    } else {
-                        currentClass = '';
-                        document.getElementById('classSelect').value = '';
-                        document.getElementById('workspace').classList.add('hidden');
-                        document.getElementById('emptyState').classList.remove('hidden');
-                    }
-                    customAlert('✅ 成功從雲端載入所有班級最新資訊！');
-                } else {
-                    customAlert('❌ 載入失敗: ' + result.message);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                customAlert('❌ 發生網路錯誤。\n請確認 GAS 網址正確，且部署權限已設為「所有人」。');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+        appData[currentClass].students.forEach((student, index) => {
+            if(student.group == groupId && student.present) {
+                student.points += value;
+                student.badges.push(iconClass);
+                if(student.badges.length > 5) student.badges.shift();
             }
         });
+        renderWorkspace();
     }
 
-    // --- 批次同步至 Google Sheets (對應後端 doPost) ---
-    async function syncToCloud() {
-        if (!gasUrl) {
-            document.getElementById('settingsModal').classList.remove('hidden');
-            return;
-        }
-        if (!currentClass) return customAlert('請先選擇要上傳的班級。');
+    function toggleGroupAttendance(groupId, event) {
+        if (event) event.stopPropagation();
+        appData[currentClass].students.forEach(student => {
+            if(student.group == groupId) student.present = true;
+        });
+        renderWorkspace();
+    }
 
-        const btn = document.querySelector('button[onclick="syncToCloud()"]');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 上傳中...';
-        btn.disabled = true;
-
-        const dateStr = new Date().toLocaleDateString();
-        const classNote = document.getElementById('classNoteInput').value.trim();
-        const thisWeekProgress = document.getElementById('thisWeekProgressInput').value.trim();
+    function updateProgressBar() {
+        const students = appData[currentClass].students || [];
+        const total = students.reduce((sum, s) => sum + s.points, 0);
+        document.getElementById('classTotalScore').innerText = total;
         
-        // 更新本地端暫存
-        appData[currentClass].thisWeekProgress = thisWeekProgress;
-        saveDataLocally();
-
-        const payload = {
-            className: currentClass,
-            date: dateStr,
-            classNote: classNote, 
-            thisWeekProgress: thisWeekProgress, // 新增：傳遞本週進度給後端
-            students: appData[currentClass].students.map(s => ({
-                id: s.id,
-                name: s.name,
-                present: s.present,
-                sessionPoints: s.sessionPoints,
-                totalPoints: s.totalPoints,
-                details: s.log.map(l => l.type).join(', ')
-            }))
-        };
-
-        try {
-            const response = await fetch(gasUrl, {
-                method: 'POST',
-                body: JSON.stringify(payload),
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', 
-                }
-            });
-
-            const result = await response.json();
-            
-            if (result.status === 'success') {
-                customConfirm(`✅ 同步成功！已更新 ${currentClass} 班最新總分與本週進度。\n\n是否要順便將「本堂課」的點名與單堂加分歸零，以利下次上課使用？\n(進度文字將保留供您參考)`, () => {
-                    appData[currentClass].students.forEach(s => {
-                        s.present = false;
-                        s.sessionPoints = 0;
-                        s.log = [];
-                    });
-                    document.getElementById('classNoteInput').value = '';
-                    saveDataLocally();
-                    renderGrid();
-                });
-            } else {
-                customAlert('❌ 同步失敗: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            customAlert('❌ 發生網路錯誤或 CORS 問題。\n請確定 GAS 網址正確，且有設定為「所有人」皆可存取。');
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        const percentage = Math.min((total / classGoal) * 100, 100);
+        document.getElementById('classProgressBar').style.width = `${percentage}%`;
+        
+        if(percentage >= 100 && total - students[0]?.points < classGoal) {
+            // 剛好達標的慶祝特效 (簡單版)
+            document.getElementById('classProgressBar').classList.add('bg-yellow-400');
         }
     }
+
+    // --- 隨機抽籤邏輯 (解決點名決策疲勞) ---
+    let pickerInterval;
+    function startRandomPicker() {
+        const presentStudents = appData[currentClass].students.filter(s => s.present);
+        if (presentStudents.length === 0) {
+            alert("請先確認有學生出席！");
+            return;
+        }
+
+        const modal = document.getElementById('randomPickerModal');
+        const nameEl = document.getElementById('pickedName');
+        const actions = document.getElementById('pickerActions');
+        const closeBtn = document.getElementById('closePickerBtn');
+        const container = document.getElementById('pickerContainer');
+        
+        actions.style.display = 'none';
+        closeBtn.classList.add('hidden');
+        container.classList.add('scale-95');
+        modal.classList.remove('hidden');
+        nameEl.classList.add('picking-animation');
+
+        let ticks = 0;
+        pickerInterval = setInterval(() => {
+            const randomStudent = presentStudents[Math.floor(Math.random() * presentStudents.length)];
+            nameEl.innerText = randomStudent.name;
+            ticks++;
+            
+            if (ticks > 20) {
+                clearInterval(pickerInterval);
+                nameEl.classList.remove('picking-animation');
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+                
+                // 確定人選
+                currentPickedStudent = appData[currentClass].students.findIndex(s => s.id === randomStudent.id);
+                nameEl.innerHTML = `<span class="text-indigo-600">${randomStudent.name}</span> <span class="text-2xl text-slate-400">(${randomStudent.id}號)</span>`;
+                actions.style.display = 'grid';
+                closeBtn.classList.remove('hidden');
+            }
+        }, 100);
+    }
+
+    function awardPicked(value, reason, iconClass) {
+        if (currentPickedStudent !== null) {
+            addBadge(currentPickedStudent, value, reason, iconClass);
+            closePicker();
+        }
+    }
+
+    function closePicker() {
+        clearInterval(pickerInterval);
+        document.getElementById('randomPickerModal').classList.add('hidden');
+        currentPickedStudent = null;
+    }
+
+    // --- 班級建立邏輯 ---
+    function processImport() {
+        const className = document.getElementById('importClassName').value.trim();
+        const rawData = document.getElementById('importData').value.trim();
+        
+        if (!className || !rawData) {
+            alert("請填寫班級名稱與名單！");
+            return;
+        }
+
+        const students = [];
+        const lines = rawData.split('\n');
+        lines.forEach(line => {
+            const parts = line.trim().split(/[\t,，\s]+/);
+            if (parts.length >= 2) {
+                students.push({
+                    id: parts[0].trim(),
+                    name: parts[1].trim(),
+                    group: parts.length >= 3 ? parseInt(parts[2]) : Math.ceil(parseInt(parts[0])/4) || 1, // 自動分組預設4人一組
+                    present: false,
+                    points: 0,
+                    badges: []
+                });
+            }
+        });
+
+        appData[className] = {
+            progress: { lastWeek: '', thisWeek: '' },
+            students: students
+        };
+        currentClass = className;
+        updateClassSelect();
+        document.getElementById('classSelect').value = className;
+        document.getElementById('importModal').classList.add('hidden');
+        
+        // 清空表單
+        document.getElementById('importClassName').value = '';
+        document.getElementById('importData').value = '';
+        
+        renderWorkspace();
+    }
+
+    function updateClassSelect() {
+        const select = document.getElementById('classSelect');
+        select.innerHTML = '';
+        Object.keys(appData).forEach(cls => {
+            select.innerHTML += `<option value="${cls}">${cls} 班</option>`;
+        });
+        select.value = currentClass;
+    }
+
+    document.getElementById('classSelect').addEventListener('change', (e) => {
+        currentClass = e.target.value;
+        renderWorkspace();
+    });
+
 </script>
 </body>
 </html>
