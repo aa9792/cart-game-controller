@@ -52,12 +52,30 @@
             </div>
         </div>
 
+        <!-- Progress Tracking Section (NEW) -->
+        <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
+                <label class="block text-sm font-bold text-blue-800 mb-2">
+                    <i class="fas fa-history mr-2"></i>上週學習任務/進度 (雲端下載)
+                </label>
+                <div id="lastWeekProgressDisplay" class="text-sm text-gray-700 min-h-[3rem] p-3 bg-white rounded-lg border border-blue-200 whitespace-pre-line">
+                    尚無資料，請點擊上方「雲端下載」取得最新紀錄。
+                </div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-100">
+                <label class="block text-sm font-bold text-green-800 mb-2">
+                    <i class="fas fa-edit mr-2"></i>本週學習進度 (將同步上傳)
+                </label>
+                <textarea id="thisWeekProgressInput" rows="2" class="w-full border border-green-200 p-3 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white" placeholder="請輸入本週預定或實際完成的教學進度... (例如：完成第三單元實驗操作)"></textarea>
+            </div>
+        </div>
+
         <!-- Class Note Section -->
         <div class="mb-5 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <label class="block text-sm font-bold text-gray-700 mb-2">
                 <i class="fas fa-book-open text-indigo-500 mr-2"></i>單堂整體學習內容與表現紀錄
             </label>
-            <textarea id="classNoteInput" rows="2" class="w-full border p-3 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="例如：今日進行第三單元分數加減，全班討論熱烈，但小組發言常規需加強... (此紀錄將隨分數一同上傳至「歷史日誌表」中)"></textarea>
+            <textarea id="classNoteInput" rows="2" class="w-full border p-3 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" placeholder="例如：今日全班討論熱烈，但小組發言常規需加強... (此紀錄將隨分數一同上傳至「歷史日誌表」中)"></textarea>
         </div>
 
         <!-- Student Grid -->
@@ -155,9 +173,19 @@
     let currentClass = '';
     let gasUrl = localStorage.getItem('gasUrl') || '';
 
-    // 資料結構相容性遷移
-    Object.values(appData).forEach(students => {
-        students.forEach(s => {
+    // --- 資料結構相容性遷移與升級 (包含舊版升級為新版結構) ---
+    Object.keys(appData).forEach(cls => {
+        // 如果舊資料直接是陣列，轉換為新版物件結構
+        if (Array.isArray(appData[cls])) {
+            appData[cls] = {
+                students: appData[cls],
+                lastWeekProgress: '',
+                thisWeekProgress: ''
+            };
+        }
+        
+        // 修正舊版學生屬性
+        appData[cls].students.forEach(s => {
             if (s.totalPoints === undefined) {
                 s.totalPoints = s.points || 0;
                 s.sessionPoints = 0;
@@ -198,6 +226,14 @@
     window.onload = () => {
         if(!gasUrl) document.getElementById('settingsModal').classList.remove('hidden');
         updateClassSelect();
+        
+        // 監聽進度輸入，即時儲存至 appData
+        document.getElementById('thisWeekProgressInput').addEventListener('input', (e) => {
+            if (currentClass && appData[currentClass]) {
+                appData[currentClass].thisWeekProgress = e.target.value;
+                saveDataLocally();
+            }
+        });
     };
 
     function saveSettings() {
@@ -226,13 +262,13 @@
         
         if (!className) return customAlert('請至少填寫班級名稱');
 
-        const students = [];
+        const studentsArray = [];
         if (rawData) {
             const lines = rawData.split('\n');
             lines.forEach(line => {
                 const parts = line.trim().split(/[\t,，\s]+/); 
                 if (parts.length >= 2) {
-                    students.push({
+                    studentsArray.push({
                         id: parts[0].trim(),
                         name: parts.slice(1).join(' ').trim(),
                         present: false,
@@ -244,7 +280,13 @@
             });
         }
 
-        appData[className] = students;
+        // 使用新結構建立班級
+        appData[className] = {
+            students: studentsArray,
+            lastWeekProgress: '',
+            thisWeekProgress: ''
+        };
+        
         saveDataLocally();
         updateClassSelect();
         document.getElementById('classSelect').value = className;
@@ -276,7 +318,7 @@
             return;
         }
         
-        appData[currentClass].push({
+        appData[currentClass].students.push({
             id: id,
             name: name,
             present: false,
@@ -307,6 +349,8 @@
         const workspace = document.getElementById('workspace');
         const emptyState = document.getElementById('emptyState');
         const noteInput = document.getElementById('classNoteInput');
+        const lastWeekDisplay = document.getElementById('lastWeekProgressDisplay');
+        const thisWeekInput = document.getElementById('thisWeekProgressInput');
         
         if (!className || !appData[className]) {
             workspace.classList.add('hidden');
@@ -317,7 +361,11 @@
         workspace.classList.remove('hidden');
         emptyState.classList.add('hidden');
         document.getElementById('currentClassTitle').innerText = `${className} 班 課堂互動區`;
-        noteInput.value = ''; // 切換班級時清空課堂紀錄
+        noteInput.value = ''; // 切換班級時清空單堂課堂紀錄
+        
+        // 載入班級進度狀態
+        lastWeekDisplay.innerText = appData[className].lastWeekProgress || '尚無上週紀錄，請點擊上方「雲端下載」更新。';
+        thisWeekInput.value = appData[className].thisWeekProgress || '';
         
         renderGrid();
     }
@@ -327,7 +375,7 @@
         const grid = document.getElementById('studentGrid');
         grid.innerHTML = '';
         
-        appData[currentClass].forEach((student, index) => {
+        appData[currentClass].students.forEach((student, index) => {
             const card = document.createElement('div');
             card.className = `student-card border-2 rounded-xl p-4 flex flex-col justify-between shadow-sm ${student.present ? 'present' : 'absent'}`;
             
@@ -358,9 +406,9 @@
 
     // 點名切換
     function toggleAttendance(index) {
-        appData[currentClass][index].present = !appData[currentClass][index].present;
+        appData[currentClass].students[index].present = !appData[currentClass].students[index].present;
         
-        if(appData[currentClass][index].present) {
+        if(appData[currentClass].students[index].present) {
             addPoint(index, 1, '出席預設', null, false);
         }
         
@@ -369,7 +417,7 @@
     }
 
     function markAllPresent() {
-        appData[currentClass].forEach((s, idx) => {
+        appData[currentClass].students.forEach((s, idx) => {
             if(!s.present) {
                 s.present = true;
                 s.sessionPoints += 1;
@@ -387,10 +435,10 @@
             event.stopPropagation();
         }
 
-        appData[currentClass][index].present = true;
-        appData[currentClass][index].sessionPoints += value;
-        appData[currentClass][index].totalPoints += value;
-        appData[currentClass][index].log.push({
+        appData[currentClass].students[index].present = true;
+        appData[currentClass].students[index].sessionPoints += value;
+        appData[currentClass].students[index].totalPoints += value;
+        appData[currentClass].students[index].log.push({
             type: reason,
             value: value,
             time: new Date().toLocaleTimeString()
@@ -420,12 +468,14 @@
 
     function resetPoints() {
         customConfirm('確定要將「本節課」的加分、點名與課堂紀錄歸零嗎？\n(注意：學生的「總累計積分」不受影響，依然會被保留)', () => {
-            appData[currentClass].forEach(s => {
+            appData[currentClass].students.forEach(s => {
                 s.present = false;
                 s.sessionPoints = 0;
                 s.log = [];
             });
             document.getElementById('classNoteInput').value = '';
+            
+            // 可選：是否要將本週進度一起清空？通常老師填好就留著，所以這裡保留不清除 thisWeekProgress
             saveDataLocally();
             renderGrid();
         });
@@ -442,24 +492,33 @@
             return;
         }
 
-        customConfirm('【危險動作警告】\n確定要從雲端載入所有班級名單嗎？\n這將會「完全覆蓋」您目前本地端所有尚未同步的加分與課堂紀錄！', async () => {
+        customConfirm('【更新確認】\n確定要從雲端載入最新名單與「上週進度紀錄」嗎？\n這將會覆蓋您目前本地端尚未同步的加分紀錄！', async () => {
             const btn = document.querySelector('button[onclick="loadFromCloud()"]');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 下載中...';
             btn.disabled = true;
 
             try {
-                // 發送 GET 請求
                 const response = await fetch(gasUrl);
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    // 以雲端資料完全覆寫本地資料
-                    appData = result.data;
+                    // 處理雲端資料格式，確保轉換為新版結構
+                    const cloudData = result.data;
+                    Object.keys(cloudData).forEach(cls => {
+                        if (Array.isArray(cloudData[cls])) {
+                            cloudData[cls] = {
+                                students: cloudData[cls],
+                                lastWeekProgress: '',
+                                thisWeekProgress: ''
+                            };
+                        }
+                    });
+
+                    appData = cloudData;
                     saveDataLocally();
                     updateClassSelect();
                     
-                    // 若當前有選擇班級，嘗試重新載入，否則回到空白狀態
                     if (currentClass && appData[currentClass]) {
                         document.getElementById('classSelect').value = currentClass;
                         loadClass(currentClass);
@@ -469,7 +528,7 @@
                         document.getElementById('workspace').classList.add('hidden');
                         document.getElementById('emptyState').classList.remove('hidden');
                     }
-                    customAlert('✅ 成功從雲端載入所有班級與最新總分！');
+                    customAlert('✅ 成功從雲端載入所有班級最新資訊！');
                 } else {
                     customAlert('❌ 載入失敗: ' + result.message);
                 }
@@ -497,18 +556,23 @@
         btn.disabled = true;
 
         const dateStr = new Date().toLocaleDateString();
-        // 取得單堂課堂紀錄
         const classNote = document.getElementById('classNoteInput').value.trim();
+        const thisWeekProgress = document.getElementById('thisWeekProgressInput').value.trim();
         
+        // 更新本地端暫存
+        appData[currentClass].thisWeekProgress = thisWeekProgress;
+        saveDataLocally();
+
         const payload = {
             className: currentClass,
             date: dateStr,
-            classNote: classNote, // 新增：傳遞課堂整體紀錄給後端
-            students: appData[currentClass].map(s => ({
+            classNote: classNote, 
+            thisWeekProgress: thisWeekProgress, // 新增：傳遞本週進度給後端
+            students: appData[currentClass].students.map(s => ({
                 id: s.id,
                 name: s.name,
                 present: s.present,
-                sessionPoints: s.sessionPoints, // 單堂分數紀錄
+                sessionPoints: s.sessionPoints,
                 totalPoints: s.totalPoints,
                 details: s.log.map(l => l.type).join(', ')
             }))
@@ -526,8 +590,8 @@
             const result = await response.json();
             
             if (result.status === 'success') {
-                customConfirm(`✅ 同步成功！已更新 ${currentClass} 班最新總分，並將本堂紀錄完整保留於雲端「歷史日誌表」中。\n\n是否要順便將「本堂課」的點名、單堂加分與課堂紀錄歸零，以利下次上課使用？`, () => {
-                    appData[currentClass].forEach(s => {
+                customConfirm(`✅ 同步成功！已更新 ${currentClass} 班最新總分與本週進度。\n\n是否要順便將「本堂課」的點名與單堂加分歸零，以利下次上課使用？\n(進度文字將保留供您參考)`, () => {
+                    appData[currentClass].students.forEach(s => {
                         s.present = false;
                         s.sessionPoints = 0;
                         s.log = [];
