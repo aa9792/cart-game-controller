@@ -149,13 +149,15 @@
 <div id="cloudSyncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 overflow-y-auto">
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg m-4">
         <h2 class="text-xl font-bold mb-2 text-slate-800 flex items-center"><i class="fas fa-cloud text-emerald-500 mr-2"></i>雲端試算表同步設定</h2>
-        <p class="text-xs text-slate-500 mb-6">批次將這堂課的結算分數傳送至您的 Google 試算表。不會影響課堂流暢度。</p>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs p-3 rounded-lg mb-4 font-medium">
+            <i class="fas fa-info-circle mr-1"></i> 系統將自動依照「班級名稱」在試算表中建立或寫入獨立的分頁（例如：六年一班專屬標籤頁）。請確保您在建立班級時，班級名稱大小寫或空格保持一致。
+        </div>
         
         <div class="space-y-4">
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <label class="block text-sm font-bold text-slate-700 mb-2">Google Apps Script Web App 網址</label>
                 <input type="text" id="gasUrlInput" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-emerald-500 outline-none font-mono text-xs text-slate-600" placeholder="https://script.google.com/macros/s/...">
-                <p class="text-xs text-slate-400 mt-2"><i class="fas fa-info-circle"></i> 請填入您自行部署的 GAS 網址（必須設定為「所有人」皆可存取）。</p>
+                <p class="text-xs text-slate-400 mt-2"><i class="fas fa-exclamation-triangle"></i> 請填入您自行部署的 GAS 網址（必須設定為「所有人」皆可存取）。</p>
             </div>
         </div>
         
@@ -334,8 +336,8 @@
             
             if (result.status === 'success') {
                 statusDiv.className = 'mt-4 text-sm font-bold text-center text-emerald-600';
-                statusDiv.innerText = '✅ 同步成功！資料已成功寫入試算表。';
-                setTimeout(closeCloudSyncModal, 2000); // 2秒後自動關閉
+                statusDiv.innerText = '✅ 同步成功！資料已依照班級名稱寫入獨立試算表分頁。';
+                setTimeout(closeCloudSyncModal, 2500); // 2.5秒後自動關閉
             } else {
                 throw new Error(result.message || '回傳失敗狀態');
             }
