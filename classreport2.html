@@ -43,9 +43,14 @@
             </h1>
             
             <div class="flex flex-wrap justify-center items-center gap-2">
-                <select id="classSelect" class="bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
-                    <option value="demo">✨ 示範班級 (六年一班)</option>
-                </select>
+                <div class="flex items-center bg-slate-100 rounded-xl pr-2">
+                    <select id="classSelect" class="bg-transparent border-none text-slate-700 text-sm font-semibold pl-4 py-2.5 focus:ring-0 outline-none cursor-pointer">
+                        <option value="demo">✨ 示範班級 (六年一班)</option>
+                    </select>
+                    <button onclick="deleteCurrentClass()" class="text-slate-400 hover:text-rose-500 transition px-2 py-1 rounded" title="刪除目前班級">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
                 <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center">
                     <i class="fas fa-plus mr-1.5"></i> 建立
                 </button>
@@ -281,6 +286,33 @@
         } catch (e) {
             console.error("讀取存檔失敗，使用預設資料", e);
             appData = defaultAppData;
+        }
+    }
+
+    // --- 刪除班級功能 (含強制防呆機制) ---
+    function deleteCurrentClass() {
+        const classNames = Object.keys(appData);
+        
+        // 防呆 1：不可刪除最後一個班級，避免系統崩潰或進入無法操作的空狀態
+        if (classNames.length <= 1) {
+            alert("⚠️ 安全限制：這是系統中最後一個班級，無法直接刪除。\n\n如果您想清空資料，請先「建立新班級」後，再回來刪除此班級。");
+            return;
+        }
+
+        // 防呆 2：高認知負擔的確認（強制輸入班級名稱）
+        const confirmText = prompt(`【危險操作警告】\n您準備永久刪除「${currentClass}」的所有名單與加分紀錄。\n（注意：如果您已匯出備份，日後仍可還原）\n\n為避免誤刪，請在下方輸入班級名稱「${currentClass}」以確認刪除：`);
+        
+        if (confirmText === currentClass) {
+            delete appData[currentClass];
+            // 將視角切換到剩餘的第一個班級
+            currentClass = Object.keys(appData)[0];
+            
+            saveToLocal();
+            updateClassSelect();
+            renderWorkspace();
+            alert("🗑️ 班級已成功刪除。");
+        } else if (confirmText !== null) {
+            alert("❌ 輸入名稱不符，已取消刪除操作。");
         }
     }
 
