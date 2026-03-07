@@ -105,6 +105,9 @@
         </div>
         
         <div class="flex gap-2">
+            <button id="undoBtn" onclick="undoLastAction()" class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed" disabled title="撤銷上一步操作 (最多回溯 10 步)">
+                <i class="fas fa-reply mr-1"></i> 撤銷
+            </button>
             <button onclick="startRandomPicker()" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md transition transform hover:scale-105 flex items-center">
                 <i class="fas fa-dice text-lg mr-2"></i> 隨機抽籤
             </button>
@@ -260,6 +263,50 @@
     let currentMode = 'individual'; // 'individual' or 'group'
     let currentPickedStudent = null;
     let editingStudentIndex = null; // 紀錄當前正在編輯的學生索引
+
+    // --- 撤銷功能 (Undo Stack) ---
+    let undoStack = [];
+
+    function saveSnapshot() {
+        // 將當下班級的狀態深拷貝並存入堆疊
+        undoStack.push(JSON.stringify(appData[currentClass]));
+        if (undoStack.length > 10) {
+            undoStack.shift(); // 限制最多回溯 10 步，避免記憶體溢出
+        }
+        updateUndoBtn();
+    }
+
+    function undoLastAction() {
+        if (undoStack.length === 0) return;
+        
+        // 取出上一個狀態並覆蓋現有狀態
+        const prevState = JSON.parse(undoStack.pop());
+        appData[currentClass] = prevState;
+        
+        saveToLocal();
+        renderWorkspace();
+        updateUndoBtn();
+    }
+
+    function updateUndoBtn() {
+        const btn = document.getElementById('undoBtn');
+        if (btn) {
+            if (undoStack.length > 0) {
+                btn.disabled = false;
+                btn.classList.remove('text-slate-400', 'bg-slate-100');
+                btn.classList.add('text-slate-700', 'bg-white', 'hover:bg-slate-50', 'border', 'border-slate-200');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('text-slate-400', 'bg-slate-100');
+                btn.classList.remove('text-slate-700', 'bg-white', 'hover:bg-slate-50', 'border', 'border-slate-200');
+            }
+        }
+    }
+
+    function clearUndoStack() {
+        undoStack = [];
+        updateUndoBtn();
+    }
 
     // --- 本機儲存邏輯 (Local Storage) ---
     function saveToLocal() {
@@ -423,6 +470,7 @@
                 renderWorkspace();
                 
                 alert('🎉 備份檔還原成功！已載入您的所有班級與名單。');
+                clearUndoStack(); // 匯入後清空撤銷紀錄
             } catch (err) {
                 alert('❌ 檔案格式錯誤，無法還原！請確定上傳的是星火課堂匯出的 .json 檔。');
                 console.error(err);
@@ -436,6 +484,7 @@
     // 重置本堂課 (清除分數與出席，保留名單與進度)
     function resetClassData() {
         if(confirm(`確定要結束【${currentClass}班】的這堂課嗎？\n\n系統將會保留學生名單，但會「清空所有加分、標章與出席紀錄」，為下一次上課做準備。`)) {
+            saveSnapshot(); // 歸零前也存一次快照，以防按錯
             appData[currentClass].students.forEach(student => {
                 student.present = false;
                 student.points = 0;
@@ -633,6 +682,7 @@
             return;
         }
 
+        saveSnapshot(); // 編輯前存快照
         appData[currentClass].students[editingStudentIndex].id = newId;
         appData[currentClass].students[editingStudentIndex].name = newName;
         appData[currentClass].students[editingStudentIndex].group = newGroup;
@@ -644,12 +694,14 @@
 
     // --- 核心邏輯 ---
     function toggleAttendance(index) {
+        saveSnapshot(); // 狀態改變前存快照
         appData[currentClass].students[index].present = !appData[currentClass].students[index].present;
         saveToLocal(); // 儲存變更
         renderWorkspace();
     }
 
     function markAllPresent() {
+        saveSnapshot(); // 狀態改變前存快照
         appData[currentClass].students.forEach(s => s.present = true);
         saveToLocal(); // 儲存變更
         renderWorkspace();
@@ -657,6 +709,8 @@
 
     function addBadge(index, value, reason, iconClass, event = null) {
         if (event) event.stopPropagation();
+        
+        saveSnapshot(); // 加分前存快照
         
         let student = appData[currentClass].students[index];
         student.present = true; // 預設加分即出席
@@ -688,6 +742,8 @@
             return;
         }
 
+        saveSnapshot(); // 加分前存快照
+
         appData[currentClass].students.forEach((student, index) => {
             if(student.group == groupId && student.present) {
                 student.points += value;
@@ -702,6 +758,9 @@
 
     function toggleGroupAttendance(groupId, event) {
         if (event) event.stopPropagation();
+        
+        saveSnapshot(); // 狀態改變前存快照
+        
         appData[currentClass].students.forEach(student => {
             if(student.group == groupId) student.present = true;
         });
@@ -815,6 +874,7 @@
         };
         currentClass = className;
         saveToLocal(); // 儲存新建立的班級
+        clearUndoStack(); // 建立新班級後清空撤銷紀錄
         
         updateClassSelect();
         document.getElementById('classSelect').value = className;
@@ -839,6 +899,7 @@
     document.getElementById('classSelect').addEventListener('change', (e) => {
         currentClass = e.target.value;
         saveToLocal(); // 記憶最後選擇的班級
+        clearUndoStack(); // 切換班級時清空撤銷紀錄，避免狀態錯亂
         renderWorkspace();
     });
 
