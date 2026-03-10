@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>課堂互動點名加分系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-transition { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-transition:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .present-card { border-color: #10b981; background-color: #ecfdf5; }
+        .absent-card { border-color: #e5e7eb; background-color: #ffffff; opacity: 0.7; filter: grayscale(50%); }
+        
+        /* 能量條動畫 */
+        .progress-bar-fill { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* 抽籤動畫 */
+        .picking-animation { animation: pulse-fast 0.1s infinite; color: #6366f1; }
+        @keyframes pulse-fast {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* 標章彈出動畫 */
+        .badge-pop { animation: pop-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes pop-up {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+<div class="container mx-auto p-4 max-w-7xl">
+    <!-- Header Area -->
+    <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
+        <div class="flex flex-col xl:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-extrabold text-indigo-600 tracking-tight flex items-center">
+                <i class="fas fa-meteor mr-3 text-yellow-400"></i>星火課堂
+            </h1>
+            
+            <div class="flex flex-wrap justify-center items-center gap-2">
+                <div class="flex items-center bg-slate-100 rounded-xl pr-2">
+                    <select id="classSelect" class="bg-transparent border-none text-slate-700 text-sm font-semibold pl-4 py-2.5 focus:ring-0 outline-none cursor-pointer">
+                        <option value="demo">✨ 示範班級 (六年一班)</option>
+                    </select>
+                    <button onclick="deleteCurrentClass()" class="text-slate-400 hover:text-rose-500 transition px-2 py-1 rounded" title="刪除目前班級">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center">
+                    <i class="fas fa-plus mr-1.5"></i> 建立
+                </button>
+                <button onclick="exportData()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center shadow-sm border border-blue-100" title="將目前所有班級名單下載為檔案，方便帶到別台電腦使用">
+                    <i class="fas fa-download mr-1.5"></i> 備份
+                </button>
+                <button onclick="openCloudSyncModal()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center shadow-sm border border-emerald-100" title="將本節課分數上傳至 Google 試算表">
+                    <i class="fas fa-cloud-upload-alt mr-1.5"></i> 雲端同步
+                </button>
+                <button onclick="resetClassData()" class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center shadow-sm border border-rose-100">
+                    <i class="fas fa-undo-alt mr-1.5"></i> 結束課堂
+                </button>
+            </div>
+        </div>
+
+        <!-- Cooperative Goal Bar (全班共同目標) -->
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <div class="flex justify-between items-end mb-2">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">全班共同目標：解鎖星球任務</h3>
+                    <div class="text-2xl font-black text-slate-800 mt-1"><span id="classTotalScore" class="text-indigo-600">0</span> <span class="text-base text-slate-400 font-medium">/ 100 點</span></div>
+                </div>
+                <i class="fas fa-treasure-chest text-2xl text-yellow-400"></i>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner">
+                <div id="classProgressBar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-4 rounded-full progress-bar-fill w-0 relative">
+                    <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Learning Progress Board (進度任務看板) -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-amber-200 mb-6 flex flex-col md:flex-row gap-4 relative overflow-hidden">
+        <div class="absolute left-0 top-0 bottom-0 w-2 bg-amber-400"></div>
+        <div class="flex-1 pl-4">
+            <h3 class="text-sm font-bold text-amber-600 mb-1 flex items-center"><i class="fas fa-history mr-2"></i>上週回顧 (上一次我們學了什麼？)</h3>
+            <textarea id="lastWeekProgress" class="w-full bg-amber-50/50 border-none resize-none text-slate-600 text-sm p-2 rounded-lg outline-none focus:ring-1 focus:ring-amber-300 transition" rows="2" placeholder="點擊此處輸入上週學習重點..."></textarea>
+        </div>
+        <div class="hidden md:block w-px bg-slate-200"></div>
+        <div class="flex-1">
+            <h3 class="text-sm font-bold text-emerald-600 mb-1 flex items-center"><i class="fas fa-rocket mr-2"></i>本週目標 (今天我們要挑戰什麼？)</h3>
+            <textarea id="thisWeekProgress" class="w-full bg-emerald-50/50 border-none resize-none text-slate-600 text-sm p-2 rounded-lg outline-none focus:ring-1 focus:ring-emerald-300 transition" rows="2" placeholder="點擊此處輸入本週學習任務..."></textarea>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+        <div class="flex bg-slate-100 p-1 rounded-lg">
+             <button id="tabIndividual" onclick="switchView('individual')" class="px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition">個人檢視</button>
+             <button id="tabGroup" onclick="switchView('group')" class="px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition">小組檢視</button>
+             <button id="tabFocus" onclick="switchView('focus')" class="px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition">專注模式</button>
+          </div>
+        
+        <div class="flex gap-2">
+            <button id="undoBtn" onclick="undoLastAction()" class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed" disabled title="撤銷上一步操作 (最多回溯 10 步)">
+                <i class="fas fa-reply mr-1"></i> 撤銷
+            </button>
+            <button onclick="startRandomPicker()" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-md transition transform hover:scale-105 flex items-center">
+                <i class="fas fa-dice text-lg mr-2"></i> 隨機抽籤
+            </button>
+            <button onclick="markAllPresent()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+                <i class="fas fa-check-double mr-1"></i> 全班出席
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div id="individualView" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <!-- 學生卡片動態生成區 -->
+    </div>
+
+    <div id="groupView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 小組卡片動態生成區 -->
+    </div>
+    <div id="focusView" class="hidden flex flex-col items-center justify-center gap-8 bg-white rounded-2xl p-10 shadow-sm border border-slate-100">
+
+    <h2 class="text-3xl font-black text-indigo-600 flex items-center gap-2">
+        <i class="fas fa-hourglass-half"></i> 專注學習模式
+    </h2>
+
+    <!-- 計時器 -->
+    <div class="text-7xl font-black text-slate-800" id="timerDisplay">
+        10:00
+    </div>
+
+    <div class="flex gap-3">
+        <button onclick="startTimer()" class="bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold">
+            ▶ 開始
+        </button>
+
+        <button onclick="pauseTimer()" class="bg-amber-500 text-white px-6 py-3 rounded-xl font-bold">
+            ⏸ 暫停
+        </button>
+
+        <button onclick="resetTimer()" class="bg-rose-500 text-white px-6 py-3 rounded-xl font-bold">
+            ⟳ 重置
+        </button>
+    </div>
+
+    <!-- 時間設定 -->
+    <div class="flex gap-2 mt-2">
+        <button onclick="setTimer(300)" class="bg-slate-100 px-4 py-2 rounded-lg font-bold">5 分鐘</button>
+        <button onclick="setTimer(600)" class="bg-slate-100 px-4 py-2 rounded-lg font-bold">10 分鐘</button>
+        <button onclick="setTimer(900)" class="bg-slate-100 px-4 py-2 rounded-lg font-bold">15 分鐘</button>
+    </div>
+
+    <!-- 工作音樂 -->
+    <div class="mt-4 flex flex-col items-center gap-3">
+
+        <h3 class="font-bold text-slate-600">
+        🎧 專注背景音樂
+        </h3>
+
+        <button onclick="toggleMusic()" class="bg-emerald-500 text-white px-6 py-2 rounded-xl font-bold">
+        播放 / 暫停
+        </button>
+
+        <audio id="focusMusic" loop>
+            <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_1a9e78c1d5.mp3" type="audio/mp3">
+        </audio>
+
+    </div>
+
+</div>
+
+</div>
+
+<!-- Edit Student Modal -->
+<div id="editStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">
+        <h2 class="text-xl font-bold mb-4 text-slate-800 flex items-center"><i class="fas fa-user-edit text-indigo-500 mr-2"></i>編輯學生資料</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">學生座號</label>
+                <input type="text" id="editStudentId" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">學生姓名</label>
+                <input type="text" id="editStudentName" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-500 mb-1">所屬小組</label>
+                <input type="number" min="1" id="editStudentGroup" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none font-bold text-slate-700" placeholder="請輸入組別數字">
+            </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeEditModal()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition">取消</button>
+            <button onclick="saveStudentEdit()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold hover:bg-indigo-700 rounded-xl shadow-md transition">儲存變更</button>
+        </div>
+    </div>
+</div>
+
+<!-- Cloud Sync Modal (Google Sheets) -->
+<div id="cloudSyncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 overflow-y-auto">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg m-4">
+        <h2 class="text-xl font-bold mb-2 text-slate-800 flex items-center"><i class="fas fa-cloud text-emerald-500 mr-2"></i>雲端試算表同步設定</h2>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs p-3 rounded-lg mb-4 font-medium">
+            <i class="fas fa-info-circle mr-1"></i> 系統將自動依照「班級名稱」在試算表中建立或寫入獨立的分頁（例如：六年一班專屬標籤頁）。請確保您在建立班級時，班級名稱大小寫或空格保持一致。
+        </div>
+        
+        <div class="space-y-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="block text-sm font-bold text-slate-700 mb-2">Google Apps Script Web App 網址</label>
+                <input type="text" id="gasUrlInput" class="w-full border-2 border-slate-200 p-2.5 rounded-xl focus:border-emerald-500 outline-none font-mono text-xs text-slate-600" placeholder="https://script.google.com/macros/s/...">
+                <p class="text-xs text-slate-400 mt-2"><i class="fas fa-exclamation-triangle"></i> 請填入您自行部署的 GAS 網址（必須設定為「所有人」皆可存取）。</p>
+            </div>
+        </div>
+        
+        <div id="syncStatus" class="mt-4 text-sm font-bold text-center hidden"></div>
+
+        <div class="flex justify-end gap-3 mt-6 border-t border-slate-100 pt-4">
+            <button onclick="closeCloudSyncModal()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition" id="cancelSyncBtn">關閉</button>
+            <button onclick="triggerCloudSync()" id="executeSyncBtn" class="px-5 py-2.5 bg-emerald-600 text-white font-bold hover:bg-emerald-700 rounded-xl shadow-md transition flex items-center gap-2">
+                <i class="fas fa-paper-plane"></i> 開始傳送本班資料
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Random Picker Modal -->
+<div id="randomPickerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex justify-center items-center z-50">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center transform scale-95 transition-transform duration-300" id="pickerContainer">
+        <h2 class="text-xl font-bold mb-6 text-slate-500">命運的輪盤</h2>
+        <div class="h-32 flex items-center justify-center mb-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <h1 id="pickedName" class="text-5xl font-black text-slate-800">準備中...</h1>
+        </div>
+        <div class="grid grid-cols-3 gap-2" id="pickerActions" style="display: none;">
+            <button onclick="awardPicked(1, '神隊友', 'fa-handshake')" class="bg-blue-100 text-blue-700 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-handshake text-xl"></i><span>神隊友</span>
+            </button>
+            <button onclick="awardPicked(2, '金頭腦', 'fa-lightbulb')" class="bg-amber-100 text-amber-700 py-3 rounded-xl font-bold hover:bg-amber-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-lightbulb text-xl"></i><span>金頭腦</span>
+            </button>
+            <button onclick="awardPicked(1, '專注力', 'fa-eye')" class="bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold hover:bg-emerald-200 transition flex flex-col items-center gap-1">
+                <i class="fas fa-eye text-xl"></i><span>專注力</span>
+            </button>
+        </div>
+        <button id="closePickerBtn" onclick="closePicker()" class="mt-6 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 hidden">完成</button>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 overflow-y-auto">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-lg m-4">
+        <h2 class="text-xl font-bold mb-4 text-slate-800">班級管理與建置</h2>
+        
+        <!-- 手動建立區 -->
+        <div class="mb-6">
+            <h3 class="text-sm font-bold text-indigo-600 mb-2 border-l-4 border-indigo-600 pl-2">方式一：手動建立新名單</h3>
+            <input type="text" id="importClassName" class="w-full border-2 border-slate-200 p-3 rounded-xl mb-3 focus:border-indigo-500 outline-none font-bold text-slate-700" placeholder="班級名稱 (例如：五年二班)">
+            <label class="block text-sm font-bold text-slate-500 mb-2">貼上名單 (座號,姓名,組別)</label>
+            <textarea id="importData" rows="4" class="w-full border-2 border-slate-200 p-3 rounded-xl font-mono text-sm focus:border-indigo-500 outline-none" placeholder="1,王小明,1&#10;2,陳小華,1&#10;3,林小美,2"></textarea>
+            <p class="text-xs text-slate-400 mt-2"><i class="fas fa-info-circle"></i> 支援逗號或空格分隔。若未填寫組別，系統將自動以4人為一組分配。</p>
+            <div class="flex justify-end mt-2">
+                <button onclick="processImport()" class="px-5 py-2 bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 rounded-xl shadow-md transition">建立班級</button>
+            </div>
+        </div>
+
+        <hr class="border-slate-200 my-4">
+
+        <!-- 檔案匯入區 -->
+        <div>
+            <h3 class="text-sm font-bold text-emerald-600 mb-2 border-l-4 border-emerald-600 pl-2">方式二：還原匯出備份檔</h3>
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center bg-slate-50 hover:bg-slate-100 transition cursor-pointer relative">
+                <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                <i class="fas fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                <p class="text-sm font-bold text-slate-600">點擊此處上傳 .json 備份檔</p>
+                <p class="text-xs text-slate-400 mt-1">跨電腦上課時，可直接載入您先前的所有設定</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <button onclick="document.getElementById('importModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition w-full bg-slate-100">關閉視窗</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 核心資料結構 ---
+    let classGoal = 100;
+    let storedGasUrl = localStorage.getItem('sparkGasUrl') || '';
+    
+    // 預設資料
+    let defaultAppData = {
+        'demo': {
+            progress: { lastWeek: '第六單元：分數的乘法 (課本 P.68-72)', thisWeek: '第七單元：小數與分數的換算\n任務：完成學習單與分組闖關' },
+            students: [
+                { id: '1', name: '王大明', group: 1, present: true, points: 0, badges: [] },
+                { id: '2', name: '林小美', group: 1, present: true, points: 0, badges: [] },
+                { id: '3', name: '陳建宏', group: 1, present: false, points: 0, badges: [] },
+                { id: '4', name: '張雅婷', group: 2, present: true, points: 0, badges: [] },
+                { id: '5', name: '李智偉', group: 2, present: true, points: 0, badges: [] },
+                { id: '6', name: '黃詩涵', group: 2, present: true, points: 0, badges: [] },
+            ]
+        }
+    };
+
+    let appData = defaultAppData;
+    let currentClass = 'demo';
+    let currentMode = 'individual'; // 'individual' or 'group'
+    let currentPickedStudent = null;
+    let editingStudentIndex = null; // 紀錄當前正在編輯的學生索引
+
+    // --- 撤銷功能 (Undo Stack) ---
+    let undoStack = [];
+
+    function saveSnapshot() {
+        // 將當下班級的狀態深拷貝並存入堆疊
+        undoStack.push(JSON.stringify(appData[currentClass]));
+        if (undoStack.length > 10) {
+            undoStack.shift(); // 限制最多回溯 10 步，避免記憶體溢出
+        }
+        updateUndoBtn();
+    }
+
+    function undoLastAction() {
+        if (undoStack.length === 0) return;
+        
+        // 取出上一個狀態並覆蓋現有狀態
+        const prevState = JSON.parse(undoStack.pop());
+        appData[currentClass] = prevState;
+        
+        saveToLocal();
+        renderWorkspace();
+        updateUndoBtn();
+    }
+
+    function updateUndoBtn() {
+        const btn = document.getElementById('undoBtn');
+        if (btn) {
+            if (undoStack.length > 0) {
+                btn.disabled = false;
+                btn.classList.remove('text-slate-400', 'bg-slate-100');
+                btn.classList.add('text-slate-700', 'bg-white', 'hover:bg-slate-50', 'border', 'border-slate-200');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('text-slate-400', 'bg-slate-100');
+                btn.classList.remove('text-slate-700', 'bg-white', 'hover:bg-slate-50', 'border', 'border-slate-200');
+            }
+        }
+    }
+
+    function clearUndoStack() {
+        undoStack = [];
+        updateUndoBtn();
+    }
+
+    // --- 本機儲存邏輯 (Local Storage) ---
+    function saveToLocal() {
+        localStorage.setItem('sparkClassroomData', JSON.stringify({
+            appData: appData,
+            lastClass: currentClass
+        }));
+    }
+
+    function loadFromLocal() {
+        try {
+            const saved = localStorage.getItem('sparkClassroomData');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                appData = parsed.appData || defaultAppData;
+                
+                // 確認最後開啟的班級是否存在
+                if (parsed.lastClass && appData[parsed.lastClass]) {
+                    currentClass = parsed.lastClass;
+                } else {
+                    currentClass = Object.keys(appData)[0] || 'demo';
+                }
+            }
+        } catch (e) {
+            console.error("讀取存檔失敗，使用預設資料", e);
+            appData = defaultAppData;
+        }
+    }
+
+    // --- 刪除班級功能 (含強制防呆機制) ---
+    function deleteCurrentClass() {
+        const classNames = Object.keys(appData);
+        
+        // 防呆 1：不可刪除最後一個班級，避免系統崩潰或進入無法操作的空狀態
+        if (classNames.length <= 1) {
+            alert("⚠️ 安全限制：這是系統中最後一個班級，無法直接刪除。\n\n如果您想清空資料，請先「建立新班級」後，再回來刪除此班級。");
+            return;
+        }
+
+        // 防呆 2：高認知負擔的確認（強制輸入班級名稱）
+        const confirmText = prompt(`【危險操作警告】\n您準備永久刪除「${currentClass}」的所有名單與加分紀錄。\n（注意：如果您已匯出備份，日後仍可還原）\n\n為避免誤刪，請在下方輸入班級名稱「${currentClass}」以確認刪除：`);
+        
+        if (confirmText === currentClass) {
+            delete appData[currentClass];
+            // 將視角切換到剩餘的第一個班級
+            currentClass = Object.keys(appData)[0];
+            
+            saveToLocal();
+            updateClassSelect();
+            renderWorkspace();
+            alert("🗑️ 班級已成功刪除。");
+        } else if (confirmText !== null) {
+            alert("❌ 輸入名稱不符，已取消刪除操作。");
+        }
+    }
+
+    // --- Google Sheets 雲端同步邏輯 ---
+    function openCloudSyncModal() {
+        document.getElementById('gasUrlInput').value = storedGasUrl;
+        document.getElementById('syncStatus').classList.add('hidden');
+        document.getElementById('cloudSyncModal').classList.remove('hidden');
+    }
+
+    function closeCloudSyncModal() {
+        document.getElementById('cloudSyncModal').classList.add('hidden');
+    }
+
+    async function triggerCloudSync() {
+        const gasUrl = document.getElementById('gasUrlInput').value.trim();
+        if (!gasUrl) {
+            alert('請先填寫 GAS 網址！');
+            return;
+        }
+
+        // 儲存網址供下次使用
+        storedGasUrl = gasUrl;
+        localStorage.setItem('sparkGasUrl', gasUrl);
+
+        const executeBtn = document.getElementById('executeSyncBtn');
+        const statusDiv = document.getElementById('syncStatus');
+        
+        executeBtn.disabled = true;
+        executeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 傳送中...';
+        statusDiv.classList.remove('hidden');
+        statusDiv.className = 'mt-4 text-sm font-bold text-center text-blue-500';
+        statusDiv.innerText = '正在上傳至 Google 試算表，請稍候...';
+
+        // 準備 Payload (送出單班級資料)
+        const payload = {
+            className: currentClass,
+            progress: appData[currentClass].progress,
+            students: appData[currentClass].students
+        };
+
+        try {
+            // 使用 text/plain 避免觸發複雜的 CORS Preflight
+            const response = await fetch(gasUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', 
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                statusDiv.className = 'mt-4 text-sm font-bold text-center text-emerald-600';
+                statusDiv.innerText = '✅ 同步成功！資料已依照班級名稱寫入獨立試算表分頁。';
+                setTimeout(closeCloudSyncModal, 2500); // 2.5秒後自動關閉
+            } else {
+                throw new Error(result.message || '回傳失敗狀態');
+            }
+        } catch (error) {
+            console.error("Sync Error:", error);
+            statusDiv.className = 'mt-4 text-sm font-bold text-center text-rose-600';
+            statusDiv.innerText = '❌ 同步失敗。請檢查您的 GAS 網址是否正確，以及部署權限是否設為「所有人」。';
+        } finally {
+            executeBtn.disabled = false;
+            executeBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 開始傳送本班資料';
+        }
+    }
+
+
+    // --- 實體檔案匯出/匯入邏輯 (解決跨設備問題) ---
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "星火課堂名單備份_" + new Date().toLocaleDateString().replace(/\//g, '-') + ".json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+        
+        // 給予視覺安慰劑
+        alert("✅ 已成功下載備份檔 (.json)！\n\n下次在其他電腦上課時，點擊「建立班級」>「還原匯出備份檔」，即可無縫接軌。");
+    }
+
+    document.getElementById('importFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                
+                // 簡單的格式檢查
+                if (typeof importedData !== 'object' || Object.keys(importedData).length === 0) {
+                    throw new Error("無效的資料結構");
+                }
+
+                // 覆蓋現有資料 (因為是備份還原)
+                appData = importedData;
+                currentClass = Object.keys(appData)[0];
+                
+                saveToLocal();
+                updateClassSelect();
+                document.getElementById('classSelect').value = currentClass;
+                document.getElementById('importModal').classList.add('hidden');
+                renderWorkspace();
+                
+                alert('🎉 備份檔還原成功！已載入您的所有班級與名單。');
+                clearUndoStack(); // 匯入後清空撤銷紀錄
+            } catch (err) {
+                alert('❌ 檔案格式錯誤，無法還原！請確定上傳的是星火課堂匯出的 .json 檔。');
+                console.error(err);
+            }
+            // 清除 input 值以允許重複上傳相同檔案
+            document.getElementById('importFile').value = ''; 
+        };
+        reader.readAsText(file);
+    });
+
+    // 重置本堂課 (清除分數與出席，保留名單與進度)
+    function resetClassData() {
+        if(confirm(`確定要結束【${currentClass}班】的這堂課嗎？\n\n系統將會保留學生名單，但會「清空所有加分、標章與出席紀錄」，為下一次上課做準備。`)) {
+            saveSnapshot(); // 歸零前也存一次快照，以防按錯
+            appData[currentClass].students.forEach(student => {
+                student.present = false;
+                student.points = 0;
+                student.badges = [];
+            });
+            saveToLocal();
+            renderWorkspace();
+        }
+    }
+
+    // --- 初始化 ---
+    window.onload = () => {
+        loadFromLocal();
+        updateClassSelect();
+        renderWorkspace();
+        updateProgressBar();
+    };
+
+    // --- UI 渲染邏輯 ---
+    function switchView(mode) {
+        currentMode = mode;
+        const btnInd = document.getElementById('tabIndividual');
+        const btnGrp = document.getElementById('tabGroup');
+        
+        if (mode === 'individual') {
+            btnInd.className = 'px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition';
+            btnGrp.className = 'px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition';
+            document.getElementById('individualView').classList.remove('hidden');
+            document.getElementById('groupView').classList.add('hidden');
+            document.getElementById('focusView').classList.add('hidden');
+        } else {
+            btnGrp.className = 'px-6 py-2 rounded-md text-sm font-bold bg-white text-indigo-600 shadow-sm transition';
+            btnInd.className = 'px-6 py-2 rounded-md text-sm font-bold text-slate-500 hover:text-slate-700 transition';
+            document.getElementById('individualView').classList.add('hidden');
+            document.getElementById('groupView').classList.remove('hidden');
+            document.getElementById('focusView').classList.remove('hidden');
+        }
+        renderWorkspace();
+    }
+
+    function renderWorkspace() {
+        if (currentMode === 'individual') renderIndividual();
+        else renderGroups();
+        updateProgressBar();
+        renderProgressBoard();
+    }
+
+    function renderProgressBoard() {
+        const lastWeekEl = document.getElementById('lastWeekProgress');
+        const thisWeekEl = document.getElementById('thisWeekProgress');
+        
+        // 移除先前的監聽器以避免重複綁定
+        lastWeekEl.oninput = null;
+        thisWeekEl.oninput = null;
+
+        // 載入當前班級進度
+        const classData = appData[currentClass];
+        if(!classData.progress) classData.progress = { lastWeek: '', thisWeek: '' };
+        
+        lastWeekEl.value = classData.progress.lastWeek;
+        thisWeekEl.value = classData.progress.thisWeek;
+
+        // 綁定即時存入記憶體並存檔
+        lastWeekEl.oninput = (e) => {
+            classData.progress.lastWeek = e.target.value;
+            saveToLocal();
+        };
+        thisWeekEl.oninput = (e) => {
+            classData.progress.thisWeek = e.target.value;
+            saveToLocal();
+        };
+    }
+
+    function renderIndividual() {
+        const grid = document.getElementById('individualView');
+        grid.innerHTML = '';
+        const students = appData[currentClass].students || [];
+
+        students.forEach((student, index) => {
+            const isPresent = student.present;
+            const badgeHtml = student.badges.slice(-3).map(b => `<i class="fas ${b} text-slate-300 text-xs"></i>`).join('');
+            
+            const card = document.createElement('div');
+            card.className = `card-transition border-2 rounded-2xl p-4 flex flex-col justify-between relative ${isPresent ? 'present-card' : 'absent-card'}`;
+            card.innerHTML = `
+                <!-- 編輯按鈕 -->
+                <button onclick="openEditModal(${index}, event)" class="absolute top-4 right-4 text-slate-300 hover:text-indigo-500 transition z-10 p-1">
+                    <i class="fas fa-edit"></i>
+                </button>
+                
+                <div class="flex justify-between items-start mb-4 cursor-pointer pt-1" onclick="toggleAttendance(${index})">
+                    <div class="pr-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-slate-200 text-slate-600 text-xs font-black px-2 py-0.5 rounded-md">${student.id}</span>
+                            <span class="text-xs font-bold text-slate-400">第${student.group}組</span>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-800">${student.name}</h3>
+                        <div class="flex gap-1 mt-1">${badgeHtml}</div>
+                    </div>
+                    <div class="bg-indigo-100 text-indigo-700 font-black text-xl w-10 h-10 flex items-center justify-center rounded-full shadow-inner shrink-0" id="pts-${index}">
+                        ${student.points}
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 mt-auto">
+                    <button onclick="addBadge(${index}, 1, '神隊友', 'fa-handshake', event)" class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-handshake mb-1"></i>神隊友
+                    </button>
+                    <button onclick="addBadge(${index}, 2, '金頭腦', 'fa-lightbulb', event)" class="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-lightbulb mb-1"></i>金頭腦
+                    </button>
+                    <button onclick="addBadge(${index}, 1, '專注力', 'fa-eye', event)" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-100 py-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center">
+                        <i class="fas fa-eye mb-1"></i>專注力
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function renderGroups() {
+        const grid = document.getElementById('groupView');
+        grid.innerHTML = '';
+        const students = appData[currentClass].students || [];
+        
+        // 依組別重組資料
+        const groups = {};
+        students.forEach((s, idx) => {
+            if(!groups[s.group]) groups[s.group] = { points: 0, members: [] };
+            groups[s.group].points += s.points;
+            groups[s.group].members.push({ ...s, originalIndex: idx });
+        });
+
+        Object.keys(groups).sort((a,b) => a-b).forEach(groupId => {
+            const group = groups[groupId];
+            const presentCount = group.members.filter(m => m.present).length;
+            
+            const card = document.createElement('div');
+            card.className = `bg-white border-2 border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition ${presentCount === 0 ? 'opacity-75 bg-slate-50' : ''}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
+                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        第 ${groupId} 組
+                        <button onclick="toggleGroupAttendance(${groupId}, event)" class="text-xs bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 px-2 py-1 rounded transition" title="設為全組出席">
+                            <i class="fas fa-user-check"></i>
+                        </button>
+                    </h2>
+                    <div class="bg-purple-100 text-purple-700 font-black text-2xl px-4 py-1 rounded-xl shadow-inner">
+                        ${group.points} <span class="text-sm font-bold text-purple-400">pt</span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${group.members.map(m => `
+                        <span onclick="toggleAttendance(${m.originalIndex})" class="cursor-pointer px-2 py-1 rounded text-xs font-bold transition hover:scale-105 shadow-sm ${m.present ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-400 line-through'}" title="點擊切換出席/缺席狀態">${m.name}</span>
+                    `).join('')}
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="addGroupBadge(${groupId}, 2, '小組合作', 'fa-users')" class="bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${presentCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+                        <i class="fas fa-users"></i> 絕佳默契 (+2)
+                    </button>
+                    <button onclick="addGroupBadge(${groupId}, 5, '任務達標', 'fa-flag-checkered')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${presentCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+                        <i class="fas fa-flag-checkered"></i> 任務達標 (+5)
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // --- 編輯學生邏輯 ---
+    function openEditModal(index, event) {
+        if(event) event.stopPropagation();
+        editingStudentIndex = index;
+        const student = appData[currentClass].students[index];
+        
+        document.getElementById('editStudentId').value = student.id;
+        document.getElementById('editStudentName').value = student.name;
+        document.getElementById('editStudentGroup').value = student.group;
+        
+        document.getElementById('editStudentModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editStudentModal').classList.add('hidden');
+        editingStudentIndex = null;
+    }
+
+    function saveStudentEdit() {
+        if (editingStudentIndex === null) return;
+        
+        const newId = document.getElementById('editStudentId').value.trim();
+        const newName = document.getElementById('editStudentName').value.trim();
+        const newGroup = parseInt(document.getElementById('editStudentGroup').value.trim());
+
+        if (!newId || !newName || isNaN(newGroup) || newGroup < 1) {
+            alert('請確保座號、姓名不為空，且組別為大於0的數字。');
+            return;
+        }
+
+        saveSnapshot(); // 編輯前存快照
+        appData[currentClass].students[editingStudentIndex].id = newId;
+        appData[currentClass].students[editingStudentIndex].name = newName;
+        appData[currentClass].students[editingStudentIndex].group = newGroup;
+
+        saveToLocal(); // 儲存變更
+        closeEditModal();
+        renderWorkspace();
+    }
+
+    // --- 核心邏輯 ---
+    function toggleAttendance(index) {
+        saveSnapshot(); // 狀態改變前存快照
+        appData[currentClass].students[index].present = !appData[currentClass].students[index].present;
+        saveToLocal(); // 儲存變更
+        renderWorkspace();
+    }
+
+    function markAllPresent() {
+        saveSnapshot(); // 狀態改變前存快照
+        appData[currentClass].students.forEach(s => s.present = true);
+        saveToLocal(); // 儲存變更
+        renderWorkspace();
+    }
+
+    function addBadge(index, value, reason, iconClass, event = null) {
+        if (event) event.stopPropagation();
+        
+        saveSnapshot(); // 加分前存快照
+        
+        let student = appData[currentClass].students[index];
+        student.present = true; // 預設加分即出席
+        student.points += value;
+        student.badges.push(iconClass);
+        if(student.badges.length > 5) student.badges.shift(); // 最多顯示近期5個
+
+        saveToLocal(); // 儲存變更
+        
+        // UI 特效
+        renderWorkspace();
+        
+        setTimeout(() => {
+            const ptsEl = document.getElementById(`pts-${index}`);
+            if(ptsEl) {
+                ptsEl.classList.remove('badge-pop');
+                void ptsEl.offsetWidth;
+                ptsEl.classList.add('badge-pop');
+            }
+        }, 10);
+    }
+
+    function addGroupBadge(groupId, value, reason, iconClass) {
+        const groupStudents = appData[currentClass].students.filter(s => s.group == groupId);
+        const anyPresent = groupStudents.some(s => s.present);
+
+        if (!anyPresent) {
+            alert(`第 ${groupId} 組目前「全員缺席」！\n請先點擊小組標題旁的「打勾圖示」確認出席，以免將分數給到未到校的學生。`);
+            return;
+        }
+
+        saveSnapshot(); // 加分前存快照
+
+        appData[currentClass].students.forEach((student, index) => {
+            if(student.group == groupId && student.present) {
+                student.points += value;
+                student.badges.push(iconClass);
+                if(student.badges.length > 5) student.badges.shift();
+            }
+        });
+        
+        saveToLocal(); // 儲存變更
+        renderWorkspace();
+    }
+
+    function toggleGroupAttendance(groupId, event) {
+        if (event) event.stopPropagation();
+        
+        saveSnapshot(); // 狀態改變前存快照
+        
+        appData[currentClass].students.forEach(student => {
+            if(student.group == groupId) student.present = true;
+        });
+        saveToLocal(); // 儲存變更
+        renderWorkspace();
+    }
+
+    function updateProgressBar() {
+        const students = appData[currentClass].students || [];
+        const total = students.reduce((sum, s) => sum + s.points, 0);
+        document.getElementById('classTotalScore').innerText = total;
+        
+        const percentage = Math.min((total / classGoal) * 100, 100);
+        document.getElementById('classProgressBar').style.width = `${percentage}%`;
+        
+        if(percentage >= 100 && total - students[0]?.points < classGoal) {
+            // 剛好達標的慶祝特效 (簡單版)
+            document.getElementById('classProgressBar').classList.add('bg-yellow-400');
+        } else {
+            document.getElementById('classProgressBar').classList.remove('bg-yellow-400');
+        }
+    }
+
+    // --- 隨機抽籤邏輯 (解決點名決策疲勞) ---
+    let pickerInterval;
+    function startRandomPicker() {
+        const presentStudents = appData[currentClass].students.filter(s => s.present);
+        if (presentStudents.length === 0) {
+            alert("請先確認有學生出席！");
+            return;
+        }
+
+        const modal = document.getElementById('randomPickerModal');
+        const nameEl = document.getElementById('pickedName');
+        const actions = document.getElementById('pickerActions');
+        const closeBtn = document.getElementById('closePickerBtn');
+        const container = document.getElementById('pickerContainer');
+        
+        actions.style.display = 'none';
+        closeBtn.classList.add('hidden');
+        container.classList.add('scale-95');
+        modal.classList.remove('hidden');
+        nameEl.classList.add('picking-animation');
+
+        let ticks = 0;
+        pickerInterval = setInterval(() => {
+            const randomStudent = presentStudents[Math.floor(Math.random() * presentStudents.length)];
+            nameEl.innerText = randomStudent.name;
+            ticks++;
+            
+            if (ticks > 20) {
+                clearInterval(pickerInterval);
+                nameEl.classList.remove('picking-animation');
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+                
+                // 確定人選
+                currentPickedStudent = appData[currentClass].students.findIndex(s => s.id === randomStudent.id);
+                nameEl.innerHTML = `<span class="text-indigo-600">${randomStudent.name}</span> <span class="text-2xl text-slate-400">(${randomStudent.id}號)</span>`;
+                actions.style.display = 'grid';
+                closeBtn.classList.remove('hidden');
+            }
+        }, 100);
+    }
+
+    function awardPicked(value, reason, iconClass) {
+        if (currentPickedStudent !== null) {
+            addBadge(currentPickedStudent, value, reason, iconClass);
+            closePicker();
+        }
+    }
+
+    function closePicker() {
+        clearInterval(pickerInterval);
+        document.getElementById('randomPickerModal').classList.add('hidden');
+        currentPickedStudent = null;
+    }
+
+    // --- 班級建立邏輯 ---
+    function processImport() {
+        const className = document.getElementById('importClassName').value.trim();
+        const rawData = document.getElementById('importData').value.trim();
+        
+        if (!className || !rawData) {
+            alert("請填寫班級名稱與名單！");
+            return;
+        }
+
+        const students = [];
+        const lines = rawData.split('\n');
+        lines.forEach(line => {
+            const parts = line.trim().split(/[\t,，\s]+/);
+            if (parts.length >= 2) {
+                students.push({
+                    id: parts[0].trim(),
+                    name: parts[1].trim(),
+                    group: parts.length >= 3 ? parseInt(parts[2]) : Math.ceil(parseInt(parts[0])/4) || 1, // 自動分組預設4人一組
+                    present: false,
+                    points: 0,
+                    badges: []
+                });
+            }
+        });
+
+        // 避免覆蓋原進度
+        const existingProgress = appData[className] ? appData[className].progress : { lastWeek: '', thisWeek: '' };
+
+        appData[className] = {
+            progress: existingProgress,
+            students: students
+        };
+        currentClass = className;
+        saveToLocal(); // 儲存新建立的班級
+        clearUndoStack(); // 建立新班級後清空撤銷紀錄
+        
+        updateClassSelect();
+        document.getElementById('classSelect').value = className;
+        document.getElementById('importModal').classList.add('hidden');
+        
+        // 清空表單
+        document.getElementById('importClassName').value = '';
+        document.getElementById('importData').value = '';
+        
+        renderWorkspace();
+    }
+
+    function updateClassSelect() {
+        const select = document.getElementById('classSelect');
+        select.innerHTML = '';
+        Object.keys(appData).forEach(cls => {
+            select.innerHTML += `<option value="${cls}">${cls} 班</option>`;
+        });
+        select.value = currentClass;
+    }
+
+    document.getElementById('classSelect').addEventListener('change', (e) => {
+        currentClass = e.target.value;
+        saveToLocal(); // 記憶最後選擇的班級
+        clearUndoStack(); // 切換班級時清空撤銷紀錄，避免狀態錯亂
+        renderWorkspace();
+    });
+   // ===== 專注模式計時器 =====
+
+let timerInterval;
+let timeLeft = 600;
+
+function updateTimerDisplay(){
+    let minutes = Math.floor(timeLeft/60);
+    let seconds = timeLeft % 60;
+
+    document.getElementById("timerDisplay").innerText =
+        String(minutes).padStart(2,'0') + ":" +
+        String(seconds).padStart(2,'0');
+}
+
+function startTimer(){
+
+    clearInterval(timerInterval);
+
+    timerInterval = setInterval(()=>{
+
+        if(timeLeft>0){
+
+            timeLeft--;
+            updateTimerDisplay();
+
+        }else{
+
+            clearInterval(timerInterval);
+            alert("⏰ 時間到！");
+
+        }
+
+    },1000);
+}
+
+function pauseTimer(){
+    clearInterval(timerInterval);
+}
+
+function resetTimer(){
+
+    clearInterval(timerInterval);
+    timeLeft = 600;
+    updateTimerDisplay();
+
+}
+
+function setTimer(sec){
+
+    clearInterval(timerInterval);
+    timeLeft = sec;
+    updateTimerDisplay();
+
+}
+
+// ===== 音樂控制 =====
+
+function toggleMusic(){
+
+    const music = document.getElementById("focusMusic");
+
+    if(music.paused){
+        music.play();
+    }else{
+        music.pause();
+    }
+
+}
+
+</script>
+</body>
+</html>
+
