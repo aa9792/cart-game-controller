@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資料結構與視覺化健檢器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 300ms; }
+    .scale-105 { transform: scale(1.05); }
+    .scale-95 { transform: scale(0.95); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 p-6 font-sans text-slate-800">
+  <div class="max-w-4xl mx-auto space-y-6">
+    
+    <header class="text-center space-y-3">
+      <h1 class="text-3xl font-bold text-slate-800">資料結構與視覺化健檢器</h1>
+      <p class="text-slate-600">
+        測試不同的元素組合，觀察它們會形成什麼樣的「工作產物」，<br/>以及若要將其作為「最終視覺圖表」所面臨的缺陷。
+      </p>
+    </header>
+
+    <!-- 互動按鈕區 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="buttons-container">
+      <!-- 按鈕會由 JS 動態生成 -->
+    </div>
+
+    <!-- 動態結果顯示區 -->
+    <div id="outcome-banner" class="bg-green-600 rounded-2xl p-6 shadow-lg transition-all flex flex-col md:flex-row items-start md:items-center gap-6 mt-6">
+      <div class="bg-white/20 p-4 rounded-full shrink-0" id="outcome-icon">
+        <!-- Icon -->
+      </div>
+      <div class="text-white flex-1 space-y-3">
+        <div>
+          <span id="outcome-format" class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold tracking-wider mb-2">
+            產生物件形態：終極型態
+          </span>
+          <h2 id="outcome-title" class="text-2xl font-bold">成功的視覺化 (Successful Visualization)</h2>
+        </div>
+        
+        <div class="bg-black/10 p-4 rounded-lg">
+          <h3 class="text-sm font-bold opacity-80 uppercase tracking-wider mb-1">
+            作為視覺化圖表的缺陷
+          </h3>
+          <p id="outcome-problem" class="text-white/95 text-base leading-relaxed">
+            無。資料有憑有據、故事引人入勝、目標明確且視覺清晰，完美平衡。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 系統狀態
+    const state = {
+      info: true,
+      story: true,
+      goal: true,
+      visual: true
+    };
+
+    // SVG 圖示集
+    const icons = {
+      database: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg>`,
+      book: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`,
+      target: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+      palette: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>`,
+      check: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>`,
+      alert: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>`,
+      info: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>`,
+      fileText: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>`,
+      layers: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+      eyeOff: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>`,
+      question: `<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><circle cx="12" cy="17" r=".5"></circle><path d="M12 12v-1c1.38-1.5 3-2 3-4a3 3 0 0 0-6 0"></path></svg>`
+    };
+
+    // 選單設定
+    const cardsConfig = [
+      { key: 'info', title: '資訊 (Data)', desc: '客觀的數據與事實', icon: icons.database, bg: 'bg-yellow-100 hover:bg-yellow-200 border-yellow-400', activeBg: 'bg-yellow-400 text-yellow-900 border-yellow-500 shadow-md scale-105' },
+      { key: 'story', title: '故事 (Concept)', desc: '賦予數據意義與脈絡', icon: icons.book, bg: 'bg-blue-100 hover:bg-blue-200 border-blue-400', activeBg: 'bg-blue-400 text-blue-900 border-blue-500 shadow-md scale-105' },
+      { key: 'goal', title: '目標 (Function)', desc: '你想解決什麼問題？', icon: icons.target, bg: 'bg-pink-100 hover:bg-pink-200 border-pink-400', activeBg: 'bg-pink-400 text-pink-900 border-pink-500 shadow-md scale-105' },
+      { key: 'visual', title: '視覺 (Metaphor)', desc: '圖形、色彩與排版', icon: icons.palette, bg: 'bg-gray-100 hover:bg-gray-200 border-gray-400', activeBg: 'bg-gray-400 text-gray-900 border-gray-500 shadow-md scale-105' }
+    ];
+
+    // 邏輯運算
+    function getOutcome() {
+      const { info: i, story: s, goal: g, visual: v } = state;
+      
+      if (i && s && g && v) return { title: "成功的視覺化 (Successful Visualization)", format: "終極型態", problem: "無。資料有憑有據、故事引人入勝、目標明確且視覺清晰，完美平衡。", color: "bg-green-600", icon: icons.check };
+      
+      if (i && s && v && !g) return { title: "枯燥乏味 (Boring)", format: "缺乏重點的圖表", problem: "【缺目標】有內容、有脈絡也畫出來了，但觀眾看完會問「所以呢？」，無法引導決策。", color: "bg-amber-600", icon: icons.eyeOff };
+      if (i && g && v && !s) return { title: "毫無用處 (Useless)", format: "冰冷的儀表板", problem: "【缺故事】圖表漂亮且針對問題，但缺乏脈絡與共鳴，難以說服人採取行動。", color: "bg-amber-600", icon: icons.alert };
+      if (s && g && v && !i) return { title: "粗略草圖 / 藝術 (Rough sketch / Art)", format: "願景描繪", problem: "【缺資訊】看起來很棒也很有說服力，但沒有真實客觀的數據支撐，流於幻想。", color: "bg-amber-600", icon: icons.palette };
+      if (i && s && g && !v) return { title: "示意圖 / 線框圖 (Schematic / Wireframe)", format: "架構規劃", problem: "【缺視覺】這是一個結構完整的企劃案，但還沒有轉化成大腦容易吸收的視覺語言。", color: "bg-amber-600", icon: icons.layers };
+
+      if (i && s && !g && !v) return { title: "研究文件 / 腳本 (Research doc / Script)", format: "純文字報告", problem: "【缺目標與視覺】適合深度閱讀，但若作為簡報會導致觀眾認知超載，抓不到重點。", color: "bg-blue-600", icon: icons.fileText };
+      if (i && v && !s && !g) return { title: "華而不實 (Eye candy / Pure data viz)", format: "資料藝術品", problem: "【缺故事與目標】把數據渲染得很酷炫，但沒有要解決任何問題，徒有其表。", color: "bg-blue-600", icon: icons.palette };
+      if (g && v && !i && !s) return { title: "圖表版型 (Template)", format: "空殼設計", problem: "【缺資訊與故事】這只是一個外殼，你買了個漂亮的簡報模板，但裡面還沒塞料。", color: "bg-blue-600", icon: icons.layers };
+      if (s && g && !i && !v) return { title: "概念驗證 / 原型 (Proof of concept / Prototype)", format: "初期點子", problem: "【缺資訊與視覺】只有想法跟目的，還沒有去找實際數據佐證，也沒有將其具象化。", color: "bg-blue-600", icon: icons.question };
+      if (s && v && !i && !g) return { title: "分鏡圖 / 精細草圖 (Storyboard / Scamp)", format: "視覺腳本", problem: "【缺資訊與目標】你在說一個動人的故事也畫得很美，但這不是「資料視覺化」，這是繪本。", color: "bg-blue-600", icon: icons.palette };
+      if (i && g && !s && !v) return { title: "圖表繪製 (Plot)", format: "粗糙圖表", problem: "【缺故事與視覺】單純把解決目標的數字丟進 Excel 預設圖表中，乾癟且難以消化。", color: "bg-blue-600", icon: icons.database };
+
+      let baseIcon = icons.info;
+      if (i) baseIcon = icons.database;
+      if (s) baseIcon = icons.book;
+      if (g) baseIcon = icons.target;
+      if (v) baseIcon = icons.palette;
+
+      if (i) return { title: "純數據 (Raw Data)", format: "資料庫結構", problem: "只有原始數字，沒有任何解讀空間。", color: "bg-slate-500", icon: baseIcon };
+      if (s) return { title: "純故事 (Concept)", format: "大腦內的靈感", problem: "只有一個概念，完全沒有落地。", color: "bg-slate-500", icon: baseIcon };
+      if (g) return { title: "純目標 (Function)", format: "待辦事項", problem: "只有一個需求，比如「老闆想看業績」。", color: "bg-slate-500", icon: baseIcon };
+      if (v) return { title: "純視覺 (Metaphor)", format: "裝飾圖形", problem: "只有美學，沒有任何資訊承載。", color: "bg-slate-500", icon: baseIcon };
+
+      return { title: "一片空白", format: "尚未開始", problem: "請至少選擇一個元素來觀察資料結構的變化。", color: "bg-slate-400", icon: icons.info };
+    }
+
+    // 畫面渲染與綁定事件
+    function render() {
+      // 1. 渲染按鈕
+      const container = document.getElementById('buttons-container');
+      container.innerHTML = '';
+      
+      cardsConfig.forEach(card => {
+        const isActive = state[card.key];
+        const btnClass = isActive ? card.activeBg : `${card.bg} text-slate-600 opacity-60`;
+        
+        const btn = document.createElement('button');
+        btn.className = `flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all cursor-pointer ${btnClass} transform active:scale-95`;
+        btn.onclick = () => {
+          state[card.key] = !state[card.key];
+          render();
+        };
+        
+        btn.innerHTML = `
+          ${card.icon}
+          <h3 class="font-bold text-lg">${card.title}</h3>
+          <p class="text-xs mt-1 text-center opacity-80">${card.desc}</p>
+        `;
+        container.appendChild(btn);
+      });
+
+      // 2. 渲染結果
+      const outcome = getOutcome();
+      
+      const banner = document.getElementById('outcome-banner');
+      // 清除舊顏色，加入新顏色
+      banner.className = banner.className.replace(/bg-\w+-400|bg-\w+-500|bg-\w+-600/, outcome.color);
+      
+      document.getElementById('outcome-icon').innerHTML = outcome.icon;
+      document.getElementById('outcome-format').innerText = `產生物件形態：${outcome.format}`;
+      document.getElementById('outcome-title').innerText = outcome.title;
+      document.getElementById('outcome-problem').innerText = outcome.problem;
+    }
+
+    // 初始化執行
+    render();
+  </script>
+</body>
+</html>
