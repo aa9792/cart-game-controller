@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>綠能轉型教學圖卡 - 圖示版</title>
+    <style>
+        /* 列印與基本頁面設定 */
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        body {
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            /* 強制列印出背景顏色 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .page {
+            background-color: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            page-break-after: always;
+        }
+        @media print {
+            body { background-color: white; padding: 0; }
+            .page { box-shadow: none; margin: 0; padding: 0; min-height: auto; width: 100%; }
+            /* 隱藏列印提示 */
+            .print-hint { display: none !important; }
+        }
+
+        /* 標題設定 */
+        h1 {
+            text-align: center;
+            color: #2b6cb0;
+            font-size: 22pt;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        p.desc {
+            text-align: center;
+            color: #718096;
+            font-size: 12pt;
+            margin-bottom: 25px;
+        }
+
+        /* 圖卡網格排版 */
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* 單張圖卡設定 */
+        .card {
+            width: 31%; /* 一排三張 */
+            height: 210px;
+            border: 2.5px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 圖卡種類配色 */
+        .card.diamond { border-color: #63b3ed; background-color: #ebf8ff; }
+        .card.push { border-color: #fc8181; background-color: #fff5f5; }
+        .card.pull { border-color: #68d391; background-color: #f0fff4; }
+        .card.hold { border-color: #f6e05e; background-color: #fffff0; }
+
+        /* 標籤 */
+        .tag {
+            align-self: flex-start;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10pt;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 12px;
+        }
+        .diamond .tag { background-color: #3182ce; }
+        .push .tag { background-color: #e53e3e; }
+        .pull .tag { background-color: #38a169; }
+        .hold .tag { background-color: #d69e2e; }
+
+        /* 標題與圖示 */
+        .card-title {
+            font-size: 14pt;
+            font-weight: 900;
+            color: #2d3748;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .icon {
+            font-size: 18pt;
+            margin-right: 8px;
+        }
+
+        /* 內文 */
+        .card-content {
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #4a5568;
+            flex-grow: 1;
+        }
+
+        /* 列印提示按鈕 */
+        .print-hint {
+            text-align: center;
+            background-color: #3182ce;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            width: fit-content;
+            margin: 0 auto 20px auto;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .print-hint:hover { background-color: #2b6cb0; }
+    </style>
+</head>
+<body>
+
+    <div class="print-hint" onclick="window.print()">🖨️ 點擊這裡（或按 Ctrl+P）將圖卡另存為 PDF</div>
+
+    <!-- 第一頁：鑽石排序圖卡 -->
+    <div class="page">
+        <h1>💎 鑽石排序圖卡 (共9張)</h1>
+        <p class="desc">✂️ 請沿虛線剪下。請小組討論：哪一項對「全球能源轉型」最關鍵？排成 1-2-3-2-1 的鑽石形狀。</p>
+        
+        <div class="grid">
+            <div class="card diamond">
+                <span class="tag">圖中環節</span>
+                <div class="card-title"><span class="icon">⛽</span>燃料選擇</div>
+                <div class="card-content">研發不排碳的氫、氨、甲醇燃料，取代傳統會汙染的石油。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">圖中環節</span>
+                <div class="card-title"><span class="icon">🚢</span>船舶設計</div>
+                <div class="card-content">幫大船裝上自動風帆或太陽能甲板，聰明運用大自然的力量。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">圖中環節</span>
+                <div class="card-title"><span class="icon">🏗️</span>港口建設</div>
+                <div class="card-content">蓋好加氫站與岸邊充電設備，讓綠能船靠岸時有能量可以補充。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">圖中環節</span>
+                <div class="card-title"><span class="icon">🗺️</span>航線規劃</div>
+                <div class="card-content">利用 AI 大數據避開大浪，找出能順風行駛、最省油的路線。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">圖中環節</span>
+                <div class="card-title"><span class="icon">🧑‍✈️</span>船員培訓</div>
+                <div class="card-content">讓船長與水手學會操作複雜的綠能高科技設備，避免發生意外失誤。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">延伸挑戰</span>
+                <div class="card-title"><span class="icon">🤝</span>國際合作</div>
+                <div class="card-content">各國的法律與環保標準必須統一，綠能船才能在全球通行無阻。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">延伸挑戰</span>
+                <div class="card-title"><span class="icon">💰</span>研發經費</div>
+                <div class="card-content">政府提供資金與補助，讓昂貴的綠能科技變得便宜又普及。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">延伸挑戰</span>
+                <div class="card-title"><span class="icon">🐟</span>海洋生態監測</div>
+                <div class="card-content">隨時監控環境，確保新燃料（如氨氣）如果不小心洩漏，不會毒害魚類。</div>
+            </div>
+            <div class="card diamond">
+                <span class="tag">延伸挑戰</span>
+                <div class="card-title"><span class="icon">🏢</span>企業承諾</div>
+                <div class="card-content">海運公司願意花大錢投資保護地球的未來科技，而不是只顧著賺錢。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二頁：推力拉力阻力卡 -->
+    <div class="page">
+        <h1>⚡ 轉型動力分析卡 (推力/拉力/阻力)</h1>
+        <p class="desc">✂️ 請沿虛線剪下。幫助我們分析「從傳統燃油船舶轉型為綠能船舶」背後的原因與困難。</p>
+        
+        <div class="grid">
+            <div class="card push">
+                <span class="tag">推力 (Push)</span>
+                <div class="card-title"><span class="icon">🌍</span>氣候變遷警報</div>
+                <div class="card-content">全球暖化造成海平面上升，威脅到人類與港口，我們必須立刻減碳！</div>
+            </div>
+            <div class="card push">
+                <span class="tag">推力 (Push)</span>
+                <div class="card-title"><span class="icon">📈</span>油價劇烈波動</div>
+                <div class="card-content">石油越來越貴，而且總有一天會被挖完，傳統燃料船快要開不動了。</div>
+            </div>
+            <div class="card push">
+                <span class="tag">推力 (Push)</span>
+                <div class="card-title"><span class="icon">☠️</span>海洋健康惡化</div>
+                <div class="card-content">燃油船排出的黑煙與廢氣導致海洋酸化，嚴重破壞珊瑚礁等脆弱生態。</div>
+            </div>
+
+            <div class="card pull">
+                <span class="tag">拉力 (Pull)</span>
+                <div class="card-title"><span class="icon">🌬️</span>潔淨能源科技</div>
+                <div class="card-content">大海上強勁的風能與豐富的太陽能，是免費且取之不盡的能量素材。</div>
+            </div>
+            <div class="card pull">
+                <span class="tag">拉力 (Pull)</span>
+                <div class="card-title"><span class="icon">🌱</span>綠色大商機</div>
+                <div class="card-content">積極使用綠色能源的環保船公司，形象會更好，更受國際客戶的歡迎。</div>
+            </div>
+            <div class="card pull">
+                <span class="tag">拉力 (Pull)</span>
+                <div class="card-title"><span class="icon">🐬</span>健康海洋環境</div>
+                <div class="card-content">港口不再有難聞的黑煙，海水變乾淨，鯨豚和魚群的生活空間更安靜舒適。</div>
+            </div>
+
+            <div class="card hold">
+                <span class="tag">阻力 (Hold)</span>
+                <div class="card-title"><span class="icon">💲</span>建設成本過高</div>
+                <div class="card-content">把舊船改裝成綠能船，或蓋一個全新的氫氣港口，需要花費巨額資金。</div>
+            </div>
+            <div class="card hold">
+                <span class="tag">阻力 (Hold)</span>
+                <div class="card-title"><span class="icon">🙅</span>舊習慣難改</div>
+                <div class="card-content">部分老水手不想重新學習複雜的新系統，只想用他們原本習慣的方式開船。</div>
+            </div>
+            <div class="card hold">
+                <span class="tag">阻力 (Hold)</span>
+                <div class="card-title"><span class="icon">🚧</span>技術未突破</div>
+                <div class="card-content">目前的綠能電池又大又重，儲存技術也不夠穩定，大船還無法跑超長途航線。</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
