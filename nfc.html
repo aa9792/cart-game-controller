@@ -36,7 +36,7 @@
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
-        /* 新增：原理動畫專用 CSS */
+        /* 原理動畫專用 CSS */
         @keyframes emit-waves {
             0% { transform: scale(0.2); opacity: 1; border-width: 8px; }
             100% { transform: scale(2.5); opacity: 0; border-width: 1px; }
@@ -128,7 +128,7 @@
             </div>
         </section>
 
-        <!-- Principle Animation Section (新增：全新的第二關 動畫原理) -->
+        <!-- Principle Animation Section -->
         <section class="bg-indigo-50 rounded-3xl shadow-lg p-6 md:p-10 mb-10 border-4 border-indigo-200 overflow-hidden">
             <h2 class="text-2xl font-bold text-center mb-4 text-indigo-700">第二關：透視魔法陣 (動畫解密原理)</h2>
             <p class="text-center text-gray-700 mb-8 font-bold">為什麼不用裝電池也能「嗶」？看看裡面的魔法！</p>
@@ -175,24 +175,9 @@
             </div>
         </section>
 
-        <!-- Real Web NFC Section (原第二關，改為第三關) -->
-        <section id="real-nfc-section" class="hidden bg-yellow-50 rounded-3xl shadow-lg p-6 mb-10 border-4 border-yellow-200">
-            <h2 class="text-2xl font-bold text-center mb-4 text-yellow-700">第三關：真實感應挑戰 (限 Android 手機)</h2>
-            <p class="text-center mb-4">你的設備支援真實的 NFC 功能！拿出一張真實的悠遊卡或門禁卡，靠近手機背面試試看！</p>
-            <div class="text-center">
-                <button id="scan-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 flex items-center justify-center mx-auto gap-2">
-                    <i data-lucide="scan-line"></i>
-                    開始真實掃描
-                </button>
-            </div>
-            <div id="nfc-log" class="mt-4 p-4 bg-white rounded-xl border border-yellow-300 min-h-[60px] text-center font-mono text-sm text-gray-600">
-                等待掃描...
-            </div>
-        </section>
-
-        <!-- Tag Creator Section (原第三關，改為第四關) -->
+        <!-- Tag Creator Section (更新為第三關) -->
         <section class="bg-blue-50 rounded-3xl shadow-lg p-6 md:p-10 mb-10 border-4 border-blue-200">
-            <h2 class="text-2xl font-bold text-center mb-6 text-blue-700">第四關：魔法貼紙製造機 (應用設計)</h2>
+            <h2 class="text-2xl font-bold text-center mb-6 text-blue-700">第三關：魔法貼紙製造機 (應用設計)</h2>
             <div class="flex flex-col md:flex-row gap-8 items-start">
                 <div class="w-full md:w-1/2 bg-white p-6 rounded-2xl shadow-sm">
                     <h3 class="font-bold mb-4 text-gray-700">1. 選擇要賦予貼紙的任務：</h3>
@@ -222,6 +207,21 @@
                         <!-- 測試結果顯示區 -->
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Real Web NFC Section (更新為加碼挑戰，避免編號衝突) -->
+        <section id="real-nfc-section" class="hidden bg-yellow-50 rounded-3xl shadow-lg p-6 mb-10 border-4 border-yellow-200">
+            <h2 class="text-2xl font-bold text-center mb-4 text-yellow-700">加碼挑戰：真實感應體驗 (限 Android 手機)</h2>
+            <p class="text-center mb-4">你的設備支援真實的 NFC 功能！拿出一張真實的悠遊卡或門禁卡，靠近手機背面試試看！</p>
+            <div class="text-center">
+                <button id="scan-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 flex items-center justify-center mx-auto gap-2">
+                    <i data-lucide="scan-line"></i>
+                    開始真實掃描
+                </button>
+            </div>
+            <div id="nfc-log" class="mt-4 p-4 bg-white rounded-xl border border-yellow-300 min-h-[60px] text-center font-mono text-sm text-gray-600">
+                等待掃描...
             </div>
         </section>
 
@@ -268,21 +268,17 @@
         };
 
         function simulateTap(type, btnElement) {
-            // 視覺動畫：發出電磁波
             const waves = document.getElementById('nfc-waves');
             const screen = document.getElementById('reader-screen');
             const screenIcon = document.getElementById('screen-icon');
             const screenText = document.getElementById('screen-text');
             const reader = document.getElementById('reader-device');
 
-            // 1. 隱藏前一次結果
             screen.classList.add('hidden');
             screen.classList.remove('flex');
             
-            // 2. 顯示波紋
             waves.classList.add('active');
 
-            // 3. 模擬物理靠近 (建立一個複製的卡片飛過去)
             const rect = btnElement.getBoundingClientRect();
             const readerRect = reader.getBoundingClientRect();
             
@@ -295,16 +291,13 @@
             ghostCard.style.margin = "0";
             document.body.appendChild(ghostCard);
 
-            // 強制重繪
             ghostCard.getBoundingClientRect();
 
-            // 飛向讀卡機
             ghostCard.style.left = `${readerRect.left + (readerRect.width/2) - (rect.width/2)}px`;
             ghostCard.style.top = `${readerRect.top + 20}px`;
             ghostCard.style.transform = "scale(0.8) rotate(10deg)";
             ghostCard.style.opacity = "0.8";
 
-            // 4. 感應結果
             setTimeout(() => {
                 waves.classList.remove('active');
                 
@@ -314,12 +307,10 @@
                 screen.classList.remove('hidden');
                 screen.classList.add('flex');
                 
-                lucide.createIcons(); // 重新渲染剛塞入的 icon
+                lucide.createIcons();
                 
-                // 播放音效 (簡單的嗶聲模擬，使用 Web Audio API)
                 playBeep();
 
-                // 移除幽靈卡片
                 setTimeout(() => {
                     ghostCard.style.opacity = "0";
                     setTimeout(() => ghostCard.remove(), 300);
@@ -328,7 +319,6 @@
             }, 600);
         }
 
-        // 產生嗶聲
         function playBeep() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -336,7 +326,7 @@
                 const gainNode = audioCtx.createGain();
                 
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(1500, audioCtx.currentTime); // 高頻嗶聲
+                oscillator.frequency.setValueAtTime(1500, audioCtx.currentTime); 
                 
                 gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
@@ -354,7 +344,6 @@
         // --- 第三關：虛擬貼紙製造機邏輯 ---
         let currentVirtualTagData = null;
 
-        // 監聽下拉選單改變輸入框提示
         document.getElementById('tag-action')?.addEventListener('change', function(e) {
             const input = document.getElementById('tag-content');
             if(e.target.value === 'url') {
@@ -381,12 +370,10 @@
 
             currentVirtualTagData = { action, content };
             
-            // 變更貼紙外觀表示已寫入
             virtualTag.classList.remove('bg-gray-200', 'border-gray-400', 'border-dashed');
             virtualTag.classList.add('bg-blue-100', 'border-blue-500', 'border-solid', 'shadow-md');
             virtualTag.innerHTML = `<i data-lucide="nfc" class="w-10 h-10 text-blue-600 mb-1"></i><span class="text-blue-800 font-bold text-sm text-center">已寫入任務<br><span class="text-xs font-normal">(點擊感應)</span></span>`;
             
-            // 重置讀取結果區
             resultBox.classList.add('hidden');
             resultBox.innerHTML = "";
 
@@ -428,7 +415,6 @@
             if ('NDEFReader' in window) {
                 document.getElementById('real-nfc-section').classList.remove('hidden');
                 
-                // 顯示真實寫入按鈕
                 const realWriteBtn = document.getElementById('real-write-btn');
                 if (realWriteBtn) realWriteBtn.classList.remove('hidden');
                 
@@ -455,7 +441,6 @@
                     }
                 });
 
-                // 新增：真實寫入邏輯
                 if (realWriteBtn) {
                     realWriteBtn.addEventListener('click', async () => {
                         const action = document.getElementById('tag-action').value;
@@ -472,7 +457,6 @@
                         try {
                             const ndef = new NDEFReader();
                             
-                            // 根據選擇決定寫入格式 (URL 或 Text)
                             let ndefRecord;
                             if (action === 'url') {
                                 ndefRecord = { recordType: "url", data: content };
