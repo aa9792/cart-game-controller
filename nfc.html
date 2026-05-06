@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC 魔法感應小學堂</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0fdf4;
+            overflow-x: hidden;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .nfc-waves {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .nfc-waves.active {
+            opacity: 1;
+            animation: pulse-wave 1s infinite;
+        }
+        @keyframes pulse-wave {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        .animating-card {
+            position: absolute;
+            z-index: 50;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        /* 新增：原理動畫專用 CSS */
+        @keyframes emit-waves {
+            0% { transform: scale(0.2); opacity: 1; border-width: 8px; }
+            100% { transform: scale(2.5); opacity: 0; border-width: 1px; }
+        }
+        @keyframes coil-glow {
+            0%, 40% { stroke: #9CA3AF; filter: drop-shadow(0 0 0px rgba(250, 204, 21, 0)); }
+            50%, 90% { stroke: #FBBF24; filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.8)); }
+            100% { stroke: #9CA3AF; filter: drop-shadow(0 0 0px rgba(250, 204, 21, 0)); }
+        }
+        @keyframes data-fly {
+            0%, 55% { transform: translateX(0) scale(0); opacity: 0; }
+            60% { transform: translateX(0) scale(1); opacity: 1; }
+            85% { transform: translateX(-120px) scale(1); opacity: 1; }
+            90%, 100% { transform: translateX(-120px) scale(0); opacity: 0; }
+        }
+        .wave-circle {
+            position: absolute;
+            border: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: emit-waves 2s infinite cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .wave-circle:nth-child(2) { animation-delay: 0.6s; }
+        .wave-circle:nth-child(3) { animation-delay: 1.2s; }
+        
+        .anim-coil { animation: coil-glow 4s infinite; }
+        .anim-data { animation: data-fly 4s infinite; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-green-600 text-white p-6 shadow-md rounded-b-3xl text-center relative z-10">
+        <h1 class="text-3xl md:text-4xl font-black mb-2 flex items-center justify-center gap-3">
+            <i data-lucide="radio" class="w-10 h-10"></i>
+            NFC 魔法感應小學堂
+        </h1>
+        <p class="text-green-100 text-lg md:text-xl font-bold">靠近一點，魔法就會發生！</p>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 mt-6">
+        
+        <!-- Interactive Section -->
+        <section class="bg-white rounded-3xl shadow-lg p-6 md:p-10 mb-10 border-4 border-green-100 relative overflow-hidden">
+            <h2 class="text-2xl font-bold text-center mb-8 text-green-700">第一關：模擬體驗區 (點擊卡片試試看)</h2>
+            
+            <div class="flex flex-col md:flex-row justify-between items-center gap-10">
+                
+                <!-- Cards Container -->
+                <div class="w-full md:w-1/2 grid grid-cols-2 gap-4 relative" id="cards-container">
+                    
+                    <button onclick="simulateTap('easycard', this)" class="card-hover bg-blue-100 p-4 rounded-2xl border-2 border-blue-300 flex flex-col items-center justify-center h-32 transition-all relative">
+                        <i data-lucide="bus-front" class="w-10 h-10 text-blue-600 mb-2"></i>
+                        <span class="font-bold text-blue-800">悠遊卡/一卡通</span>
+                    </button>
+
+                    <button onclick="simulateTap('amiibo', this)" class="card-hover bg-red-100 p-4 rounded-2xl border-2 border-red-300 flex flex-col items-center justify-center h-32 transition-all relative">
+                        <i data-lucide="gamepad-2" class="w-10 h-10 text-red-600 mb-2"></i>
+                        <span class="font-bold text-red-800">遊戲公仔 (Amiibo)</span>
+                    </button>
+
+                    <button onclick="simulateTap('door', this)" class="card-hover bg-gray-100 p-4 rounded-2xl border-2 border-gray-300 flex flex-col items-center justify-center h-32 transition-all relative">
+                        <i data-lucide="key-round" class="w-10 h-10 text-gray-600 mb-2"></i>
+                        <span class="font-bold text-gray-800">社區門禁扣</span>
+                    </button>
+
+                    <button onclick="simulateTap('pay', this)" class="card-hover bg-purple-100 p-4 rounded-2xl border-2 border-purple-300 flex flex-col items-center justify-center h-32 transition-all relative">
+                        <i data-lucide="smartphone-nfc" class="w-10 h-10 text-purple-600 mb-2"></i>
+                        <span class="font-bold text-purple-800">手機支付</span>
+                    </button>
+                </div>
+
+                <!-- Reader Container -->
+                <div class="w-full md:w-1/3 flex flex-col items-center justify-center">
+                    <div id="reader-device" class="bg-gray-800 w-48 h-64 rounded-3xl p-4 flex flex-col items-center justify-center relative shadow-2xl border-8 border-gray-700">
+                        <div class="bg-blue-400/20 w-32 h-32 rounded-full absolute nfc-waves flex items-center justify-center" id="nfc-waves">
+                            <div class="bg-blue-400/40 w-24 h-24 rounded-full"></div>
+                        </div>
+                        <i data-lucide="nfc" class="w-16 h-16 text-white mb-4 relative z-10"></i>
+                        <p class="text-white font-bold relative z-10">感應區</p>
+                        
+                        <!-- Screen Result -->
+                        <div id="reader-screen" class="absolute inset-x-4 top-4 h-1/2 bg-white rounded-xl shadow-inner p-2 hidden flex-col items-center justify-center text-center">
+                            <span id="screen-icon" class="mb-1"></span>
+                            <span id="screen-text" class="font-bold text-sm"></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Principle Animation Section (新增：全新的第二關 動畫原理) -->
+        <section class="bg-indigo-50 rounded-3xl shadow-lg p-6 md:p-10 mb-10 border-4 border-indigo-200 overflow-hidden">
+            <h2 class="text-2xl font-bold text-center mb-4 text-indigo-700">第二關：透視魔法陣 (動畫解密原理)</h2>
+            <p class="text-center text-gray-700 mb-8 font-bold">為什麼不用裝電池也能「嗶」？看看裡面的魔法！</p>
+            
+            <div class="flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20 h-64 relative">
+                
+                <!-- 讀卡機 (發射端) -->
+                <div class="relative flex flex-col items-center">
+                    <div class="w-24 h-40 bg-gray-800 rounded-2xl border-4 border-gray-600 flex items-center justify-center z-10 shadow-xl">
+                        <i data-lucide="smartphone" class="w-12 h-12 text-blue-400"></i>
+                    </div>
+                    <span class="mt-4 font-bold text-indigo-800 bg-indigo-100 px-3 py-1 rounded-full">1. 手機發出電磁波</span>
+                    
+                    <!-- 電磁波動畫 -->
+                    <div class="absolute top-20 left-12 w-10 h-10 flex items-center justify-center z-0">
+                        <div class="wave-circle w-full h-full"></div>
+                        <div class="wave-circle w-full h-full"></div>
+                        <div class="wave-circle w-full h-full"></div>
+                    </div>
+                </div>
+
+                <!-- 資料回傳顆粒 -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
+                    <div class="anim-data bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                        <i data-lucide="file-check-2" class="w-4 h-4"></i> 資料回傳
+                    </div>
+                </div>
+
+                <!-- 卡片 (接收端) -->
+                <div class="relative flex flex-col items-center">
+                    <div class="w-32 h-48 bg-white/80 backdrop-blur border-2 border-gray-300 rounded-xl shadow-lg flex items-center justify-center relative z-10 p-2">
+                        <!-- 透視線圈 SVG -->
+                        <svg viewBox="0 0 100 150" class="w-full h-full absolute inset-0 p-3 opacity-80">
+                            <rect x="5" y="5" width="90" height="140" rx="10" fill="none" stroke-width="2" class="anim-coil stroke-gray-400" />
+                            <rect x="10" y="10" width="80" height="130" rx="8" fill="none" stroke-width="2" class="anim-coil stroke-gray-400" />
+                            <rect x="15" y="15" width="70" height="120" rx="6" fill="none" stroke-width="2" class="anim-coil stroke-gray-400" />
+                            <rect x="40" y="65" width="20" height="20" rx="2" fill="#374151" /> <!-- 晶片 -->
+                        </svg>
+                        <i data-lucide="credit-card" class="w-8 h-8 text-gray-400 opacity-50 absolute top-4 left-4"></i>
+                    </div>
+                    <span class="mt-4 font-bold text-indigo-800 bg-indigo-100 px-3 py-1 rounded-full">2. 線圈生電喚醒晶片</span>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Real Web NFC Section (原第二關，改為第三關) -->
+        <section id="real-nfc-section" class="hidden bg-yellow-50 rounded-3xl shadow-lg p-6 mb-10 border-4 border-yellow-200">
+            <h2 class="text-2xl font-bold text-center mb-4 text-yellow-700">第三關：真實感應挑戰 (限 Android 手機)</h2>
+            <p class="text-center mb-4">你的設備支援真實的 NFC 功能！拿出一張真實的悠遊卡或門禁卡，靠近手機背面試試看！</p>
+            <div class="text-center">
+                <button id="scan-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 flex items-center justify-center mx-auto gap-2">
+                    <i data-lucide="scan-line"></i>
+                    開始真實掃描
+                </button>
+            </div>
+            <div id="nfc-log" class="mt-4 p-4 bg-white rounded-xl border border-yellow-300 min-h-[60px] text-center font-mono text-sm text-gray-600">
+                等待掃描...
+            </div>
+        </section>
+
+        <!-- Tag Creator Section (原第三關，改為第四關) -->
+        <section class="bg-blue-50 rounded-3xl shadow-lg p-6 md:p-10 mb-10 border-4 border-blue-200">
+            <h2 class="text-2xl font-bold text-center mb-6 text-blue-700">第四關：魔法貼紙製造機 (應用設計)</h2>
+            <div class="flex flex-col md:flex-row gap-8 items-start">
+                <div class="w-full md:w-1/2 bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 class="font-bold mb-4 text-gray-700">1. 選擇要賦予貼紙的任務：</h3>
+                    <select id="tag-action" class="w-full p-3 border-2 border-blue-300 rounded-xl mb-4 focus:outline-none focus:border-blue-500 bg-white">
+                        <option value="url">🌐 開啟班級網頁 (輸入網址)</option>
+                        <option value="text">💬 顯示秘密訊息 (輸入文字)</option>
+                    </select>
+                    <input type="text" id="tag-content" placeholder="請輸入網址或訊息內容..." class="w-full p-3 border-2 border-gray-200 rounded-xl mb-4 focus:outline-none focus:border-blue-500" value="https://www.google.com">
+                    
+                    <button onclick="writeVirtualTag()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <i data-lucide="pen-tool"></i> 寫入虛擬貼紙
+                    </button>
+                    
+                    <!-- 隱藏的真實寫入按鈕 (設備支援且為 Android 才會顯示) -->
+                    <button id="real-write-btn" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md mt-3 hidden flex items-center justify-center gap-2">
+                        <i data-lucide="smartphone-nfc"></i> 寫入真實 NFC 貼紙
+                    </button>
+                    <p id="write-log" class="text-sm text-gray-500 mt-2 text-center h-4"></p>
+                </div>
+
+                <div class="w-full md:w-1/2 flex flex-col items-center justify-center h-full min-h-[200px]">
+                    <h3 class="font-bold mb-4 text-gray-700">2. 測試區：</h3>
+                    <div id="virtual-tag" class="w-32 h-32 bg-gray-200 rounded-full border-4 border-dashed border-gray-400 flex items-center justify-center cursor-pointer transition-all hover:scale-105 shadow-sm" onclick="readVirtualTag()">
+                        <span class="text-gray-500 font-bold text-center">空白貼紙<br><span class="text-xs font-normal">(點擊感應)</span></span>
+                    </div>
+                    <div id="tag-result" class="mt-6 p-4 bg-white rounded-xl border-2 border-blue-100 w-full text-center min-h-[80px] hidden shadow-inner">
+                        <!-- 測試結果顯示區 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Points Section -->
+        <section class="grid md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-3xl shadow-md border-t-8 border-blue-500">
+                <h3 class="text-xl font-bold mb-3 flex items-center gap-2 text-blue-700">
+                    <i data-lucide="info"></i> 1. 原理：悄悄話
+                </h3>
+                <p class="text-gray-600 leading-relaxed">NFC 全名是「近場通訊」。它就像兩個設備在說悄悄話，必須靠得非常近（4公分內）才能通訊。卡片裡面沒有電池，是靠讀卡機發出的電磁波來提供能量的喔！</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-3xl shadow-md border-t-8 border-green-500">
+                <h3 class="text-xl font-bold mb-3 flex items-center gap-2 text-green-700">
+                    <i data-lucide="map-pin"></i> 2. 應用：生活無處不在
+                </h3>
+                <p class="text-gray-600 leading-relaxed">除了搭公車的悠遊卡，買東西用的 Apple Pay，甚至是任天堂 Switch 的 Amiibo 公仔，裡面都藏著 NFC 晶片。一嗶就通，讓生活超方便！</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl shadow-md border-t-8 border-red-500">
+                <h3 class="text-xl font-bold mb-3 flex items-center gap-2 text-red-700">
+                    <i data-lucide="shield-alert"></i> 3. 爭議與安全
+                </h3>
+                <p class="text-gray-600 leading-relaxed text-sm">
+                    <strong>正反面思考：</strong><br>
+                    <span class="text-green-600 font-bold">優點：</span>結帳超快，不用帶零錢。<br>
+                    <span class="text-red-600 font-bold">缺點：</span>如果不見了容易被別人拿去「嗶」掉你的錢。絕對不要把卡片隨便靠近不認識的機器！
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // 初始化 Icons
+        lucide.createIcons();
+
+        // --- 虛擬模擬邏輯 ---
+        const responses = {
+            'easycard': { icon: '<i data-lucide="check-circle-2" class="text-green-500 w-8 h-8"></i>', text: '扣款 15 元<br>搭乘公車成功！' },
+            'amiibo': { icon: '<i data-lucide="sword" class="text-red-500 w-8 h-8"></i>', text: '獲得寶物：<br>傳說之劍！' },
+            'door': { icon: '<i data-lucide="door-open" class="text-blue-500 w-8 h-8"></i>', text: '身分確認<br>大門已開啟' },
+            'pay': { icon: '<i data-lucide="shopping-bag" class="text-purple-500 w-8 h-8"></i>', text: 'Apple Pay<br>付款完成' }
+        };
+
+        function simulateTap(type, btnElement) {
+            // 視覺動畫：發出電磁波
+            const waves = document.getElementById('nfc-waves');
+            const screen = document.getElementById('reader-screen');
+            const screenIcon = document.getElementById('screen-icon');
+            const screenText = document.getElementById('screen-text');
+            const reader = document.getElementById('reader-device');
+
+            // 1. 隱藏前一次結果
+            screen.classList.add('hidden');
+            screen.classList.remove('flex');
+            
+            // 2. 顯示波紋
+            waves.classList.add('active');
+
+            // 3. 模擬物理靠近 (建立一個複製的卡片飛過去)
+            const rect = btnElement.getBoundingClientRect();
+            const readerRect = reader.getBoundingClientRect();
+            
+            const ghostCard = btnElement.cloneNode(true);
+            ghostCard.classList.add('animating-card');
+            ghostCard.style.left = `${rect.left}px`;
+            ghostCard.style.top = `${rect.top}px`;
+            ghostCard.style.width = `${rect.width}px`;
+            ghostCard.style.height = `${rect.height}px`;
+            ghostCard.style.margin = "0";
+            document.body.appendChild(ghostCard);
+
+            // 強制重繪
+            ghostCard.getBoundingClientRect();
+
+            // 飛向讀卡機
+            ghostCard.style.left = `${readerRect.left + (readerRect.width/2) - (rect.width/2)}px`;
+            ghostCard.style.top = `${readerRect.top + 20}px`;
+            ghostCard.style.transform = "scale(0.8) rotate(10deg)";
+            ghostCard.style.opacity = "0.8";
+
+            // 4. 感應結果
+            setTimeout(() => {
+                waves.classList.remove('active');
+                
+                screenIcon.innerHTML = responses[type].icon;
+                screenText.innerHTML = responses[type].text;
+                
+                screen.classList.remove('hidden');
+                screen.classList.add('flex');
+                
+                lucide.createIcons(); // 重新渲染剛塞入的 icon
+                
+                // 播放音效 (簡單的嗶聲模擬，使用 Web Audio API)
+                playBeep();
+
+                // 移除幽靈卡片
+                setTimeout(() => {
+                    ghostCard.style.opacity = "0";
+                    setTimeout(() => ghostCard.remove(), 300);
+                }, 1000);
+
+            }, 600);
+        }
+
+        // 產生嗶聲
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(1500, audioCtx.currentTime); // 高頻嗶聲
+                
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch(e) {
+                console.log("Audio not supported or blocked");
+            }
+        }
+
+        // --- 第三關：虛擬貼紙製造機邏輯 ---
+        let currentVirtualTagData = null;
+
+        // 監聽下拉選單改變輸入框提示
+        document.getElementById('tag-action')?.addEventListener('change', function(e) {
+            const input = document.getElementById('tag-content');
+            if(e.target.value === 'url') {
+                input.placeholder = "請輸入網址...";
+                input.value = "https://";
+            } else {
+                input.placeholder = "請輸入秘密訊息...";
+                input.value = "請幫植物澆水！";
+            }
+        });
+
+        function writeVirtualTag() {
+            const action = document.getElementById('tag-action').value;
+            const content = document.getElementById('tag-content').value;
+            const virtualTag = document.getElementById('virtual-tag');
+            const resultBox = document.getElementById('tag-result');
+
+            if (!content) {
+                const writeLog = document.getElementById('write-log');
+                writeLog.innerHTML = "<span class='text-red-500'>請先輸入內容！</span>";
+                setTimeout(() => writeLog.innerHTML = "", 2000);
+                return;
+            }
+
+            currentVirtualTagData = { action, content };
+            
+            // 變更貼紙外觀表示已寫入
+            virtualTag.classList.remove('bg-gray-200', 'border-gray-400', 'border-dashed');
+            virtualTag.classList.add('bg-blue-100', 'border-blue-500', 'border-solid', 'shadow-md');
+            virtualTag.innerHTML = `<i data-lucide="nfc" class="w-10 h-10 text-blue-600 mb-1"></i><span class="text-blue-800 font-bold text-sm text-center">已寫入任務<br><span class="text-xs font-normal">(點擊感應)</span></span>`;
+            
+            // 重置讀取結果區
+            resultBox.classList.add('hidden');
+            resultBox.innerHTML = "";
+
+            lucide.createIcons();
+            playBeep();
+            
+            const writeLog = document.getElementById('write-log');
+            writeLog.innerHTML = "<span class='text-green-600 font-bold'>虛擬寫入成功！請點擊右方貼紙測試。</span>";
+        }
+
+        function readVirtualTag() {
+            const resultBox = document.getElementById('tag-result');
+            
+            if (!currentVirtualTagData) {
+                resultBox.classList.remove('hidden');
+                resultBox.innerHTML = "<span class='text-gray-500 font-bold flex items-center justify-center gap-2'><i data-lucide='alert-circle'></i> 這是一張空白貼紙，請先寫入任務。</span>";
+                lucide.createIcons();
+                return;
+            }
+
+            playBeep();
+            resultBox.classList.remove('hidden');
+            
+            let icon, text;
+            if (currentVirtualTagData.action === 'url') {
+                icon = '<i data-lucide="globe" class="inline-block text-blue-500 mr-2 w-8 h-8"></i>';
+                text = `開啟網頁：<br><a href="${currentVirtualTagData.content}" target="_blank" class="text-blue-600 underline font-bold break-all">${currentVirtualTagData.content}</a>`;
+            } else {
+                icon = '<i data-lucide="message-square" class="inline-block text-green-500 mr-2 w-8 h-8"></i>';
+                text = `顯示訊息：<br><span class="font-bold mt-1 block text-lg text-gray-800 break-all">${currentVirtualTagData.content}</span>`;
+            }
+
+            resultBox.innerHTML = `<div class="animate-bounce mb-2 flex justify-center">${icon}</div><div>${text}</div>`;
+            lucide.createIcons();
+        }
+
+        // --- 真實 Web NFC API 邏輯 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if ('NDEFReader' in window) {
+                document.getElementById('real-nfc-section').classList.remove('hidden');
+                
+                // 顯示真實寫入按鈕
+                const realWriteBtn = document.getElementById('real-write-btn');
+                if (realWriteBtn) realWriteBtn.classList.remove('hidden');
+                
+                const scanBtn = document.getElementById('scan-btn');
+                const logEl = document.getElementById('nfc-log');
+
+                scanBtn.addEventListener('click', async () => {
+                    logEl.innerText = "準備感應中... 請將卡片靠近手機背面。";
+                    try {
+                        const ndef = new NDEFReader();
+                        await ndef.scan();
+                        logEl.innerHTML = "<span class='text-green-600 font-bold'>掃描啟動成功！請靠近卡片...</span>";
+                        
+                        ndef.addEventListener("readingerror", () => {
+                            logEl.innerHTML = "<span class='text-red-600'>無法讀取卡片內容。可能卡片有加密或格式不符。</span>";
+                        });
+
+                        ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                            playBeep();
+                            logEl.innerHTML = `<span class='text-blue-600 font-bold'>成功讀取！</span><br>卡片序號: ${serialNumber}<br>這就是這張卡片獨一無二的「身分證」喔！`;
+                        });
+                    } catch (error) {
+                        logEl.innerHTML = `<span class='text-red-600'>發生錯誤: ${error.message} <br>可能需要授予權限或功能被瀏覽器阻擋。</span>`;
+                    }
+                });
+
+                // 新增：真實寫入邏輯
+                if (realWriteBtn) {
+                    realWriteBtn.addEventListener('click', async () => {
+                        const action = document.getElementById('tag-action').value;
+                        const content = document.getElementById('tag-content').value;
+                        const writeLog = document.getElementById('write-log');
+
+                        if (!content) {
+                            writeLog.innerHTML = "<span class='text-red-500'>請先輸入要寫入的內容！</span>";
+                            return;
+                        }
+
+                        writeLog.innerHTML = "準備寫入中... <span class='text-yellow-600 font-bold animate-pulse'>請將真實 NFC 貼紙緊貼手機背面！</span>";
+                        
+                        try {
+                            const ndef = new NDEFReader();
+                            
+                            // 根據選擇決定寫入格式 (URL 或 Text)
+                            let ndefRecord;
+                            if (action === 'url') {
+                                ndefRecord = { recordType: "url", data: content };
+                            } else {
+                                ndefRecord = { recordType: "text", data: content };
+                            }
+
+                            await ndef.write({ records: [ndefRecord] });
+                            
+                            playBeep();
+                            writeLog.innerHTML = "<span class='text-green-600 font-bold flex items-center justify-center gap-1'><i data-lucide='check'></i> 寫入成功！趕快用手機感應看看。</span>";
+                            lucide.createIcons();
+                        } catch (error) {
+                            writeLog.innerHTML = `<span class='text-red-600'>寫入失敗: ${error.message} (請確認貼紙未鎖定)</span>`;
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
