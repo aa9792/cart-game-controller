@@ -117,10 +117,10 @@
                         <i data-lucide="nfc" class="w-16 h-16 text-white mb-4 relative z-10"></i>
                         <p class="text-white font-bold relative z-10">感應區</p>
                         
-                        <!-- Screen Result -->
-                        <div id="reader-screen" class="absolute inset-x-4 top-4 h-1/2 bg-white rounded-xl shadow-inner p-2 hidden flex-col items-center justify-center text-center">
-                            <span id="screen-icon" class="mb-1"></span>
-                            <span id="screen-text" class="font-bold text-sm"></span>
+                        <!-- Screen Result (修正：覆蓋範圍擴大、增加層級與文字自適應) -->
+                        <div id="reader-screen" class="absolute inset-2 bg-white rounded-xl shadow-inner p-3 hidden flex-col items-center justify-center text-center z-30 overflow-hidden break-words">
+                            <span id="screen-icon" class="mb-3 transform scale-125"></span>
+                            <span id="screen-text" class="font-bold text-base md:text-lg text-gray-800 leading-snug"></span>
                         </div>
                     </div>
                 </div>
@@ -261,10 +261,10 @@
 
         // --- 虛擬模擬邏輯 ---
         const responses = {
-            'easycard': { icon: '<i data-lucide="check-circle-2" class="text-green-500 w-8 h-8"></i>', text: '扣款 15 元<br>搭乘公車成功！' },
-            'amiibo': { icon: '<i data-lucide="sword" class="text-red-500 w-8 h-8"></i>', text: '獲得寶物：<br>傳說之劍！' },
-            'door': { icon: '<i data-lucide="door-open" class="text-blue-500 w-8 h-8"></i>', text: '身分確認<br>大門已開啟' },
-            'pay': { icon: '<i data-lucide="shopping-bag" class="text-purple-500 w-8 h-8"></i>', text: 'Apple Pay<br>付款完成' }
+            'easycard': { icon: '<i data-lucide="check-circle-2" class="text-green-500 w-10 h-10"></i>', text: '扣款 15 元<br>搭乘公車成功！' },
+            'amiibo': { icon: '<i data-lucide="sword" class="text-red-500 w-10 h-10"></i>', text: '獲得寶物：<br>傳說之劍！' },
+            'door': { icon: '<i data-lucide="door-open" class="text-blue-500 w-10 h-10"></i>', text: '身分確認<br>大門已開啟' },
+            'pay': { icon: '<i data-lucide="shopping-bag" class="text-purple-500 w-10 h-10"></i>', text: 'Apple Pay<br>付款完成' }
         };
 
         function simulateTap(type, btnElement) {
