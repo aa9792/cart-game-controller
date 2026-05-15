@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖像文字去框修改工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 讓游標在畫布上顯示為十字準星，方便框選 */
+        #canvas { cursor: crosshair; touch-action: none; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 min-h-screen font-sans flex justify-center items-start">
+    <div class="max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-blue-600 p-6 text-white">
+            <h1 class="text-2xl font-bold">🛠️ 圖像去框與文字修改工具</h1>
+            <p class="text-blue-100 mt-2 text-sm">請依照左側步驟，上傳圖片並框選要消除的紅框，系統將自動為您替換上指定文字。</p>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- 左側控制面板 -->
+            <div class="lg:col-span-4 space-y-6">
+                
+                <!-- 步驟 1 -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label class="block text-sm font-bold text-gray-800 mb-2">1. 上傳原始圖片</label>
+                    <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
+                </div>
+
+                <!-- 步驟 2 提示 -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label class="block text-sm font-bold text-gray-800">2. 框選紅框範圍</label>
+                    <p class="text-xs text-gray-600 mt-1">請在右側圖片上，按住滑鼠拖曳，將紅框與裡面的文字完整框選起來。</p>
+                </div>
+
+                <!-- 步驟 3 -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+                    <label class="block text-sm font-bold text-gray-800 mb-2">3. 確認替換內容與設定</label>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">替換文字 (已為您預設)</label>
+                        <!-- 預設為使用者要求的文字 -->
+                        <textarea id="newText" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-blue-500 focus:border-blue-500">收好食物，不圍觀驚叫並&#10;安靜繞道。</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">覆蓋背景色</label>
+                            <div class="flex items-center mt-1">
+                                <input type="color" id="bgColor" value="#f8ecd9" class="h-8 w-8 rounded border border-gray-300 cursor-pointer">
+                                <span class="text-xs text-gray-500 ml-2">近似原底色</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">字體大小</label>
+                            <input type="number" id="fontSize" value="20" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">字型</label>
+                        <select id="fontFamily" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm bg-white">
+                            <option value='"Microsoft JhengHei", "PingFang TC", sans-serif'>微軟正黑體 / 蘋方 (黑體)</option>
+                            <option value='"DFKai-SB", "BiauKai", serif'>標楷體</option>
+                            <option value='"PMingLiU", "MingLiU", serif'>新細明體 (宋體)</option>
+                            <option value='sans-serif'>系統預設無襯線體</option>
+                            <option value='serif'>系統預設襯線體</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 步驟 4 & 5 -->
+                <div class="space-y-3 pt-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="applyTextBtn" class="bg-blue-600 text-white font-bold py-3 px-2 rounded-lg hover:bg-blue-700 transition shadow-md flex justify-center items-center text-sm">
+                            📝 4. 替換文字
+                        </button>
+                        <button id="eraseBtn" class="bg-orange-500 text-white font-bold py-3 px-2 rounded-lg hover:bg-orange-600 transition shadow-md flex justify-center items-center text-sm">
+                            🧽 消除 Logo
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="undoBtn" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition hidden text-sm">
+                            ↺ 復原
+                        </button>
+                        <button id="downloadBtn" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition shadow-md hidden text-sm">
+                            ⬇️ 5. 下載完成圖
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側畫布區域 -->
+            <div class="lg:col-span-8">
+                <div class="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden relative bg-gray-100 flex items-center justify-center min-h-[500px] h-full shadow-inner" id="canvasContainer">
+                    <div id="placeholderText" class="text-gray-400 flex flex-col items-center">
+                        <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>請先由左側上傳圖片</span>
+                    </div>
+                    <!-- 為了確保高解析度，這裡使用 CSS 限制最大寬度，但實際畫布尺寸為原圖大小 -->
+                    <canvas id="canvas" class="max-w-full h-auto hidden object-contain"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const placeholderText = document.getElementById('placeholderText');
+        const applyTextBtn = document.getElementById('applyTextBtn');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const undoBtn = document.getElementById('undoBtn');
+
+        let img = new Image();
+        let originalImageData = null;
+        let currentImageData = null;
+
+        let isDrawing = false;
+        let startX, startY;
+        let selectionBox = null; // {x, y, w, h}
+
+        // 上傳圖片並載入畫布
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                img.onload = () => {
+                    // 設定畫布為圖片原始解析度
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // 儲存狀態以便復原
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    canvas.classList.remove('hidden');
+                    placeholderText.classList.add('hidden');
+                    selectionBox = null;
+                    
+                    // 隱藏下載和復原按鈕
+                    downloadBtn.classList.add('hidden');
+                    undoBtn.classList.add('hidden');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 轉換滑鼠/觸控在畫面上縮放後的相對座標轉換為畫布的實際像素座標
+        function getPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // 考慮 CSS 縮放比例
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX, clientY;
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        // 重新繪製畫面 (包含圖片及選取框)
+        function redrawCanvas() {
+            if (currentImageData) {
+                ctx.putImageData(currentImageData, 0, 0);
+            }
+            if (selectionBox) {
+                // 繪製紅色的虛線選取框
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([8, 8]);
+                ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
+                ctx.setLineDash([]); // 重置虛線
+                
+                // 繪製半透明遮罩預覽
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+                ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
+            }
+        }
+
+        // --- 滑鼠事件 ---
+        canvas.addEventListener('mousedown', (e) => {
+            if (!currentImageData) return;
+            const pos = getPos(e);
+            startX = pos.x;
+            startY = pos.y;
+            isDrawing = true;
+            selectionBox = null;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            selectionBox = {
+                x: Math.min(startX, pos.x),
+                y: Math.min(startY, pos.y),
+                w: Math.abs(pos.x - startX),
+                h: Math.abs(pos.y - startY)
+            };
+            redrawCanvas();
+        });
+
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        // --- 觸控事件 (支援手機/平板) ---
+        canvas.addEventListener('touchstart', (e) => {
+            if (!currentImageData) return;
+            e.preventDefault(); // 避免滾動畫面
+            const pos = getPos(e);
+            startX = pos.x;
+            startY = pos.y;
+            isDrawing = true;
+            selectionBox = null;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getPos(e);
+            selectionBox = {
+                x: Math.min(startX, pos.x),
+                y: Math.min(startY, pos.y),
+                w: Math.abs(pos.x - startX),
+                h: Math.abs(pos.y - startY)
+            };
+            redrawCanvas();
+        });
+
+        canvas.addEventListener('touchend', () => isDrawing = false);
+
+        // --- 共通的驗證與狀態更新邏輯 ---
+        function validateSelection() {
+            if (!currentImageData) {
+                alert('請先上傳圖片！');
+                return false;
+            }
+            if (!selectionBox || selectionBox.w === 0 || selectionBox.h === 0) {
+                alert('請先在圖片上「按住滑鼠拖曳」，框選出範圍！');
+                return false;
+            }
+            return true;
+        }
+
+        function finalizeEdit(btnElement, originalText) {
+            currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            selectionBox = null;
+            
+            downloadBtn.classList.remove('hidden');
+            undoBtn.classList.remove('hidden');
+            
+            btnElement.innerHTML = '✅ 完成！';
+            setTimeout(() => { btnElement.innerHTML = originalText; }, 2000);
+        }
+
+        // --- 執行消除 Logo / 雜物 ---
+        eraseBtn.addEventListener('click', () => {
+            if (!validateSelection()) return;
+
+            // 1. 還原畫面 (去除紅虛線框)
+            ctx.putImageData(currentImageData, 0, 0);
+
+            // 2. 塗上背景色覆蓋範圍
+            const bgColor = document.getElementById('bgColor').value;
+            ctx.fillStyle = bgColor;
+            // 稍微放大覆蓋範圍確保邊緣被消除
+            ctx.fillRect(selectionBox.x - 2, selectionBox.y - 2, selectionBox.w + 4, selectionBox.h + 4);
+
+            // 3. 儲存狀態並更新 UI
+            finalizeEdit(eraseBtn, '🧽 消除 Logo');
+        });
+
+        // --- 執行替換文字 ---
+        applyTextBtn.addEventListener('click', () => {
+            if (!validateSelection()) return;
+
+            // 1. 先還原乾淨的畫面 (去除紅虛線框)
+            ctx.putImageData(currentImageData, 0, 0);
+
+            // 取得設定值
+            const bgColor = document.getElementById('bgColor').value;
+            const text = document.getElementById('newText').value;
+            const fontSize = parseInt(document.getElementById('fontSize').value);
+            const fontFamily = document.getElementById('fontFamily').value;
+
+            // 2. 塗上背景色覆蓋原始紅框與文字
+            ctx.fillStyle = bgColor;
+            // 稍微放大覆蓋範圍確保邊緣被消除 (加減 2 像素)
+            ctx.fillRect(selectionBox.x - 2, selectionBox.y - 2, selectionBox.w + 4, selectionBox.h + 4);
+
+            // 3. 繪製新文字
+            ctx.fillStyle = '#2d2d2d'; // 設定為深灰色，符合原圖質感
+            // 設定字體，套用使用者選擇的字型與大小
+            ctx.font = `bold ${fontSize}px ${fontFamily}`;
+            ctx.textBaseline = 'top';
+
+            const lines = text.split('\n');
+            const lineHeight = fontSize * 1.6; // 行距
+            const totalTextHeight = lines.length * lineHeight;
+            
+            // 計算文字的起始座標，使其在框內垂直與水平都有適當留白
+            let startTextY = selectionBox.y + (selectionBox.h - totalTextHeight) / 2;
+            if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10; 
+            
+            // 距離左邊框保留一點邊距
+            const startTextX = selectionBox.x + (selectionBox.w * 0.05); 
+
+            lines.forEach((line, index) => {
+                ctx.fillText(line, startTextX, startTextY + (index * lineHeight));
+            });
+
+            // 4. 儲存狀態並更新 UI
+            finalizeEdit(applyTextBtn, '📝 4. 替換文字');
+        });
+
+        // --- 復原動作 ---
+        undoBtn.addEventListener('click', () => {
+            if (originalImageData) {
+                currentImageData = originalImageData;
+                ctx.putImageData(currentImageData, 0, 0);
+                selectionBox = null;
+                downloadBtn.classList.add('hidden');
+                undoBtn.classList.add('hidden');
+            }
+        });
+
+        // --- 下載圖片 ---
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = '修改後_宣導海報.jpg';
+            // 轉換成高品質 JPG
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.click();
+        });
+    </script>
+</body>
+</html>
