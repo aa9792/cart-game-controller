@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖像文字去框修改工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts：載入多種中英文字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=Oswald:wght@700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
@@ -22,7 +21,6 @@
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
-        /* 顏色預設色板 */
         .color-swatch {
             width: 24px;
             height: 24px;
@@ -32,18 +30,12 @@
             transition: transform 0.1s, border-color 0.1s;
             flex-shrink: 0;
         }
-        .color-swatch:hover {
-            transform: scale(1.15);
-        }
+        .color-swatch:hover { transform: scale(1.15); }
         .color-swatch.selected {
             border-color: #2563eb;
             box-shadow: 0 0 0 1px #2563eb;
         }
-        /* 顏色選擇器整體容器 */
-        #colorPickerWrapper {
-            position: relative;
-        }
-        /* 自訂顏色按鈕 */
+        #colorPickerWrapper { position: relative; }
         #customColorBtn {
             width: 24px;
             height: 24px;
@@ -62,6 +54,95 @@
             height: 0; 
             pointer-events: none;
         }
+
+        /* ── 放大鏡樣式 ── */
+        #magnifier {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 3px solid #3b82f6;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.3) inset;
+            pointer-events: none;
+            display: none;
+            overflow: hidden;
+            z-index: 100;
+            background: #fff;
+            /* 十字準心 */
+        }
+        #magnifier::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(59,130,246,0.7);
+            z-index: 2;
+            pointer-events: none;
+        }
+        #magnifier::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(59,130,246,0.4);
+            z-index: 2;
+            pointer-events: none;
+        }
+        #magnifierCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            border-radius: 50%;
+        }
+        #magnifierCrossH {
+            position: absolute;
+            top: 50%;
+            left: 0; right: 0;
+            height: 1px;
+            background: rgba(59,130,246,0.5);
+            transform: translateY(-50%);
+            z-index: 3;
+            pointer-events: none;
+        }
+        #magnifierCrossV {
+            position: absolute;
+            left: 50%;
+            top: 0; bottom: 0;
+            width: 1px;
+            background: rgba(59,130,246,0.5);
+            transform: translateX(-50%);
+            z-index: 3;
+            pointer-events: none;
+        }
+        #magnifierLabel {
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(59,130,246,0.92);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            white-space: nowrap;
+            pointer-events: none;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+        }
+
+        /* 放大鏡工具按鈕啟用狀態 */
+        #toggleMagnifierBtn.active {
+            background-color: #1d4ed8 !important;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.4);
+        }
+
+        /* 放大倍率滑桿區 */
+        #magnifierControls { transition: all 0.2s; }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8 min-h-screen font-sans flex justify-center items-start">
@@ -74,11 +155,32 @@
         <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
             <!-- 左側控制面板 -->
             <div class="lg:col-span-4 space-y-6">
-                
+
                 <!-- 步驟 1 -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <label class="block text-sm font-bold text-gray-800 mb-2">1. 上傳原始圖片</label>
                     <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
+                </div>
+
+                <!-- 🔍 放大鏡功能 -->
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <label class="block text-sm font-bold text-blue-800 mb-2">🔍 局部放大鏡</label>
+                    <p class="text-xs text-blue-600 mb-3">開啟後，滑鼠移至圖片上即可即時放大，方便精確操作。</p>
+                    <button id="toggleMagnifierBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-2 rounded-lg hover:bg-blue-700 transition shadow-md text-sm mb-3">
+                        🔍 啟用放大鏡
+                    </button>
+                    <div id="magnifierControls" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-medium text-gray-700 w-14">放大倍率:</label>
+                            <input type="range" id="zoomLevel" min="2" max="8" value="3" step="0.5" class="flex-1 cursor-pointer">
+                            <span id="zoomVal" class="text-xs text-gray-600 w-8 text-right font-mono">3×</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-medium text-gray-700 w-14">鏡頭大小:</label>
+                            <input type="range" id="lensSize" min="100" max="300" value="220" step="10" class="flex-1 cursor-pointer">
+                            <span id="lensSizeVal" class="text-xs text-gray-600 w-8 text-right font-mono">220</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 步驟 2：去背 -->
@@ -112,7 +214,7 @@
                     </div>
                 </div>
 
-                <!-- 步驟 4：新增文字 (含選色) -->
+                <!-- 步驟 4：新增文字 -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                     <label class="block text-sm font-bold text-gray-800 mb-2">4. 新增替換文字</label>
                     
@@ -157,11 +259,9 @@
                         </div>
                     </div>
 
-                    <!-- ✅ 新增：文字顏色選擇器 -->
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-2">文字顏色</label>
                         <div class="flex items-center gap-2 flex-wrap">
-                            <!-- 預設色板 -->
                             <div class="color-swatch selected" data-color="#2d2d2d" style="background:#2d2d2d;" title="深黑"></div>
                             <div class="color-swatch" data-color="#ffffff" style="background:#ffffff; border-color:#d1d5db;" title="白色"></div>
                             <div class="color-swatch" data-color="#dc2626" style="background:#dc2626;" title="紅色"></div>
@@ -171,13 +271,11 @@
                             <div class="color-swatch" data-color="#2563eb" style="background:#2563eb;" title="藍色"></div>
                             <div class="color-swatch" data-color="#7c3aed" style="background:#7c3aed;" title="紫色"></div>
                             <div class="color-swatch" data-color="#db2777" style="background:#db2777;" title="粉紅"></div>
-                            <!-- 自訂顏色按鈕 -->
                             <div id="colorPickerWrapper" title="自訂顏色">
                                 <div id="customColorBtn"></div>
                                 <input type="color" id="fontColor" value="#2d2d2d">
                             </div>
                         </div>
-                        <!-- 目前選取的顏色預覽 -->
                         <div class="mt-2 flex items-center gap-2">
                             <div id="selectedColorPreview" style="width:16px;height:16px;border-radius:3px;background:#2d2d2d;border:1px solid #d1d5db;flex-shrink:0;"></div>
                             <span class="text-xs text-gray-500">目前顏色：</span>
@@ -210,12 +308,21 @@
                         <span>請先由左側上傳圖片</span>
                     </div>
                     <canvas id="canvas" class="max-w-full h-auto hidden object-contain cursor-crosshair"></canvas>
+
+                    <!-- 放大鏡浮層 -->
+                    <div id="magnifier">
+                        <canvas id="magnifierCanvas"></canvas>
+                        <div id="magnifierCrossH"></div>
+                        <div id="magnifierCrossV"></div>
+                        <div id="magnifierLabel">3× ｜ (0, 0)</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // ── DOM refs ──
         const imageUpload = document.getElementById('imageUpload');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -227,8 +334,121 @@
         const toggleRemoveBgBtn = document.getElementById('toggleRemoveBgBtn');
         const bgToleranceInput = document.getElementById('bgTolerance');
         const toleranceVal = document.getElementById('toleranceVal');
+        const canvasContainer = document.getElementById('canvasContainer');
 
-        // ── 顏色選擇器相關 ──
+        // ── 放大鏡 DOM ──
+        const magnifierEl = document.getElementById('magnifier');
+        const magnifierCanvas = document.getElementById('magnifierCanvas');
+        const magnifierCtx = magnifierCanvas.getContext('2d');
+        const magnifierLabel = document.getElementById('magnifierLabel');
+        const toggleMagnifierBtn = document.getElementById('toggleMagnifierBtn');
+        const zoomLevelInput = document.getElementById('zoomLevel');
+        const zoomValSpan = document.getElementById('zoomVal');
+        const lensSizeInput = document.getElementById('lensSize');
+        const lensSizeValSpan = document.getElementById('lensSizeVal');
+
+        // ── 放大鏡狀態 ──
+        let magnifierEnabled = false;
+        let zoomLevel = 3;
+        let lensSize = 220;
+
+        function updateMagnifierSize() {
+            lensSize = parseInt(lensSizeInput.value);
+            lensSizeValSpan.textContent = lensSize;
+            magnifierEl.style.width = lensSize + 'px';
+            magnifierEl.style.height = lensSize + 'px';
+            magnifierCanvas.width = lensSize;
+            magnifierCanvas.height = lensSize;
+        }
+
+        zoomLevelInput.addEventListener('input', () => {
+            zoomLevel = parseFloat(zoomLevelInput.value);
+            zoomValSpan.textContent = zoomLevel + '×';
+        });
+
+        lensSizeInput.addEventListener('input', () => {
+            updateMagnifierSize();
+        });
+
+        toggleMagnifierBtn.addEventListener('click', () => {
+            magnifierEnabled = !magnifierEnabled;
+            if (magnifierEnabled) {
+                toggleMagnifierBtn.textContent = '🔍 關閉放大鏡';
+                toggleMagnifierBtn.classList.add('active');
+            } else {
+                toggleMagnifierBtn.textContent = '🔍 啟用放大鏡';
+                toggleMagnifierBtn.classList.remove('active');
+                magnifierEl.style.display = 'none';
+            }
+        });
+
+        function drawMagnifier(canvasX, canvasY, containerMouseX, containerMouseY) {
+            if (!magnifierEnabled || !baseImageData) return;
+
+            const half = lensSize / 2;
+            const srcSize = lensSize / zoomLevel;
+
+            // 計算 src rect（在 canvas 座標系）
+            let srcX = canvasX - srcSize / 2;
+            let srcY = canvasY - srcSize / 2;
+
+            // 放大鏡顯示在滑鼠的右上方，超出邊界則換邊
+            const containerRect = canvasContainer.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            // 以 container 為基準定位放大鏡
+            let magLeft = containerMouseX + 20;
+            let magTop = containerMouseY - lensSize - 20;
+
+            // 超出右側 → 顯示左邊
+            if (magLeft + lensSize > containerRect.width - 10) {
+                magLeft = containerMouseX - lensSize - 20;
+            }
+            // 超出頂部 → 顯示下方
+            if (magTop < 10) {
+                magTop = containerMouseY + 20;
+            }
+
+            magnifierEl.style.display = 'block';
+            magnifierEl.style.left = magLeft + 'px';
+            magnifierEl.style.top = magTop + 'px';
+
+            // 繪製放大內容
+            magnifierCtx.clearRect(0, 0, lensSize, lensSize);
+
+            // 填充棋盤格背景（對應 checkerboard）
+            magnifierCtx.fillStyle = '#f0f0f0';
+            magnifierCtx.fillRect(0, 0, lensSize, lensSize);
+            for (let gx = 0; gx < lensSize; gx += 10) {
+                for (let gy = 0; gy < lensSize; gy += 10) {
+                    if ((Math.floor(gx / 10) + Math.floor(gy / 10)) % 2 === 0) {
+                        magnifierCtx.fillStyle = '#cccccc';
+                        magnifierCtx.fillRect(gx, gy, 10, 10);
+                    }
+                }
+            }
+
+            magnifierCtx.save();
+            magnifierCtx.beginPath();
+            magnifierCtx.arc(half, half, half, 0, Math.PI * 2);
+            magnifierCtx.clip();
+
+            // 從主 canvas 取當前畫面（包含文字等）
+            magnifierCtx.drawImage(
+                canvas,
+                srcX, srcY, srcSize, srcSize,
+                0, 0, lensSize, lensSize
+            );
+
+            magnifierCtx.restore();
+
+            // 更新座標標籤
+            const displayX = Math.round(canvasX);
+            const displayY = Math.round(canvasY);
+            magnifierLabel.textContent = `${zoomLevel}× ｜ (${displayX}, ${displayY})`;
+        }
+
+        // ── 顏色選擇器 ──
         let selectedColor = '#2d2d2d';
         const fontColorInput = document.getElementById('fontColor');
         const customColorBtn = document.getElementById('customColorBtn');
@@ -242,7 +462,6 @@
             selectedColorPreview.style.background = color;
             selectedColorHex.textContent = color;
             selectedColorSample.style.color = color;
-            // 白色時加暗色背景讓文字看得見
             if (color.toLowerCase() === '#ffffff') {
                 selectedColorSample.style.textShadow = '0 0 2px #aaa';
             } else {
@@ -250,7 +469,6 @@
             }
         }
 
-        // 色板點擊
         swatches.forEach(swatch => {
             swatch.addEventListener('click', () => {
                 swatches.forEach(s => s.classList.remove('selected'));
@@ -260,12 +478,7 @@
             });
         });
 
-        // 自訂顏色按鈕：觸發 <input type="color">
-        customColorBtn.addEventListener('click', () => {
-            fontColorInput.click();
-        });
-
-        // 自訂顏色選好後
+        customColorBtn.addEventListener('click', () => { fontColorInput.click(); });
         fontColorInput.addEventListener('input', (e) => {
             swatches.forEach(s => s.classList.remove('selected'));
             setSelectedColor(e.target.value);
@@ -275,7 +488,7 @@
             setSelectedColor(e.target.value);
         });
 
-        // ── 畫布與狀態管理 ──
+        // ── 畫布與狀態 ──
         let img = new Image();
         let baseImageData = null;
         let textObjects = [];
@@ -321,6 +534,7 @@
                     placeholderText.classList.add('hidden');
                     downloadBtn.classList.add('hidden');
                     undoBtn.classList.add('hidden');
+                    updateMagnifierSize();
                     redrawCanvas();
                 };
                 img.src = event.target.result;
@@ -342,7 +556,10 @@
             }
             return {
                 x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
+                y: (clientY - rect.top) * scaleY,
+                // 相對 container 的座標（用於定位放大鏡）
+                containerX: clientX - canvasContainer.getBoundingClientRect().left,
+                containerY: clientY - canvasContainer.getBoundingClientRect().top
             };
         }
 
@@ -423,6 +640,33 @@
             }
         });
 
+        // ── 滑鼠移動：觸發放大鏡 ──
+        canvas.addEventListener('mousemove', (e) => {
+            if (!baseImageData) return;
+            const pos = getPos(e);
+
+            if (magnifierEnabled) {
+                drawMagnifier(pos.x, pos.y, pos.containerX, pos.containerY);
+            }
+
+            // 原本的游標邏輯
+            if (draggingTextIndex !== -1) {
+                // 拖曳中
+            } else if (!isDrawing) {
+                if (checkTextHit(pos) !== -1) {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'crosshair';
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (magnifierEnabled) {
+                magnifierEl.style.display = 'none';
+            }
+        });
+
         function handleInputStart(e) {
             if (!baseImageData) return;
             const pos = getPos(e);
@@ -449,6 +693,11 @@
         function handleInputMove(e) {
             if (!baseImageData) return;
             const pos = getPos(e);
+
+            if (magnifierEnabled && e.type === 'touchmove') {
+                drawMagnifier(pos.x, pos.y, pos.containerX, pos.containerY);
+            }
+
             if (draggingTextIndex !== -1) {
                 textObjects[draggingTextIndex].x = pos.x - dragOffsetX;
                 textObjects[draggingTextIndex].y = pos.y - dragOffsetY;
@@ -463,14 +712,6 @@
                     h: Math.abs(pos.y - startY)
                 };
                 redrawCanvas();
-            } else {
-                if (e.type === 'mousemove') {
-                    if (checkTextHit(pos) !== -1) {
-                        canvas.style.cursor = 'grab';
-                    } else {
-                        canvas.style.cursor = 'crosshair';
-                    }
-                }
             }
         }
 
@@ -483,12 +724,15 @@
         }
 
         canvas.addEventListener('mousedown', handleInputStart);
-        canvas.addEventListener('mousemove', handleInputMove);
+        // mousemove handled above (merged with magnifier)
         canvas.addEventListener('mouseup', handleInputEnd);
         canvas.addEventListener('mouseout', handleInputEnd);
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleInputStart(e); }, { passive: false });
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInputMove(e); }, { passive: false });
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleInputEnd(); }, { passive: false });
+
+        // Wrap handleInputMove for mouse (already registered separately above)
+        canvas.addEventListener('mousemove', handleInputMove);
 
         eraseBtn.addEventListener('click', () => {
             if (!baseImageData) return alert('請先上傳圖片！');
@@ -525,7 +769,6 @@
             if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10;
             const startTextX = selectionBox.x + (selectionBox.w * 0.05);
 
-            // ✅ 使用 selectedColor 作為文字顏色
             textObjects.push({
                 lines,
                 x: startTextX,
@@ -567,6 +810,9 @@
             selectionBox = currentSelection;
             redrawCanvas();
         });
+
+        // 初始化放大鏡 canvas 大小
+        updateMagnifierSize();
     </script>
 </body>
 </html>
