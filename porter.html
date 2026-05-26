@@ -7,15 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 讓游標在畫布上顯示為十字準星，方便框選 */
-        #canvas { cursor: crosshair; touch-action: none; }
+        #canvas { touch-action: none; }
         .hidden { display: none !important; }
+        /* 增加透明棋盤格背景，讓去背後的透明區域可視化 */
+        .checkerboard {
+            background-color: #f0f0f0;
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8 min-h-screen font-sans flex justify-center items-start">
     <div class="max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div class="bg-blue-600 p-6 text-white">
-            <h1 class="text-2xl font-bold">🛠️ 圖像去框與文字修改工具</h1>
-            <p class="text-blue-100 mt-2 text-sm">請依照左側步驟，上傳圖片並框選要消除的紅框，系統將自動為您替換上指定文字。</p>
+            <h1 class="text-2xl font-bold">🛠️ 圖像去背與文字修改工具</h1>
+            <p class="text-blue-100 mt-2 text-sm">支援去背、抹除 Logo、替換文字，且文字新增後可自由拖曳移動位置。</p>
         </div>
 
         <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -28,29 +39,53 @@
                     <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
                 </div>
 
-                <!-- 步驟 2 提示 -->
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <label class="block text-sm font-bold text-gray-800">2. 框選紅框範圍</label>
-                    <p class="text-xs text-gray-600 mt-1">請在右側圖片上，按住滑鼠拖曳，將紅框與裡面的文字完整框選起來。</p>
+                <!-- 新增：去背工具 -->
+                <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <label class="block text-sm font-bold text-purple-800 mb-2">2. 圖片去背 (選用)</label>
+                    <p class="text-xs text-purple-600 mb-3">啟用後，點擊右側圖片上的背景顏色，即可將其變為透明。</p>
+                    <button id="toggleRemoveBgBtn" class="w-full bg-purple-600 text-white font-bold py-2 px-2 rounded-lg hover:bg-purple-700 transition shadow-md text-sm mb-3">
+                        🪄 啟用魔術棒去背
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium text-gray-700 w-16">色彩容差:</label>
+                        <input type="range" id="bgTolerance" min="0" max="255" value="30" class="flex-1 cursor-pointer">
+                        <span id="toleranceVal" class="text-xs text-gray-600 w-6 text-right">30</span>
+                    </div>
                 </div>
 
-                <!-- 步驟 3 -->
+                <!-- 步驟 3 提示 -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label class="block text-sm font-bold text-gray-800">3. 框選並消除雜物</label>
+                    <p class="text-xs text-gray-600 mt-1">在右圖上「按住滑鼠拖曳」框選範圍，再點擊下方消除按鈕。</p>
+                    <div class="mt-3 grid grid-cols-2 gap-2 items-end">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">覆蓋背景色</label>
+                            <div class="flex items-center mt-1">
+                                <input type="color" id="bgColor" value="#f8ecd9" class="h-8 w-8 rounded border border-gray-300 cursor-pointer">
+                            </div>
+                        </div>
+                        <button id="eraseBtn" class="bg-orange-500 text-white font-bold py-2 px-2 rounded-lg hover:bg-orange-600 transition shadow-md flex justify-center items-center text-sm h-10">
+                            🧽 消除框選區
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 步驟 4 -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
-                    <label class="block text-sm font-bold text-gray-800 mb-2">3. 確認替換內容與設定</label>
+                    <label class="block text-sm font-bold text-gray-800 mb-2">4. 新增替換文字</label>
                     
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">替換文字 (已為您預設)</label>
-                        <!-- 預設為使用者要求的文字 -->
                         <textarea id="newText" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-blue-500 focus:border-blue-500">收好食物，不圍觀驚叫並&#10;安靜繞道。</textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700">覆蓋背景色</label>
-                            <div class="flex items-center mt-1">
-                                <input type="color" id="bgColor" value="#f8ecd9" class="h-8 w-8 rounded border border-gray-300 cursor-pointer">
-                                <span class="text-xs text-gray-500 ml-2">近似原底色</span>
-                            </div>
+                            <label class="block text-xs font-medium text-gray-700">字型</label>
+                            <select id="fontFamily" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm bg-white">
+                                <option value='"Microsoft JhengHei", "PingFang TC", sans-serif'>微軟正黑體</option>
+                                <option value='"DFKai-SB", "BiauKai", serif'>標楷體</option>
+                                <option value='"PMingLiU", "MingLiU", serif'>新細明體</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700">字體大小</label>
@@ -58,48 +93,30 @@
                         </div>
                     </div>
                     
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700">字型</label>
-                        <select id="fontFamily" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm bg-white">
-                            <option value='"Microsoft JhengHei", "PingFang TC", sans-serif'>微軟正黑體 / 蘋方 (黑體)</option>
-                            <option value='"DFKai-SB", "BiauKai", serif'>標楷體</option>
-                            <option value='"PMingLiU", "MingLiU", serif'>新細明體 (宋體)</option>
-                            <option value='sans-serif'>系統預設無襯線體</option>
-                            <option value='serif'>系統預設襯線體</option>
-                        </select>
-                    </div>
+                    <button id="applyTextBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-2 rounded-lg hover:bg-blue-700 transition shadow-md flex justify-center items-center text-sm">
+                        📝 新增文字 (新增後可拖曳)
+                    </button>
                 </div>
 
-                <!-- 步驟 4 & 5 -->
-                <div class="space-y-3 pt-2">
-                    <div class="grid grid-cols-2 gap-2">
-                        <button id="applyTextBtn" class="bg-blue-600 text-white font-bold py-3 px-2 rounded-lg hover:bg-blue-700 transition shadow-md flex justify-center items-center text-sm">
-                            📝 4. 替換文字
-                        </button>
-                        <button id="eraseBtn" class="bg-orange-500 text-white font-bold py-3 px-2 rounded-lg hover:bg-orange-600 transition shadow-md flex justify-center items-center text-sm">
-                            🧽 消除 Logo
-                        </button>
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="undoBtn" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition hidden text-sm">
-                            ↺ 復原
-                        </button>
-                        <button id="downloadBtn" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition shadow-md hidden text-sm">
-                            ⬇️ 5. 下載完成圖
-                        </button>
-                    </div>
+                <!-- 復原與下載 -->
+                <div class="flex gap-2 pt-2">
+                    <button id="undoBtn" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition hidden text-sm font-bold">
+                        ↺ 復原上一步
+                    </button>
+                    <button id="downloadBtn" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition shadow-md hidden text-sm">
+                        ⬇️ 下載完成圖
+                    </button>
                 </div>
             </div>
 
             <!-- 右側畫布區域 -->
             <div class="lg:col-span-8">
-                <div class="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden relative bg-gray-100 flex items-center justify-center min-h-[500px] h-full shadow-inner" id="canvasContainer">
-                    <div id="placeholderText" class="text-gray-400 flex flex-col items-center">
+                <div class="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden relative bg-gray-100 flex items-center justify-center min-h-[500px] h-full shadow-inner checkerboard" id="canvasContainer">
+                    <div id="placeholderText" class="text-gray-400 flex flex-col items-center z-10 relative">
                         <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         <span>請先由左側上傳圖片</span>
                     </div>
-                    <!-- 為了確保高解析度，這裡使用 CSS 限制最大寬度，但實際畫布尺寸為原圖大小 -->
-                    <canvas id="canvas" class="max-w-full h-auto hidden object-contain"></canvas>
+                    <canvas id="canvas" class="max-w-full h-auto hidden object-contain cursor-crosshair"></canvas>
                 </div>
             </div>
         </div>
@@ -108,20 +125,54 @@
     <script>
         const imageUpload = document.getElementById('imageUpload');
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const placeholderText = document.getElementById('placeholderText');
         const applyTextBtn = document.getElementById('applyTextBtn');
         const eraseBtn = document.getElementById('eraseBtn');
         const downloadBtn = document.getElementById('downloadBtn');
         const undoBtn = document.getElementById('undoBtn');
+        const toggleRemoveBgBtn = document.getElementById('toggleRemoveBgBtn');
+        const bgToleranceInput = document.getElementById('bgTolerance');
+        const toleranceVal = document.getElementById('toleranceVal');
 
         let img = new Image();
-        let originalImageData = null;
-        let currentImageData = null;
+        
+        // 狀態管理：分離「底圖像素」與「文字物件」
+        let baseImageData = null; // 處理過去背與消除的底層圖片資料
+        let textObjects = [];     // 儲存所有可拖曳的文字 { lines, x, y, width, height, fontSize, fontFamily, color }
+        let actionHistory = [];   // 復原用堆疊 { imageData, textObjects }
 
+        // 互動模式與狀態
+        let currentMode = 'select'; // 'select' (框選), 'removeBg' (去背)
         let isDrawing = false;
         let startX, startY;
         let selectionBox = null; // {x, y, w, h}
+        
+        // 拖曳文字相關
+        let draggingTextIndex = -1;
+        let dragOffsetX = 0, dragOffsetY = 0;
+
+        // 更新容差值顯示
+        bgToleranceInput.addEventListener('input', (e) => {
+            toleranceVal.textContent = e.target.value;
+        });
+
+        // 記錄歷史狀態 (供復原使用)
+        function saveState() {
+            if (actionHistory.length > 15) actionHistory.shift(); // 避免記憶體吃緊
+            
+            // 拷貝當前 ImageData 與 文字物件
+            const clonedData = new ImageData(
+                new Uint8ClampedArray(baseImageData.data),
+                baseImageData.width,
+                baseImageData.height
+            );
+            const clonedTexts = JSON.parse(JSON.stringify(textObjects));
+            
+            actionHistory.push({ imageData: clonedData, textObjects: clonedTexts });
+            undoBtn.classList.remove('hidden');
+            downloadBtn.classList.remove('hidden');
+        }
 
         // 上傳圖片並載入畫布
         imageUpload.addEventListener('change', (e) => {
@@ -131,32 +182,30 @@
             const reader = new FileReader();
             reader.onload = (event) => {
                 img.onload = () => {
-                    // 設定畫布為圖片原始解析度
                     canvas.width = img.width;
                     canvas.height = img.height;
                     ctx.drawImage(img, 0, 0);
                     
-                    // 儲存狀態以便復原
-                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    textObjects = [];
+                    actionHistory = [];
+                    selectionBox = null;
                     
                     canvas.classList.remove('hidden');
                     placeholderText.classList.add('hidden');
-                    selectionBox = null;
-                    
-                    // 隱藏下載和復原按鈕
                     downloadBtn.classList.add('hidden');
                     undoBtn.classList.add('hidden');
+                    
+                    redrawCanvas();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
 
-        // 轉換滑鼠/觸控在畫面上縮放後的相對座標轉換為畫布的實際像素座標
+        // 轉換縮放後的相對座標轉換為畫布實際像素座標
         function getPos(evt) {
             const rect = canvas.getBoundingClientRect();
-            // 考慮 CSS 縮放比例
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             
@@ -175,178 +224,303 @@
             };
         }
 
-        // 重新繪製畫面 (包含圖片及選取框)
-        function redrawCanvas() {
-            if (currentImageData) {
-                ctx.putImageData(currentImageData, 0, 0);
+        // 檢查滑鼠/觸控是否點擊到文字物件
+        function checkTextHit(pos) {
+            // 從最後畫布上的物件往前找(上層優先)
+            for (let i = textObjects.length - 1; i >= 0; i--) {
+                const t = textObjects[i];
+                if (pos.x >= t.x && pos.x <= t.x + t.width &&
+                    pos.y >= t.y && pos.y <= t.y + t.height) {
+                    return i;
+                }
             }
+            return -1;
+        }
+
+        // 重新繪製畫面 (圖層順序：底圖 -> 選取框 -> 所有文字)
+        function redrawCanvas() {
+            if (!baseImageData) return;
+            
+            // 1. 繪製底圖 (包含已消除的區塊與去背透明)
+            ctx.putImageData(baseImageData, 0, 0);
+            
+            // 2. 繪製紅色的虛線選取框
             if (selectionBox) {
-                // 繪製紅色的虛線選取框
                 ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
                 ctx.lineWidth = 4;
                 ctx.setLineDash([8, 8]);
                 ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
-                ctx.setLineDash([]); // 重置虛線
-                
-                // 繪製半透明遮罩預覽
+                ctx.setLineDash([]);
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
                 ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
             }
+
+            // 3. 繪製所有可拖曳的文字物件
+            textObjects.forEach((t, index) => {
+                ctx.font = `bold ${t.fontSize}px ${t.fontFamily}`;
+                ctx.fillStyle = t.color;
+                ctx.textBaseline = 'top';
+                const lineHeight = t.fontSize * 1.6;
+                t.lines.forEach((line, lineIdx) => {
+                    ctx.fillText(line, t.x, t.y + (lineIdx * lineHeight));
+                });
+
+                // 若滑鼠正游標停留或拖曳該文字，繪製外框提示
+                if (index === draggingTextIndex) {
+                    ctx.strokeStyle = '#3b82f6'; // Tailwind blue-500
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeRect(t.x - 4, t.y - 4, t.width + 8, t.height + 8);
+                    ctx.setLineDash([]);
+                }
+            });
         }
 
-        // --- 滑鼠事件 ---
-        canvas.addEventListener('mousedown', (e) => {
-            if (!currentImageData) return;
+        // --- 色彩去背演算法 (魔術棒) ---
+        function removeBackgroundColor(x, y) {
+            const targetColorData = ctx.getImageData(x, y, 1, 1).data;
+            const r = targetColorData[0], g = targetColorData[1], b = targetColorData[2], a = targetColorData[3];
+            
+            if (a === 0) return; // 點擊處已透明則略過
+            
+            saveState(); // 紀錄去背前狀態
+
+            const tolerance = parseInt(bgToleranceInput.value);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const pr = data[i];
+                const pg = data[i+1];
+                const pb = data[i+2];
+                
+                // 計算色彩距離
+                const diff = Math.sqrt(
+                    Math.pow(pr - r, 2) + Math.pow(pg - g, 2) + Math.pow(pb - b, 2)
+                );
+                
+                // 距離小於容差值，設為完全透明
+                if (diff <= tolerance) {
+                    data[i+3] = 0; 
+                }
+            }
+            
+            baseImageData = imgData;
+            redrawCanvas();
+        }
+
+        // --- 切換去背模式 ---
+        toggleRemoveBgBtn.addEventListener('click', () => {
+            if (currentMode === 'select') {
+                currentMode = 'removeBg';
+                toggleRemoveBgBtn.innerHTML = '🛑 關閉去背模式';
+                toggleRemoveBgBtn.classList.replace('bg-purple-600', 'bg-red-500');
+                toggleRemoveBgBtn.classList.replace('hover:bg-purple-700', 'hover:bg-red-600');
+                canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a855f7\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34\'></path><polygon points=\'18 2 22 6 12 16 8 16 8 12 18 2\'></polygon></svg>") 0 24, crosshair';
+                selectionBox = null;
+                redrawCanvas();
+            } else {
+                currentMode = 'select';
+                toggleRemoveBgBtn.innerHTML = '🪄 啟用魔術棒去背';
+                toggleRemoveBgBtn.classList.replace('bg-red-500', 'bg-purple-600');
+                toggleRemoveBgBtn.classList.replace('hover:bg-red-600', 'hover:bg-purple-700');
+                canvas.style.cursor = 'crosshair';
+            }
+        });
+
+        // --- 滑鼠與觸控事件統一處理邏輯 ---
+        function handleInputStart(e) {
+            if (!baseImageData) return;
             const pos = getPos(e);
+            
+            // 優先判定是否點擊到文字 (可拖曳)
+            const hitIndex = checkTextHit(pos);
+            if (hitIndex !== -1) {
+                draggingTextIndex = hitIndex;
+                const t = textObjects[hitIndex];
+                dragOffsetX = pos.x - t.x;
+                dragOffsetY = pos.y - t.y;
+                canvas.style.cursor = 'grabbing';
+                redrawCanvas();
+                return;
+            }
+
+            // 執行去背
+            if (currentMode === 'removeBg') {
+                removeBackgroundColor(pos.x, pos.y);
+                return;
+            }
+
+            // 執行框選
             startX = pos.x;
             startY = pos.y;
             isDrawing = true;
             selectionBox = null;
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDrawing) return;
-            const pos = getPos(e);
-            selectionBox = {
-                x: Math.min(startX, pos.x),
-                y: Math.min(startY, pos.y),
-                w: Math.abs(pos.x - startX),
-                h: Math.abs(pos.y - startY)
-            };
-            redrawCanvas();
-        });
-
-        canvas.addEventListener('mouseup', () => isDrawing = false);
-        canvas.addEventListener('mouseout', () => isDrawing = false);
-
-        // --- 觸控事件 (支援手機/平板) ---
-        canvas.addEventListener('touchstart', (e) => {
-            if (!currentImageData) return;
-            e.preventDefault(); // 避免滾動畫面
-            const pos = getPos(e);
-            startX = pos.x;
-            startY = pos.y;
-            isDrawing = true;
-            selectionBox = null;
-        });
-
-        canvas.addEventListener('touchmove', (e) => {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const pos = getPos(e);
-            selectionBox = {
-                x: Math.min(startX, pos.x),
-                y: Math.min(startY, pos.y),
-                w: Math.abs(pos.x - startX),
-                h: Math.abs(pos.y - startY)
-            };
-            redrawCanvas();
-        });
-
-        canvas.addEventListener('touchend', () => isDrawing = false);
-
-        // --- 共通的驗證與狀態更新邏輯 ---
-        function validateSelection() {
-            if (!currentImageData) {
-                alert('請先上傳圖片！');
-                return false;
-            }
-            if (!selectionBox || selectionBox.w === 0 || selectionBox.h === 0) {
-                alert('請先在圖片上「按住滑鼠拖曳」，框選出範圍！');
-                return false;
-            }
-            return true;
         }
 
-        function finalizeEdit(btnElement, originalText) {
-            currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            selectionBox = null;
+        function handleInputMove(e) {
+            if (!baseImageData) return;
+            const pos = getPos(e);
             
-            downloadBtn.classList.remove('hidden');
-            undoBtn.classList.remove('hidden');
-            
-            btnElement.innerHTML = '✅ 完成！';
-            setTimeout(() => { btnElement.innerHTML = originalText; }, 2000);
+            // 處理拖曳文字
+            if (draggingTextIndex !== -1) {
+                textObjects[draggingTextIndex].x = pos.x - dragOffsetX;
+                textObjects[draggingTextIndex].y = pos.y - dragOffsetY;
+                redrawCanvas();
+                return;
+            }
+
+            // 處理框選繪製
+            if (isDrawing) {
+                selectionBox = {
+                    x: Math.min(startX, pos.x),
+                    y: Math.min(startY, pos.y),
+                    w: Math.abs(pos.x - startX),
+                    h: Math.abs(pos.y - startY)
+                };
+                redrawCanvas();
+            } else {
+                // 滑鼠懸浮提示 (僅針對滑鼠)
+                if(e.type === 'mousemove') {
+                    if (checkTextHit(pos) !== -1) {
+                        canvas.style.cursor = 'grab';
+                    } else if (currentMode === 'select') {
+                        canvas.style.cursor = 'crosshair';
+                    } else {
+                        // 恢復魔術棒游標
+                        canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a855f7\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34\'></path><polygon points=\'18 2 22 6 12 16 8 16 8 12 18 2\'></polygon></svg>") 0 24, crosshair';
+                    }
+                }
+            }
         }
+
+        function handleInputEnd() {
+            if (draggingTextIndex !== -1) {
+                saveState(); // 拖曳結束後存檔以供復原
+            }
+            isDrawing = false;
+            draggingTextIndex = -1;
+            redrawCanvas();
+            
+            if (currentMode === 'select') canvas.style.cursor = 'crosshair';
+        }
+
+        canvas.addEventListener('mousedown', handleInputStart);
+        canvas.addEventListener('mousemove', handleInputMove);
+        canvas.addEventListener('mouseup', handleInputEnd);
+        canvas.addEventListener('mouseout', handleInputEnd);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleInputStart(e); }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInputMove(e); }, { passive: false });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleInputEnd(); }, { passive: false });
+
 
         // --- 執行消除 Logo / 雜物 ---
         eraseBtn.addEventListener('click', () => {
-            if (!validateSelection()) return;
+            if (!baseImageData) return alert('請先上傳圖片！');
+            if (!selectionBox || selectionBox.w === 0) return alert('請先在圖片上「按住滑鼠拖曳」框出範圍！');
 
-            // 1. 還原畫面 (去除紅虛線框)
-            ctx.putImageData(currentImageData, 0, 0);
+            saveState(); // 操作前儲存
 
-            // 2. 塗上背景色覆蓋範圍
+            // 繪製目前的底圖到 Canvas 以進行塗抹
+            ctx.putImageData(baseImageData, 0, 0);
+
             const bgColor = document.getElementById('bgColor').value;
             ctx.fillStyle = bgColor;
-            // 稍微放大覆蓋範圍確保邊緣被消除
+            // 放大 2 像素確保邊緣無縫覆蓋
             ctx.fillRect(selectionBox.x - 2, selectionBox.y - 2, selectionBox.w + 4, selectionBox.h + 4);
 
-            // 3. 儲存狀態並更新 UI
-            finalizeEdit(eraseBtn, '🧽 消除 Logo');
+            // 更新底圖資料
+            baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            selectionBox = null;
+            redrawCanvas();
+
+            const originalText = eraseBtn.innerHTML;
+            eraseBtn.innerHTML = '✅ 已消除';
+            setTimeout(() => { eraseBtn.innerHTML = originalText; }, 1500);
         });
 
-        // --- 執行替換文字 ---
+        // --- 執行新增文字 (轉換為物件) ---
         applyTextBtn.addEventListener('click', () => {
-            if (!validateSelection()) return;
+            if (!baseImageData) return alert('請先上傳圖片！');
+            if (!selectionBox || selectionBox.w === 0) return alert('請先框選一個大致的文字放置範圍！');
 
-            // 1. 先還原乾淨的畫面 (去除紅虛線框)
-            ctx.putImageData(currentImageData, 0, 0);
+            saveState();
 
-            // 取得設定值
-            const bgColor = document.getElementById('bgColor').value;
             const text = document.getElementById('newText').value;
             const fontSize = parseInt(document.getElementById('fontSize').value);
             const fontFamily = document.getElementById('fontFamily').value;
-
-            // 2. 塗上背景色覆蓋原始紅框與文字
-            ctx.fillStyle = bgColor;
-            // 稍微放大覆蓋範圍確保邊緣被消除 (加減 2 像素)
-            ctx.fillRect(selectionBox.x - 2, selectionBox.y - 2, selectionBox.w + 4, selectionBox.h + 4);
-
-            // 3. 繪製新文字
-            ctx.fillStyle = '#2d2d2d'; // 設定為深灰色，符合原圖質感
-            // 設定字體，套用使用者選擇的字型與大小
-            ctx.font = `bold ${fontSize}px ${fontFamily}`;
-            ctx.textBaseline = 'top';
-
             const lines = text.split('\n');
-            const lineHeight = fontSize * 1.6; // 行距
+            const lineHeight = fontSize * 1.6;
             const totalTextHeight = lines.length * lineHeight;
             
-            // 計算文字的起始座標，使其在框內垂直與水平都有適當留白
-            let startTextY = selectionBox.y + (selectionBox.h - totalTextHeight) / 2;
-            if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10; 
-            
-            // 距離左邊框保留一點邊距
-            const startTextX = selectionBox.x + (selectionBox.w * 0.05); 
-
-            lines.forEach((line, index) => {
-                ctx.fillText(line, startTextX, startTextY + (index * lineHeight));
+            // 計算文字物件的真實寬高
+            ctx.font = `bold ${fontSize}px ${fontFamily}`;
+            let maxWidth = 0;
+            lines.forEach(line => {
+                const metrics = ctx.measureText(line);
+                if (metrics.width > maxWidth) maxWidth = metrics.width;
             });
 
-            // 4. 儲存狀態並更新 UI
-            finalizeEdit(applyTextBtn, '📝 4. 替換文字');
+            // 初始化文字位置，稍微置中於選取框
+            let startTextY = selectionBox.y + (selectionBox.h - totalTextHeight) / 2;
+            if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10; 
+            const startTextX = selectionBox.x + (selectionBox.w * 0.05); 
+
+            // 將新文字加入陣列
+            textObjects.push({
+                lines: lines,
+                x: startTextX,
+                y: startTextY,
+                width: maxWidth,
+                height: totalTextHeight,
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+                color: '#2d2d2d'
+            });
+
+            selectionBox = null; // 清除選取框
+            redrawCanvas();
+
+            const originalText = applyTextBtn.innerHTML;
+            applyTextBtn.innerHTML = '✅ 新增成功';
+            setTimeout(() => { applyTextBtn.innerHTML = originalText; }, 1500);
         });
 
         // --- 復原動作 ---
         undoBtn.addEventListener('click', () => {
-            if (originalImageData) {
-                currentImageData = originalImageData;
-                ctx.putImageData(currentImageData, 0, 0);
+            if (actionHistory.length > 0) {
+                const lastState = actionHistory.pop();
+                
+                // 恢復影像與文字陣列
+                baseImageData = lastState.imageData;
+                textObjects = lastState.textObjects;
+                
                 selectionBox = null;
-                downloadBtn.classList.add('hidden');
-                undoBtn.classList.add('hidden');
+                draggingTextIndex = -1;
+                redrawCanvas();
+
+                if (actionHistory.length === 0) {
+                    undoBtn.classList.add('hidden');
+                }
             }
         });
 
         // --- 下載圖片 ---
         downloadBtn.addEventListener('click', () => {
+            // 確保下載時沒有紅虛線框，強制渲染一次最終版
+            const currentSelection = selectionBox;
+            selectionBox = null;
+            redrawCanvas();
+
             const link = document.createElement('a');
-            link.download = '修改後_宣導海報.jpg';
-            // 轉換成高品質 JPG
-            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.download = '修改後_宣導海報.png'; // 支援透明背景去背
+            link.href = canvas.toDataURL('image/png');
             link.click();
+
+            // 還原畫面
+            selectionBox = currentSelection;
+            redrawCanvas();
         });
     </script>
 </body>
