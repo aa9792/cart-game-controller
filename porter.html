@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>圖像文字去框修改工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts：載入多種中英文字型 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=Oswald:wght@700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
         #canvas { touch-action: none; }
         .hidden { display: none !important; }
@@ -120,9 +124,31 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-700">字型</label>
                             <select id="fontFamily" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm bg-white">
-                                <option value='"Microsoft JhengHei", "PingFang TC", sans-serif'>微軟正黑體</option>
-                                <option value='"DFKai-SB", "BiauKai", serif'>標楷體</option>
-                                <option value='"PMingLiU", "MingLiU", serif'>新細明體</option>
+                                <optgroup label="── 黑體／無襯線">
+                                    <option value='"Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif'>微軟正黑體</option>
+                                    <option value='"Noto Sans TC", "PingFang TC", sans-serif'>Noto Sans TC（思源黑體）</option>
+                                    <option value='"Noto Sans SC", sans-serif'>Noto Sans SC（簡體黑體）</option>
+                                </optgroup>
+                                <optgroup label="── 明體／宋體">
+                                    <option value='"PMingLiU", "MingLiU", serif'>新細明體</option>
+                                    <option value='"Noto Serif TC", "PMingLiU", serif'>Noto Serif TC（思源宋體）</option>
+                                </optgroup>
+                                <optgroup label="── 楷體／書法">
+                                    <option value='"DFKai-SB", "BiauKai", "KaiTi", serif'>標楷體</option>
+                                    <option value='"ZCOOL XiaoWei", serif'>小薇體（古典）</option>
+                                    <option value='"ZCOOL QingKe HuangYou", cursive'>青柯黃油體（可愛圓潤）</option>
+                                    <option value='"Ma Shan Zheng", cursive'>馬善政毛筆體</option>
+                                </optgroup>
+                                <optgroup label="── 手寫／毛筆">
+                                    <option value='"Long Cang", cursive'>龍藏體（隨性手寫）</option>
+                                    <option value='"Zhi Mang Xing", cursive'>知芒星（草書風）</option>
+                                    <option value='"Liu Jian Mao Cao", cursive'>劉建毛草（狂草）</option>
+                                </optgroup>
+                                <optgroup label="── 英文裝飾">
+                                    <option value='"Oswald", Impact, sans-serif'>Oswald（粗壯英文）</option>
+                                    <option value='"Playfair Display", Georgia, serif'>Playfair Display（典雅）</option>
+                                    <option value='"Dancing Script", cursive'>Dancing Script（手寫英文）</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div>
