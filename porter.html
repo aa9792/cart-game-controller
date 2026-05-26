@@ -6,10 +6,8 @@
     <title>圖像文字去框修改工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 讓游標在畫布上顯示為十字準星，方便框選 */
         #canvas { touch-action: none; }
         .hidden { display: none !important; }
-        /* 增加透明棋盤格背景，讓去背後的透明區域可視化 */
         .checkerboard {
             background-color: #f0f0f0;
             background-image: 
@@ -19,6 +17,46 @@
                 linear-gradient(-45deg, transparent 75%, #ccc 75%);
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        /* 顏色預設色板 */
+        .color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, border-color 0.1s;
+            flex-shrink: 0;
+        }
+        .color-swatch:hover {
+            transform: scale(1.15);
+        }
+        .color-swatch.selected {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 1px #2563eb;
+        }
+        /* 顏色選擇器整體容器 */
+        #colorPickerWrapper {
+            position: relative;
+        }
+        /* 自訂顏色按鈕 */
+        #customColorBtn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px dashed #9ca3af;
+            background: linear-gradient(135deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff);
+            flex-shrink: 0;
+            transition: transform 0.1s;
+        }
+        #customColorBtn:hover { transform: scale(1.15); }
+        #fontColor { 
+            position: absolute; 
+            opacity: 0; 
+            width: 0; 
+            height: 0; 
+            pointer-events: none;
         }
     </style>
 </head>
@@ -39,7 +77,7 @@
                     <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition">
                 </div>
 
-                <!-- 新增：去背工具 -->
+                <!-- 步驟 2：去背 -->
                 <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
                     <label class="block text-sm font-bold text-purple-800 mb-2">2. 圖片去背 (選用)</label>
                     <p class="text-xs text-purple-600 mb-3">啟用後，點擊右側圖片上的背景顏色，即可將其變為透明。</p>
@@ -53,7 +91,7 @@
                     </div>
                 </div>
 
-                <!-- 步驟 3 提示 -->
+                <!-- 步驟 3：消除 -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <label class="block text-sm font-bold text-gray-800">3. 框選並消除雜物</label>
                     <p class="text-xs text-gray-600 mt-1">在右圖上「按住滑鼠拖曳」框選範圍，再點擊下方消除按鈕。</p>
@@ -70,7 +108,7 @@
                     </div>
                 </div>
 
-                <!-- 步驟 4 -->
+                <!-- 步驟 4：新增文字 (含選色) -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                     <label class="block text-sm font-bold text-gray-800 mb-2">4. 新增替換文字</label>
                     
@@ -90,6 +128,35 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-700">字體大小</label>
                             <input type="number" id="fontSize" value="20" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm">
+                        </div>
+                    </div>
+
+                    <!-- ✅ 新增：文字顏色選擇器 -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-2">文字顏色</label>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <!-- 預設色板 -->
+                            <div class="color-swatch selected" data-color="#2d2d2d" style="background:#2d2d2d;" title="深黑"></div>
+                            <div class="color-swatch" data-color="#ffffff" style="background:#ffffff; border-color:#d1d5db;" title="白色"></div>
+                            <div class="color-swatch" data-color="#dc2626" style="background:#dc2626;" title="紅色"></div>
+                            <div class="color-swatch" data-color="#ea580c" style="background:#ea580c;" title="橙色"></div>
+                            <div class="color-swatch" data-color="#ca8a04" style="background:#ca8a04;" title="黃色"></div>
+                            <div class="color-swatch" data-color="#16a34a" style="background:#16a34a;" title="綠色"></div>
+                            <div class="color-swatch" data-color="#2563eb" style="background:#2563eb;" title="藍色"></div>
+                            <div class="color-swatch" data-color="#7c3aed" style="background:#7c3aed;" title="紫色"></div>
+                            <div class="color-swatch" data-color="#db2777" style="background:#db2777;" title="粉紅"></div>
+                            <!-- 自訂顏色按鈕 -->
+                            <div id="colorPickerWrapper" title="自訂顏色">
+                                <div id="customColorBtn"></div>
+                                <input type="color" id="fontColor" value="#2d2d2d">
+                            </div>
+                        </div>
+                        <!-- 目前選取的顏色預覽 -->
+                        <div class="mt-2 flex items-center gap-2">
+                            <div id="selectedColorPreview" style="width:16px;height:16px;border-radius:3px;background:#2d2d2d;border:1px solid #d1d5db;flex-shrink:0;"></div>
+                            <span class="text-xs text-gray-500">目前顏色：</span>
+                            <span id="selectedColorHex" class="text-xs font-mono text-gray-700">#2d2d2d</span>
+                            <span id="selectedColorSample" class="text-xs font-bold ml-1" style="color:#2d2d2d;">Aa</span>
                         </div>
                     </div>
                     
@@ -135,67 +202,99 @@
         const bgToleranceInput = document.getElementById('bgTolerance');
         const toleranceVal = document.getElementById('toleranceVal');
 
-        let img = new Image();
-        
-        // 狀態管理：分離「底圖像素」與「文字物件」
-        let baseImageData = null; // 處理過去背與消除的底層圖片資料
-        let textObjects = [];     // 儲存所有可拖曳的文字 { lines, x, y, width, height, fontSize, fontFamily, color }
-        let actionHistory = [];   // 復原用堆疊 { imageData, textObjects }
+        // ── 顏色選擇器相關 ──
+        let selectedColor = '#2d2d2d';
+        const fontColorInput = document.getElementById('fontColor');
+        const customColorBtn = document.getElementById('customColorBtn');
+        const selectedColorPreview = document.getElementById('selectedColorPreview');
+        const selectedColorHex = document.getElementById('selectedColorHex');
+        const selectedColorSample = document.getElementById('selectedColorSample');
+        const swatches = document.querySelectorAll('.color-swatch');
 
-        // 互動模式與狀態
-        let currentMode = 'select'; // 'select' (框選), 'removeBg' (去背)
+        function setSelectedColor(color) {
+            selectedColor = color;
+            selectedColorPreview.style.background = color;
+            selectedColorHex.textContent = color;
+            selectedColorSample.style.color = color;
+            // 白色時加暗色背景讓文字看得見
+            if (color.toLowerCase() === '#ffffff') {
+                selectedColorSample.style.textShadow = '0 0 2px #aaa';
+            } else {
+                selectedColorSample.style.textShadow = '';
+            }
+        }
+
+        // 色板點擊
+        swatches.forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                swatches.forEach(s => s.classList.remove('selected'));
+                swatch.classList.add('selected');
+                setSelectedColor(swatch.dataset.color);
+                fontColorInput.value = swatch.dataset.color;
+            });
+        });
+
+        // 自訂顏色按鈕：觸發 <input type="color">
+        customColorBtn.addEventListener('click', () => {
+            fontColorInput.click();
+        });
+
+        // 自訂顏色選好後
+        fontColorInput.addEventListener('input', (e) => {
+            swatches.forEach(s => s.classList.remove('selected'));
+            setSelectedColor(e.target.value);
+        });
+        fontColorInput.addEventListener('change', (e) => {
+            swatches.forEach(s => s.classList.remove('selected'));
+            setSelectedColor(e.target.value);
+        });
+
+        // ── 畫布與狀態管理 ──
+        let img = new Image();
+        let baseImageData = null;
+        let textObjects = [];
+        let actionHistory = [];
+        let currentMode = 'select';
         let isDrawing = false;
         let startX, startY;
-        let selectionBox = null; // {x, y, w, h}
-        
-        // 拖曳文字相關
+        let selectionBox = null;
         let draggingTextIndex = -1;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-        // 更新容差值顯示
         bgToleranceInput.addEventListener('input', (e) => {
             toleranceVal.textContent = e.target.value;
         });
 
-        // 記錄歷史狀態 (供復原使用)
         function saveState() {
-            if (actionHistory.length > 15) actionHistory.shift(); // 避免記憶體吃緊
-            
-            // 拷貝當前 ImageData 與 文字物件
+            if (actionHistory.length > 15) actionHistory.shift();
             const clonedData = new ImageData(
                 new Uint8ClampedArray(baseImageData.data),
                 baseImageData.width,
                 baseImageData.height
             );
             const clonedTexts = JSON.parse(JSON.stringify(textObjects));
-            
             actionHistory.push({ imageData: clonedData, textObjects: clonedTexts });
             undoBtn.classList.remove('hidden');
             downloadBtn.classList.remove('hidden');
         }
 
-        // 上傳圖片並載入畫布
         imageUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (event) => {
                 img.onload = () => {
                     canvas.width = img.width;
                     canvas.height = img.height;
                     ctx.drawImage(img, 0, 0);
-                    
                     baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     textObjects = [];
                     actionHistory = [];
                     selectionBox = null;
-                    
                     canvas.classList.remove('hidden');
                     placeholderText.classList.add('hidden');
                     downloadBtn.classList.add('hidden');
                     undoBtn.classList.add('hidden');
-                    
                     redrawCanvas();
                 };
                 img.src = event.target.result;
@@ -203,12 +302,10 @@
             reader.readAsDataURL(file);
         });
 
-        // 轉換縮放後的相對座標轉換為畫布實際像素座標
         function getPos(evt) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            
             let clientX, clientY;
             if (evt.touches && evt.touches.length > 0) {
                 clientX = evt.touches[0].clientX;
@@ -217,16 +314,13 @@
                 clientX = evt.clientX;
                 clientY = evt.clientY;
             }
-
             return {
                 x: (clientX - rect.left) * scaleX,
                 y: (clientY - rect.top) * scaleY
             };
         }
 
-        // 檢查滑鼠/觸控是否點擊到文字物件
         function checkTextHit(pos) {
-            // 從最後畫布上的物件往前找(上層優先)
             for (let i = textObjects.length - 1; i >= 0; i--) {
                 const t = textObjects[i];
                 if (pos.x >= t.x && pos.x <= t.x + t.width &&
@@ -237,14 +331,9 @@
             return -1;
         }
 
-        // 重新繪製畫面 (圖層順序：底圖 -> 選取框 -> 所有文字)
         function redrawCanvas() {
             if (!baseImageData) return;
-            
-            // 1. 繪製底圖 (包含已消除的區塊與去背透明)
             ctx.putImageData(baseImageData, 0, 0);
-            
-            // 2. 繪製紅色的虛線選取框
             if (selectionBox) {
                 ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
                 ctx.lineWidth = 4;
@@ -254,8 +343,6 @@
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
                 ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
             }
-
-            // 3. 繪製所有可拖曳的文字物件
             textObjects.forEach((t, index) => {
                 ctx.font = `bold ${t.fontSize}px ${t.fontFamily}`;
                 ctx.fillStyle = t.color;
@@ -264,10 +351,8 @@
                 t.lines.forEach((line, lineIdx) => {
                     ctx.fillText(line, t.x, t.y + (lineIdx * lineHeight));
                 });
-
-                // 若滑鼠正游標停留或拖曳該文字，繪製外框提示
                 if (index === draggingTextIndex) {
-                    ctx.strokeStyle = '#3b82f6'; // Tailwind blue-500
+                    ctx.strokeStyle = '#3b82f6';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([4, 4]);
                     ctx.strokeRect(t.x - 4, t.y - 4, t.width + 8, t.height + 8);
@@ -276,47 +361,31 @@
             });
         }
 
-        // --- 色彩去背演算法 (魔術棒) ---
         function removeBackgroundColor(x, y) {
             const targetColorData = ctx.getImageData(x, y, 1, 1).data;
             const r = targetColorData[0], g = targetColorData[1], b = targetColorData[2], a = targetColorData[3];
-            
-            if (a === 0) return; // 點擊處已透明則略過
-            
-            saveState(); // 紀錄去背前狀態
-
+            if (a === 0) return;
+            saveState();
             const tolerance = parseInt(bgToleranceInput.value);
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
-            
             for (let i = 0; i < data.length; i += 4) {
-                const pr = data[i];
-                const pg = data[i+1];
-                const pb = data[i+2];
-                
-                // 計算色彩距離
                 const diff = Math.sqrt(
-                    Math.pow(pr - r, 2) + Math.pow(pg - g, 2) + Math.pow(pb - b, 2)
+                    Math.pow(data[i] - r, 2) + Math.pow(data[i+1] - g, 2) + Math.pow(data[i+2] - b, 2)
                 );
-                
-                // 距離小於容差值，設為完全透明
-                if (diff <= tolerance) {
-                    data[i+3] = 0; 
-                }
+                if (diff <= tolerance) data[i+3] = 0;
             }
-            
             baseImageData = imgData;
             redrawCanvas();
         }
 
-        // --- 切換去背模式 ---
         toggleRemoveBgBtn.addEventListener('click', () => {
             if (currentMode === 'select') {
                 currentMode = 'removeBg';
                 toggleRemoveBgBtn.innerHTML = '🛑 關閉去背模式';
                 toggleRemoveBgBtn.classList.replace('bg-purple-600', 'bg-red-500');
                 toggleRemoveBgBtn.classList.replace('hover:bg-purple-700', 'hover:bg-red-600');
-                canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a855f7\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34\'></path><polygon points=\'18 2 22 6 12 16 8 16 8 12 18 2\'></polygon></svg>") 0 24, crosshair';
+                canvas.style.cursor = 'crosshair';
                 selectionBox = null;
                 redrawCanvas();
             } else {
@@ -328,12 +397,9 @@
             }
         });
 
-        // --- 滑鼠與觸控事件統一處理邏輯 ---
         function handleInputStart(e) {
             if (!baseImageData) return;
             const pos = getPos(e);
-            
-            // 優先判定是否點擊到文字 (可拖曳)
             const hitIndex = checkTextHit(pos);
             if (hitIndex !== -1) {
                 draggingTextIndex = hitIndex;
@@ -344,14 +410,10 @@
                 redrawCanvas();
                 return;
             }
-
-            // 執行去背
             if (currentMode === 'removeBg') {
                 removeBackgroundColor(pos.x, pos.y);
                 return;
             }
-
-            // 執行框選
             startX = pos.x;
             startY = pos.y;
             isDrawing = true;
@@ -361,16 +423,12 @@
         function handleInputMove(e) {
             if (!baseImageData) return;
             const pos = getPos(e);
-            
-            // 處理拖曳文字
             if (draggingTextIndex !== -1) {
                 textObjects[draggingTextIndex].x = pos.x - dragOffsetX;
                 textObjects[draggingTextIndex].y = pos.y - dragOffsetY;
                 redrawCanvas();
                 return;
             }
-
-            // 處理框選繪製
             if (isDrawing) {
                 selectionBox = {
                     x: Math.min(startX, pos.x),
@@ -380,28 +438,21 @@
                 };
                 redrawCanvas();
             } else {
-                // 滑鼠懸浮提示 (僅針對滑鼠)
-                if(e.type === 'mousemove') {
+                if (e.type === 'mousemove') {
                     if (checkTextHit(pos) !== -1) {
                         canvas.style.cursor = 'grab';
-                    } else if (currentMode === 'select') {
-                        canvas.style.cursor = 'crosshair';
                     } else {
-                        // 恢復魔術棒游標
-                        canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a855f7\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34\'></path><polygon points=\'18 2 22 6 12 16 8 16 8 12 18 2\'></polygon></svg>") 0 24, crosshair';
+                        canvas.style.cursor = 'crosshair';
                     }
                 }
             }
         }
 
         function handleInputEnd() {
-            if (draggingTextIndex !== -1) {
-                saveState(); // 拖曳結束後存檔以供復原
-            }
+            if (draggingTextIndex !== -1) saveState();
             isDrawing = false;
             draggingTextIndex = -1;
             redrawCanvas();
-            
             if (currentMode === 'select') canvas.style.cursor = 'crosshair';
         }
 
@@ -409,116 +460,84 @@
         canvas.addEventListener('mousemove', handleInputMove);
         canvas.addEventListener('mouseup', handleInputEnd);
         canvas.addEventListener('mouseout', handleInputEnd);
-
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleInputStart(e); }, { passive: false });
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInputMove(e); }, { passive: false });
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleInputEnd(); }, { passive: false });
 
-
-        // --- 執行消除 Logo / 雜物 ---
         eraseBtn.addEventListener('click', () => {
             if (!baseImageData) return alert('請先上傳圖片！');
             if (!selectionBox || selectionBox.w === 0) return alert('請先在圖片上「按住滑鼠拖曳」框出範圍！');
-
-            saveState(); // 操作前儲存
-
-            // 繪製目前的底圖到 Canvas 以進行塗抹
+            saveState();
             ctx.putImageData(baseImageData, 0, 0);
-
-            const bgColor = document.getElementById('bgColor').value;
-            ctx.fillStyle = bgColor;
-            // 放大 2 像素確保邊緣無縫覆蓋
+            ctx.fillStyle = document.getElementById('bgColor').value;
             ctx.fillRect(selectionBox.x - 2, selectionBox.y - 2, selectionBox.w + 4, selectionBox.h + 4);
-
-            // 更新底圖資料
             baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             selectionBox = null;
             redrawCanvas();
-
-            const originalText = eraseBtn.innerHTML;
+            const orig = eraseBtn.innerHTML;
             eraseBtn.innerHTML = '✅ 已消除';
-            setTimeout(() => { eraseBtn.innerHTML = originalText; }, 1500);
+            setTimeout(() => { eraseBtn.innerHTML = orig; }, 1500);
         });
 
-        // --- 執行新增文字 (轉換為物件) ---
         applyTextBtn.addEventListener('click', () => {
             if (!baseImageData) return alert('請先上傳圖片！');
             if (!selectionBox || selectionBox.w === 0) return alert('請先框選一個大致的文字放置範圍！');
-
             saveState();
-
             const text = document.getElementById('newText').value;
             const fontSize = parseInt(document.getElementById('fontSize').value);
             const fontFamily = document.getElementById('fontFamily').value;
             const lines = text.split('\n');
             const lineHeight = fontSize * 1.6;
             const totalTextHeight = lines.length * lineHeight;
-            
-            // 計算文字物件的真實寬高
             ctx.font = `bold ${fontSize}px ${fontFamily}`;
             let maxWidth = 0;
             lines.forEach(line => {
-                const metrics = ctx.measureText(line);
-                if (metrics.width > maxWidth) maxWidth = metrics.width;
+                const w = ctx.measureText(line).width;
+                if (w > maxWidth) maxWidth = w;
             });
-
-            // 初始化文字位置，稍微置中於選取框
             let startTextY = selectionBox.y + (selectionBox.h - totalTextHeight) / 2;
-            if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10; 
-            const startTextX = selectionBox.x + (selectionBox.w * 0.05); 
+            if (startTextY < selectionBox.y) startTextY = selectionBox.y + 10;
+            const startTextX = selectionBox.x + (selectionBox.w * 0.05);
 
-            // 將新文字加入陣列
+            // ✅ 使用 selectedColor 作為文字顏色
             textObjects.push({
-                lines: lines,
+                lines,
                 x: startTextX,
                 y: startTextY,
                 width: maxWidth,
                 height: totalTextHeight,
-                fontSize: fontSize,
-                fontFamily: fontFamily,
-                color: '#2d2d2d'
+                fontSize,
+                fontFamily,
+                color: selectedColor
             });
 
-            selectionBox = null; // 清除選取框
+            selectionBox = null;
             redrawCanvas();
-
-            const originalText = applyTextBtn.innerHTML;
+            const orig = applyTextBtn.innerHTML;
             applyTextBtn.innerHTML = '✅ 新增成功';
-            setTimeout(() => { applyTextBtn.innerHTML = originalText; }, 1500);
+            setTimeout(() => { applyTextBtn.innerHTML = orig; }, 1500);
         });
 
-        // --- 復原動作 ---
         undoBtn.addEventListener('click', () => {
             if (actionHistory.length > 0) {
                 const lastState = actionHistory.pop();
-                
-                // 恢復影像與文字陣列
                 baseImageData = lastState.imageData;
                 textObjects = lastState.textObjects;
-                
                 selectionBox = null;
                 draggingTextIndex = -1;
                 redrawCanvas();
-
-                if (actionHistory.length === 0) {
-                    undoBtn.classList.add('hidden');
-                }
+                if (actionHistory.length === 0) undoBtn.classList.add('hidden');
             }
         });
 
-        // --- 下載圖片 ---
         downloadBtn.addEventListener('click', () => {
-            // 確保下載時沒有紅虛線框，強制渲染一次最終版
             const currentSelection = selectionBox;
             selectionBox = null;
             redrawCanvas();
-
             const link = document.createElement('a');
-            link.download = '修改後_宣導海報.png'; // 支援透明背景去背
+            link.download = '修改後_宣導海報.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-
-            // 還原畫面
             selectionBox = currentSelection;
             redrawCanvas();
         });
