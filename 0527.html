@@ -397,8 +397,52 @@
 
     <!-- JavaScript 程式區域 -->
     <script>
+        // 音效引擎
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // 介面點擊音效 (短促的「啵」聲)
+        function playClickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // 浮力實驗音效 (下潛音效較低沉，上浮音效較高昂)
+        function playLabSound(isSinking) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            if (isSinking) {
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.3);
+            } else {
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+            }
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
         // ================= 全局功能：分頁切換 =================
         function switchPage(pageId, btnElement) {
+            // 播放點擊音效
+            playClickSound();
+
             // 隱藏所有分頁
             const pages = document.querySelectorAll('.page-content');
             pages.forEach(page => page.classList.remove('active'));
@@ -426,10 +470,6 @@
         let rovX = 0;
         let rovY = 0;
         let currentScore = 0;
-
-        // 音效引擎
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioContext();
 
         function playMoveSound() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -540,6 +580,9 @@
         const depthDisplay = document.getElementById('depth-display');
 
         function changeBuoyancy(amount) {
+            // 播放實驗音效 (傳入 true 代表下潛，false 代表上浮)
+            playLabSound(amount > 0);
+
             // 計算新的深度
             currentDepth += amount;
             
@@ -557,6 +600,9 @@
 
         // ================= 4. 測驗邏輯 =================
         function checkQuiz() {
+            // 播放點擊音效
+            playClickSound();
+
             // 正確解答
             const answers = { q1: 'A', q2: 'B', q3: 'A' };
             let score = 0;
@@ -581,6 +627,8 @@
             // 顯示結果
             const resultDiv = document.getElementById('quiz-result');
             if (score === 100) {
+                // 如果滿分，順便播放勝利音效
+                playVictorySound();
                 resultDiv.innerHTML = `💯 恭喜你獲得 ${score} 分！你已經是 ROV 小專家了！`;
                 resultDiv.style.color = '#2ed573';
             } else {
