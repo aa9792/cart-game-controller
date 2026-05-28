@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -51,6 +52,8 @@
       showRuntimeError("🚨 Promise Error: " + (e?.reason?.message || e?.reason || "未知錯誤"));
     });
   </script>
+  <!-- 資料儲存區：另存新檔時此處會被注入 JSON 資料 -->
+  <script id="saved-data" type="application/json">null</script>
 </head>
 
 <body class="bg-slate-50 text-slate-900">
@@ -58,7 +61,7 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import React, { useMemo, useState, useCallback } from "react";
+    import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
     import { createRoot } from "react-dom/client";
     import {
       PieChart, Pie, Cell, BarChart, Bar,
@@ -168,6 +171,93 @@
         ["藝術(ET5)", "Social(ET9)", "體育(ET7)", "Social(ET9)", "Social(ET9)"],
         ["SAEAM(ET5)", "IT(ET7)", "社會(CT3)", "品德(CT1)", "閱讀(CT2)"]
       ]
+    };
+
+    // =====================================================
+    // 資料儲存策略：內嵌於 HTML 檔案中
+    // 按「另存新檔」時，將目前資料寫入 HTML 原始碼後下載
+    // 開啟檔案時從 HTML 內的 <script id="saved-data"> 讀取
+    // =====================================================
+
+    const DEFAULT_PARAMS = {
+      studentCount: 150,
+      termMonths: 6,
+      tuitionFeeTerm: 65000,
+      incomeRatio: { tuition: 80, subsidy: 15, donation: 3, afterSchool: 2 },
+      autoNormalizeRatio: true,
+      benefitFactor: 1.2,
+      salaryTiers: [
+        { role: "中師導師/組長", count: 4, monthlySalary: 55000 },
+        { role: "外師導師", count: 6, monthlySalary: 85000 },
+        { role: "行政/助理", count: 5, monthlySalary: 42000 },
+        { role: "兼任/鐘點(外師)", count: 3, monthlySalary: 35000 }
+      ],
+      rentMonthly: 300000,
+      fixedOtherTerm: 500000,
+      materialPerStudentTerm: 3000,
+      activityPerStudentTerm: 2000,
+      provideMeals: true,
+      mealCostPerStudentPerMonth: 2500
+    };
+
+    const DEFAULT_TEACHING_LOAD = [
+      { id: "tl-1", group: "中師主任", code: "CT1-3 品德/閱讀/社會（6班）", staffCount: 3, periodsPerPerson: 2 },
+      { id: "tl-2", group: "中師組長(CT4/CT5)", code: "CT4 語文1年(1A/1B)、CT5 數學1年(1A/1B)", staffCount: 2, periodsPerPerson: 8.5 },
+      { id: "tl-3", group: "中師組長(CT6/CT7)", code: "CT6 語文2-3年(2A/2B/3A/3B)、CT7 數學2-3年", staffCount: 2, periodsPerPerson: 11 },
+      { id: "tl-4", group: "外師導師", code: "ET1-4,ET8-9 LA/Social/Science/部分探索（每人負責1班）", staffCount: 6, periodsPerPerson: 15 },
+      { id: "tl-5", group: "外師兼任(ET5 Arts/SAEAM)", code: "ET5 藝術/SAEAM 全 6 班", staffCount: 1, periodsPerPerson: 12 },
+      { id: "tl-6", group: "外師兼任(ET6 探索)", code: "ET6 探索課 全 6 班（週五下午）", staffCount: 1, periodsPerPerson: 6 },
+      { id: "tl-7", group: "外師兼任(ET7 PE/IT)", code: "ET7 體育/IT 全 6 班", staffCount: 1, periodsPerPerson: 12 }
+    ];
+
+    // 從 HTML 內嵌的 <script id="saved-data"> 讀取儲存資料
+    const loadEmbeddedData = () => {
+      try {
+        const el = document.getElementById("saved-data");
+        if (!el || !el.textContent.trim() || el.textContent.trim() === "null") return null;
+        return JSON.parse(el.textContent);
+      } catch { return null; }
+    };
+
+    // 將當下資料存入 HTML 原始碼後觸發下載
+    // ⚠️ 必須用 fetch 讀取原始檔案文字，不可用 outerHTML
+    // （outerHTML 是瀏覽器解析後的 DOM，JSX 原始碼已流失）
+    const saveAsHtmlFile = async (params, teachingLoad, onDone, onError) => {
+      try {
+        // 讀取目前這個 HTML 檔案的原始文字
+        const res = await fetch(location.href);
+        if (!res.ok) throw new Error(`fetch 失敗：${res.status}`);
+        const source = await res.text();
+
+        const payload = JSON.stringify({ params, teachingLoad });
+
+        // 將 <script id="saved-data"> 的內容替換為最新資料
+        const updated = source.replace(
+          /(<script\s[^>]*id="saved-data"[^>]*>)([\s\S]*?)(<\/script>)/,
+          (_, open, _content, close) => `${open}${payload}${close}`
+        );
+
+        if (updated === source) {
+          throw new Error('找不到 <script id="saved-data"> 標籤，請確認檔案未被修改');
+        }
+
+        // 觸發下載
+        const blob = new Blob([updated], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const now = new Date();
+        const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
+        a.href = url;
+        a.download = `校務管理系統_${ts}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        onDone();
+      } catch (err) {
+        console.error("另存新檔失敗：", err);
+        onError(err.message);
+      }
     };
 
     // =====================================================
@@ -414,25 +504,15 @@
     // =====================================================
     const SchoolManagementApp = () => {
       const [activeTab, setActiveTab] = useState("budget");
+      const [saveStatus, setSaveStatus] = useState(""); // "saving" | "done" | "reset"
+      const saveTimer = useRef(null);
 
-      // =====================================================
-      // ✅ 配課統計：依 6 班更新外師導師 6 位、兼任 3 位
-      // 中師組長 CT4-CT7 共 4 位，每人因多一班而授課節數微增
-      // =====================================================
-      const [teachingLoadGroups, setTeachingLoadGroups] = useState([
-        // 中師主任：品德/閱讀/社會，6 班，每人 2 節
-        { id: crypto.randomUUID(), group: "中師主任", code: "CT1-3 品德/閱讀/社會（6班）", staffCount: 3, periodsPerPerson: 2 },
-        // 中師組長：CT4 國語1-2年級(1A/1B)，CT5 數學1年級(1A/1B)，CT6 國語2-3年級(2A/2B/3A/3B)，CT7 數學2-3年級
-        // 原本 4 班 →現 6 班，各增 0.5~1 節（原 CT4 8.5 → 可維持，CT6 因多 2B+3B 增至約 11 節）
-        { id: crypto.randomUUID(), group: "中師組長(CT4/CT5)", code: "CT4 語文1年(1A/1B)、CT5 數學1年(1A/1B)", staffCount: 2, periodsPerPerson: 8.5 },
-        { id: crypto.randomUUID(), group: "中師組長(CT6/CT7)", code: "CT6 語文2-3年(2A/2B/3A/3B)、CT7 數學2-3年", staffCount: 2, periodsPerPerson: 11 },
-        // 外師導師：原 4 位 (ET1-ET4) → 現 6 位 (ET1-ET4 + ET8 + ET9)
-        { id: crypto.randomUUID(), group: "外師導師", code: "ET1-4,ET8-9 LA/Social/Science/部分探索（每人負責1班）", staffCount: 6, periodsPerPerson: 15 },
-        // 外師兼任：ET5(Arts/SAEAM) + ET6(探索) + ET7(PE/IT)，6 班課量增加
-        { id: crypto.randomUUID(), group: "外師兼任(ET5 Arts/SAEAM)", code: "ET5 藝術/SAEAM 全 6 班", staffCount: 1, periodsPerPerson: 12 },
-        { id: crypto.randomUUID(), group: "外師兼任(ET6 探索)", code: "ET6 探索課 全 6 班（週五下午）", staffCount: 1, periodsPerPerson: 6 },
-        { id: crypto.randomUUID(), group: "外師兼任(ET7 PE/IT)", code: "ET7 體育/IT 全 6 班", staffCount: 1, periodsPerPerson: 12 }
-      ]);
+      // 啟動時：優先讀取 HTML 內嵌資料，否則使用預設值
+      const embedded = loadEmbeddedData();
+
+      const [teachingLoadGroups, setTeachingLoadGroups] = useState(
+        () => embedded?.teachingLoad ?? DEFAULT_TEACHING_LOAD
+      );
 
       const teachingLoadComputed = useMemo(() => {
         const rows = teachingLoadGroups.map(r => {
@@ -455,30 +535,32 @@
         setTeachingLoadGroups(prev => prev.filter(r => r.id !== id));
       };
 
-      // =====================================================
-      // 預算參數：更新學生數 (6班×25=150)、外師 2 位薪資
-      // =====================================================
-      const [params, setParams] = useState({
-        studentCount: 150,
-        termMonths: 6,
-        tuitionFeeTerm: 65000,
-        incomeRatio: { tuition: 80, subsidy: 15, donation: 3, afterSchool: 2 },
-        autoNormalizeRatio: true,
-        benefitFactor: 1.2,
-        salaryTiers: [
-          { role: "中師導師/組長", count: 4, monthlySalary: 55000 },
-          // ✅ 外師導師從 4→6 人
-          { role: "外師導師", count: 6, monthlySalary: 85000 },
-          { role: "行政/助理", count: 5, monthlySalary: 42000 },
-          { role: "兼任/鐘點(外師)", count: 3, monthlySalary: 35000 }
-        ],
-        rentMonthly: 300000,
-        fixedOtherTerm: 500000,
-        materialPerStudentTerm: 3000,
-        activityPerStudentTerm: 2000,
-        provideMeals: true,
-        mealCostPerStudentPerMonth: 2500
-      });
+      const [params, setParams] = useState(
+        () => embedded?.params ?? DEFAULT_PARAMS
+      );
+
+      // 另存新檔：fetch 原始 HTML → 注入資料 → 下載
+      const handleSaveAs = () => {
+        setSaveStatus("saving");
+        saveAsHtmlFile(
+          params,
+          teachingLoadGroups,
+          () => setSaveStatus("done"),
+          (errMsg) => {
+            setSaveStatus("");
+            alert("另存新檔失敗：" + errMsg + "\n\n請確認是透過網頁伺服器（http://）開啟，而非直接雙擊本機檔案（file://）。\n\nGitHub Pages 或任何靜態托管均可正常運作。");
+          }
+        );
+      };
+
+      // 重置為預設值（僅重置目前頁面記憶體，不影響已儲存的舊檔）
+      const handleReset = () => {
+        if (!window.confirm("確定要清除目前所有資料，回復預設值嗎？\n（不影響已下載的舊檔案）")) return;
+        setParams(DEFAULT_PARAMS);
+        setTeachingLoadGroups(DEFAULT_TEACHING_LOAD);
+        setSaveStatus("reset");
+        setTimeout(() => setSaveStatus(""), 2500);
+      };
 
       const data = useMemo(() => calcFinancial(params), [params]);
 
@@ -521,10 +603,64 @@
       return (
         <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8">
           <div className="mb-6 max-w-7xl mx-auto w-full">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <School className="w-8 h-8 text-indigo-600" />
               <h1 className="text-2xl font-black text-slate-800">招生第一年校務管理系統</h1>
               <span className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-full font-black">6 班版</span>
+
+              {/* 儲存狀態 + 操作按鈕 */}
+              <div className="ml-auto flex items-center gap-2 flex-wrap">
+                {/* 狀態提示 */}
+                {saveStatus === "saving" && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                    準備下載…
+                  </span>
+                )}
+                {saveStatus === "done" && (
+                  <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
+                    ✓ 已下載儲存檔
+                  </span>
+                )}
+                {saveStatus === "reset" && (
+                  <span className="text-xs text-amber-600 font-black flex items-center gap-1">
+                    ↺ 已回復預設值（尚未儲存）
+                  </span>
+                )}
+
+                {/* 另存新檔按鈕 */}
+                <button
+                  onClick={handleSaveAs}
+                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-black hover:bg-indigo-700 transition shadow-sm"
+                  title="將目前所有資料內嵌進 HTML 後下載，下次開啟即保有資料"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  另存新檔
+                </button>
+
+                {/* 重置預設 */}
+                <button
+                  onClick={handleReset}
+                  className="text-xs px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition font-black"
+                  title="回復預設值（不影響已儲存的舊檔案）"
+                >
+                  重置預設
+                </button>
+              </div>
+            </div>
+
+            {/* 使用說明提示 */}
+            <div className="mt-2 px-1 text-xs text-slate-400 flex items-start gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>
+                修改完成後按「另存新檔」，資料會直接寫入 HTML 檔案中下載。下次開啟該檔即可還原所有設定，不受瀏覽器限制。
+                <span className="text-amber-500 font-medium"> 需透過網頁伺服器開啟（如 GitHub Pages、VS Code Live Server），直接雙擊本機檔案（file://）無法使用另存功能。</span>
+              </span>
             </div>
             <div className="text-sm text-slate-500 pl-1">
               模組：組織職掌 / 經費預算 / 配課統計 / 班級課表（1A · 1B · 2A · 2B · 3A · 3B）
