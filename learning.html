@@ -1,100 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; }
-    .form-group { margin-bottom: 18px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    label { display: block; font-weight: bold; margin-bottom: 8px; }
-    input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    button { padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-    button:disabled { background-color: #cccccc; }
-    .status { margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 4px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ 紙電路實作學習單</title>
+    <!-- 引入 Tailwind CSS 讓網頁變美觀 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'LiHei Pro', 'Microsoft JhengHei', sans-serif; }
+    </style>
 </head>
-<body>
-  <h2>💡 紙電路互動學習單</h2>
-  <form id="quizForm" onsubmit="handleFormSubmit(event)">
-    
-    <div class="form-group">
-      <label for="className">選擇班級</label>
-      <select id="className" name="className" required>
-        <option value="">請選擇...</option>
-        <option value="四年一班">四年一班</option>
-        <option value="四年二班">四年二班</option>
-        <option value="五年一班">五年一班</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="seatNumber">座號</label>
-      <input type="number" id="seatNumber" name="seatNumber" required min="1">
-    </div>
-    
-    <div class="form-group">
-      <label for="studentName">學生姓名</label>
-      <input type="text" id="studentName" name="studentName" required>
-    </div>
-    
-    <div class="form-group">
-      <label>1. 觀察實體紙電路：銅箔膠帶在拐彎轉角處是否有斷裂？</label>
-      <select name="circuitCheck" required>
-        <option value="完全平整且連續">完全平整且連續</option>
-        <option value="有斷裂，但已用導電膠帶貼補強">有斷裂，但已用導電膠帶貼補強</option>
-        <option value="有明顯斷裂導致燈不亮">有明顯斷裂導致燈不亮</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label>2. 當你按下用紙做的開關使 LED 燈亮起時，這時電路屬於什麼狀態？</label>
-      <select name="circuitType" required>
-        <option value="">請選擇...</option>
-        <option value="通路 (Closed Circuit)">通路 (Closed Circuit)</option>
-        <option value="斷路 (Open Circuit)">斷路 (Open Circuit)</option>
-        <option value="短路 (Short Circuit)">短路 (Short Circuit)</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="reflection">3. 故障排除心得：如果燈沒亮，你做了什麼調整？（若有亮，請寫下成功秘訣）</label>
-      <textarea id="reflection" name="reflection" rows="3" required placeholder="例如：檢查電池正負極、把膠帶壓緊..."></textarea>
-    </div>
-    
-    <button type="submit" id="submitBtn">送出學習單</button>
-  </form>
-  
-  <div id="statusMessage"></div>
+<body class="bg-yellow-50 min-h-screen py-10 px-4">
 
-  <script>
-    function handleFormSubmit(event) {
-      event.preventDefault();
-      var btn = document.getElementById("submitBtn");
-      var status = document.getElementById("statusMessage");
-      
-      btn.disabled = true;
-      status.textContent = "正在將資料傳送至雲端試算表...";
-      status.style.backgroundColor = "#e1f5fe";
-      
-      // 呼叫 GAS 後端的 processForm 函數
-      google.script.run
-        .withSuccessHandler(function(response) {
-          status.textContent = response.message;
-          if(response.success) {
-            status.style.backgroundColor = "#d4edda";
-            document.getElementById("quizForm").reset(); // 清空表單供下一位使用或確認
-          } else {
-            status.style.backgroundColor = "#f8d7da";
-          }
-          btn.disabled = false;
-        })
-        .withFailureHandler(function(err) {
-          status.textContent = "系統連線錯誤：" + err;
-          status.style.backgroundColor = "#f8d7da";
-          btn.disabled = false;
-        })
-        .processForm(event.target);
-    }
-  </script>
+    <div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-lg border-t-8 border-yellow-400">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">⚡ 紙電路實作學習單</h1>
+            <p class="text-gray-500">完成你的專屬紙電路後，請填寫這份學習單紀錄你的成就吧！</p>
+        </div>
+
+        <form id="worksheetForm" class="space-y-6">
+            <!-- 班級座號 & 姓名 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">班級座號</label>
+                    <input type="text" name="className" required placeholder="例如：701-05" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">學生姓名</label>
+                    <input type="text" name="studentName" required placeholder="請輸入姓名" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+            </div>
+
+            <!-- LED 顏色 (單選) -->
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">1. 你今天主要使用了哪種顏色的 LED 燈？</label>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50">
+                        <input type="radio" name="ledColor" value="紅色" required class="w-5 h-5 text-yellow-500">
+                        <span>🔴 紅色</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50">
+                        <input type="radio" name="ledColor" value="黃色" class="w-5 h-5 text-yellow-500">
+                        <span>🟡 黃色</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50">
+                        <input type="radio" name="ledColor" value="綠色" class="w-5 h-5 text-yellow-500">
+                        <span>🟢 綠色</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50">
+                        <input type="radio" name="ledColor" value="藍色" class="w-5 h-5 text-yellow-500">
+                        <span>🔵 藍色</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 成功與否 (單選) -->
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">2. 你的紙電路最後有成功發光嗎？</label>
+                <div class="flex space-x-6">
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 w-1/2 justify-center">
+                        <input type="radio" name="isSuccess" value="有成功發光" required class="w-5 h-5 text-yellow-500">
+                        <span class="font-bold text-green-600">✨ 有！成功發光了</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 w-1/2 justify-center">
+                        <input type="radio" name="isSuccess" value="沒有發光" class="w-5 h-5 text-yellow-500">
+                        <span class="font-bold text-red-500">💧 沒有，差一點點</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 心得反思 (文字區塊) -->
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">3. 實作過程中遇到最大的困難是什麼？你是怎麼解決的？</label>
+                <textarea name="reflection" rows="4" required placeholder="請詳細描述你的發現與解決方法..." 
+                          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"></textarea>
+            </div>
+
+            <!-- 送出按鈕 -->
+            <button type="submit" id="submitBtn" 
+                    class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 transform hover:scale-[1.02]">
+                🚀 送出學習單
+            </button>
+            
+            <!-- 訊息提示區 -->
+            <div id="messageArea" class="hidden text-center font-bold p-4 rounded-lg mt-4"></div>
+        </form>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚠️ 老師請注意：請將下方的 URL 替換成您的 GAS 網頁應用程式網址
+        // ==========================================
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzXoSN4cpGLQsfHpVbucZ4irAkbFdvkHKi-FVRBEzStAndvpDezkhJxbQa_j0bwJqFz/exec'; 
+
+        const form = document.getElementById('worksheetForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageArea = document.getElementById('messageArea');
+
+        form.addEventListener('submit', function(e) {
+            // 阻止表單預設的跳轉行為
+            e.preventDefault();
+
+            // 檢查是否已經替換了網址
+            if (GAS_URL.includes('XXXXXXXXXXXXXX')) {
+                alert("老師請注意：請先在程式碼中替換你的 GAS_URL！");
+                return;
+            }
+
+            // 變更按鈕狀態，避免學生重複點擊
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ 資料傳送中...';
+            submitBtn.classList.replace('bg-yellow-500', 'bg-gray-400');
+            submitBtn.classList.replace('hover:bg-yellow-600', 'hover:bg-gray-400');
+            
+            messageArea.classList.add('hidden');
+
+            // 自動收集表單內所有帶有 name 屬性的輸入資料
+            const formData = new FormData(form);
+            // 將 FormData 轉換成 GAS do_Post 容易讀取的格式 (x-www-form-urlencoded)
+            const data = new URLSearchParams(formData);
+
+            // 使用 fetch 將資料發送到後端
+            fetch(GAS_URL, {
+                method: 'POST',
+                body: data
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    // 顯示成功訊息
+                    messageArea.textContent = '🎉 太棒了！你的學習單已成功送出！';
+                    messageArea.className = 'text-center font-bold p-4 rounded-lg mt-4 bg-green-100 text-green-700 block';
+                    form.reset(); // 清空表單
+                } else {
+                    throw new Error(result.message);
+                }
+            })
+            .catch(error => {
+                // 顯示錯誤訊息
+                console.error('Error:', error);
+                messageArea.textContent = '❌ 傳送失敗，請稍後再試或通知老師。(' + error.message + ')';
+                messageArea.className = 'text-center font-bold p-4 rounded-lg mt-4 bg-red-100 text-red-700 block';
+            })
+            .finally(() => {
+                // 恢復按鈕狀態
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚀 送出學習單';
+                submitBtn.classList.replace('bg-gray-400', 'bg-yellow-500');
+                submitBtn.classList.replace('hover:bg-gray-400', 'hover:bg-yellow-600');
+            });
+        });
+    </script>
 </body>
 </html>
