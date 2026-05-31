@@ -14,17 +14,13 @@
     <div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-lg border-t-8 border-blue-400">
         
         <div class="text-center mb-8">
-            <!-- 老師可以在這裡修改顯示給學生看的班級名稱 -->
             <h1 class="text-3xl font-bold text-gray-800 mb-2" id="displayClassName">⚡ 701班 紙電路實作學習單</h1>
             <p class="text-gray-500">完成你的專屬紙電路後，請填寫這份學習單紀錄你的成就吧！</p>
         </div>
 
         <form id="worksheetForm" class="space-y-6">
             
-            <!-- ==========================================
-                 ⚠️ 隱藏的班級欄位：學生看不到，但會隨表單送出
-                 老師請把 value="701" 改成您要的班級！
-                 ========================================== -->
+            <!-- 隱藏的班級欄位 -->
             <input type="hidden" name="className" value="701">
 
             <!-- 座號 & 姓名 -->
@@ -97,9 +93,7 @@
     </div>
 
     <script>
-        // ==========================================
-        // ⚠️ 老師請注意：請將下方的 URL 替換成您的 GAS 網頁應用程式網址
-        // ==========================================
+        // 這裡已經為您填好正確的 GAS 網址了！
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzl19-0tLxdnVdr0j_GZJFw9HaIVbrem426SHLucWTDTUE2E7nvehvM6w0BP9YkA_A68w/exec'; 
 
         const form = document.getElementById('worksheetForm');
@@ -107,11 +101,10 @@
         const messageArea = document.getElementById('messageArea');
 
         form.addEventListener('submit', function(e) {
+            // 阻止表單預設的網頁重新整理
             e.preventDefault();
 
-            
-            }
-
+            // 變更按鈕為載入中狀態
             submitBtn.disabled = true;
             submitBtn.innerHTML = '⏳ 資料傳送中...';
             submitBtn.classList.replace('bg-blue-500', 'bg-gray-400');
@@ -128,19 +121,22 @@
             .then(response => response.json())
             .then(result => {
                 if (result.status === 'success') {
+                    // 顯示成功訊息
                     messageArea.textContent = '🎉 太棒了！你的學習單已成功送出！';
                     messageArea.className = 'text-center font-bold p-4 rounded-lg mt-4 bg-green-100 text-green-700 block';
-                    form.reset(); 
+                    form.reset(); // 清空表單
                 } else {
                     throw new Error(result.message);
                 }
             })
             .catch(error => {
+                // 顯示錯誤訊息
                 console.error('Error:', error);
-                messageArea.textContent = '❌ 傳送失敗，請稍後再試或通知老師。(' + error.message + ')';
+                messageArea.textContent = '❌ 傳送失敗，請檢查網路或重新整理網頁。';
                 messageArea.className = 'text-center font-bold p-4 rounded-lg mt-4 bg-red-100 text-red-700 block';
             })
             .finally(() => {
+                // 恢復按鈕狀態
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '🚀 送出學習單';
                 submitBtn.classList.replace('bg-gray-400', 'bg-blue-500');
