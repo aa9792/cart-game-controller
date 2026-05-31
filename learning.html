@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; }
+    .form-group { margin-bottom: 18px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    label { display: block; font-weight: bold; margin-bottom: 8px; }
+    input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    button:disabled { background-color: #cccccc; }
+    .status { margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h2>💡 紙電路互動學習單</h2>
+  <form id="quizForm" onsubmit="handleFormSubmit(event)">
+    
+    <div class="form-group">
+      <label for="className">選擇班級</label>
+      <select id="className" name="className" required>
+        <option value="">請選擇...</option>
+        <option value="四年一班">四年一班</option>
+        <option value="四年二班">四年二班</option>
+        <option value="五年一班">五年一班</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="seatNumber">座號</label>
+      <input type="number" id="seatNumber" name="seatNumber" required min="1">
+    </div>
+    
+    <div class="form-group">
+      <label for="studentName">學生姓名</label>
+      <input type="text" id="studentName" name="studentName" required>
+    </div>
+    
+    <div class="form-group">
+      <label>1. 觀察實體紙電路：銅箔膠帶在拐彎轉角處是否有斷裂？</label>
+      <select name="circuitCheck" required>
+        <option value="完全平整且連續">完全平整且連續</option>
+        <option value="有斷裂，但已用導電膠帶貼補強">有斷裂，但已用導電膠帶貼補強</option>
+        <option value="有明顯斷裂導致燈不亮">有明顯斷裂導致燈不亮</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>2. 當你按下用紙做的開關使 LED 燈亮起時，這時電路屬於什麼狀態？</label>
+      <select name="circuitType" required>
+        <option value="">請選擇...</option>
+        <option value="通路 (Closed Circuit)">通路 (Closed Circuit)</option>
+        <option value="斷路 (Open Circuit)">斷路 (Open Circuit)</option>
+        <option value="短路 (Short Circuit)">短路 (Short Circuit)</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="reflection">3. 故障排除心得：如果燈沒亮，你做了什麼調整？（若有亮，請寫下成功秘訣）</label>
+      <textarea id="reflection" name="reflection" rows="3" required placeholder="例如：檢查電池正負極、把膠帶壓緊..."></textarea>
+    </div>
+    
+    <button type="submit" id="submitBtn">送出學習單</button>
+  </form>
+  
+  <div id="statusMessage"></div>
+
+  <script>
+    function handleFormSubmit(event) {
+      event.preventDefault();
+      var btn = document.getElementById("submitBtn");
+      var status = document.getElementById("statusMessage");
+      
+      btn.disabled = true;
+      status.textContent = "正在將資料傳送至雲端試算表...";
+      status.style.backgroundColor = "#e1f5fe";
+      
+      // 呼叫 GAS 後端的 processForm 函數
+      google.script.run
+        .withSuccessHandler(function(response) {
+          status.textContent = response.message;
+          if(response.success) {
+            status.style.backgroundColor = "#d4edda";
+            document.getElementById("quizForm").reset(); // 清空表單供下一位使用或確認
+          } else {
+            status.style.backgroundColor = "#f8d7da";
+          }
+          btn.disabled = false;
+        })
+        .withFailureHandler(function(err) {
+          status.textContent = "系統連線錯誤：" + err;
+          status.style.backgroundColor = "#f8d7da";
+          btn.disabled = false;
+        })
+        .processForm(event.target);
+    }
+  </script>
+</body>
+</html>
