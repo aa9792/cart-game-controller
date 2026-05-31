@@ -14,7 +14,6 @@
     <div class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-lg border-t-8 border-blue-400">
         
         <div class="text-center mb-8">
-            <!-- 標題拿掉特定班級，改成通用標題 -->
             <h1 class="text-3xl font-bold text-gray-800 mb-2" id="displayClassName">⚡ 紙電路實作學習單</h1>
             <p class="text-gray-500">完成你的專屬紙電路後，請填寫這份學習單紀錄你的成就吧！</p>
         </div>
@@ -24,18 +23,11 @@
             <!-- 班級、座號 & 姓名 (改成三格並排) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                <!-- 🌟 新增的下拉式選單 -->
+                <!-- 🌟 改為自行填寫的班級欄位 -->
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">班級</label>
-                    <select name="className" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-                        <option value="" disabled selected>請選擇班級</option>
-                        <option value="701">701班</option>
-                        <option value="702">702班</option>
-                        <option value="703">703班</option>
-                        <option value="704">704班</option>
-                        <option value="705">705班</option>
-                        <!-- 老師可以在這裡繼續新增 option -->
-                    </select>
+                    <input type="text" name="className" required placeholder="例如：701" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 </div>
 
                 <div>
