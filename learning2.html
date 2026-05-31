@@ -100,7 +100,7 @@
         // ==========================================
         // ⚠️ 老師請注意：請將下方的 URL 替換成您的 GAS 網頁應用程式網址
         // ==========================================
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbz_XXXXXXXXXXXXXX/exec'; 
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzl19-0tLxdnVdr0j_GZJFw9HaIVbrem426SHLucWTDTUE2E7nvehvM6w0BP9YkA_A68w/exec'; 
 
         const form = document.getElementById('worksheetForm');
         const submitBtn = document.getElementById('submitBtn');
@@ -109,9 +109,7 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            if (GAS_URL.includes('XXXXXXXXXXXXXX')) {
-                alert("老師請注意：請先在程式碼下方替換你的 GAS_URL！");
-                return;
+           
             }
 
             submitBtn.disabled = true;
