@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -7,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=Oswald:wght@700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+HK:wght@400;700&family=Noto+Serif+HK:wght@400;700&family=LXGW+WenKai+TC&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=Oswald:wght@700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&family=Pacifico&family=Lobster&family=Bebas+Neue&family=Anton&family=Caveat:wght@700&family=Great+Vibes&family=Permanent+Marker&display=swap" rel="stylesheet">
     <style>
         #canvas { touch-action: none; }
         .hidden { display: none !important; }
@@ -55,6 +56,24 @@
             pointer-events: none;
         }
 
+        /* 文字輸入框：確保輸入法（注音/拼音）能正常組字 */
+        #newText {
+            ime-mode: active;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        #fontPreview {
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #374151;
+            line-height: 1.4;
+            word-break: break-word;
+            text-align: center;
+        }
+
         /* ── 放大鏡樣式 ── */
         #magnifier {
             position: absolute;
@@ -68,7 +87,6 @@
             overflow: hidden;
             z-index: 100;
             background: #fff;
-            /* 十字準心 */
         }
         #magnifier::after {
             content: '';
@@ -135,13 +153,11 @@
             letter-spacing: 0.5px;
         }
 
-        /* 放大鏡工具按鈕啟用狀態 */
         #toggleMagnifierBtn.active {
             background-color: #1d4ed8 !important;
             box-shadow: 0 0 0 3px rgba(59,130,246,0.4);
         }
 
-        /* 放大倍率滑桿區 */
         #magnifierControls { transition: all 0.2s; }
     </style>
 </head>
@@ -219,7 +235,11 @@
                     <label class="block text-sm font-bold text-gray-800 mb-2">4. 新增替換文字</label>
                     
                     <div>
-                        <textarea id="newText" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-blue-500 focus:border-blue-500">收好食物，不圍觀驚叫並&#10;安靜繞道。</textarea>
+                        <textarea id="newText" rows="3" lang="zh-Hant" inputmode="text"
+                            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                            enterkeyhint="enter"
+                            class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-blue-500 focus:border-blue-500">收好食物，不圍觀驚叫並&#10;安靜繞道。</textarea>
+                        <p class="text-[11px] text-gray-400 mt-1">提示：可直接用注音／拼音輸入；按 Enter 換行。</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -228,28 +248,40 @@
                             <select id="fontFamily" class="mt-1 block w-full rounded-md border border-gray-300 p-1.5 text-sm bg-white">
                                 <optgroup label="── 黑體／無襯線">
                                     <option value='"Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif'>微軟正黑體</option>
-                                    <option value='"Noto Sans TC", "PingFang TC", sans-serif'>Noto Sans TC（思源黑體）</option>
-                                    <option value='"Noto Sans SC", sans-serif'>Noto Sans SC（簡體黑體）</option>
+                                    <option value='"Noto Sans TC", "PingFang TC", sans-serif'>思源黑體（繁中）</option>
+                                    <option value='"Noto Sans HK", "Noto Sans TC", sans-serif'>思源黑體（香港）</option>
+                                    <option value='"Noto Sans SC", sans-serif'>思源黑體（簡中）</option>
                                 </optgroup>
                                 <optgroup label="── 明體／宋體">
                                     <option value='"PMingLiU", "MingLiU", serif'>新細明體</option>
-                                    <option value='"Noto Serif TC", "PMingLiU", serif'>Noto Serif TC（思源宋體）</option>
+                                    <option value='"Noto Serif TC", "PMingLiU", serif'>思源宋體（繁中）</option>
+                                    <option value='"Noto Serif HK", "Noto Serif TC", serif'>思源宋體（香港）</option>
+                                    <option value='"Noto Serif SC", serif'>思源宋體（簡中）</option>
                                 </optgroup>
-                                <optgroup label="── 楷體／書法">
-                                    <option value='"DFKai-SB", "BiauKai", "KaiTi", serif'>標楷體</option>
-                                    <option value='"ZCOOL XiaoWei", serif'>小薇體（古典）</option>
-                                    <option value='"ZCOOL QingKe HuangYou", cursive'>青柯黃油體（可愛圓潤）</option>
-                                    <option value='"Ma Shan Zheng", cursive'>馬善政毛筆體</option>
+                                <optgroup label="── 楷體／圓體">
+                                    <option value='"DFKai-SB", "BiauKai", "KaiTi", serif'>標楷體（系統）</option>
+                                    <option value='"LXGW WenKai TC", "DFKai-SB", serif'>霞鶩文楷（手寫楷體）</option>
+                                    <option value='"ZCOOL XiaoWei", serif'>站酷小薇（古典）</option>
+                                    <option value='"ZCOOL QingKe HuangYou", cursive'>站酷慶科黃油（圓潤可愛）</option>
+                                    <option value='"ZCOOL KuaiLe", cursive'>站酷快樂體（活潑）</option>
                                 </optgroup>
                                 <optgroup label="── 手寫／毛筆">
+                                    <option value='"Ma Shan Zheng", cursive'>馬善政毛筆體</option>
                                     <option value='"Long Cang", cursive'>龍藏體（隨性手寫）</option>
-                                    <option value='"Zhi Mang Xing", cursive'>知芒星（草書風）</option>
+                                    <option value='"Zhi Mang Xing", cursive'>智芒星（行書風）</option>
                                     <option value='"Liu Jian Mao Cao", cursive'>劉建毛草（狂草）</option>
                                 </optgroup>
                                 <optgroup label="── 英文裝飾">
-                                    <option value='"Oswald", Impact, sans-serif'>Oswald（粗壯英文）</option>
+                                    <option value='"Oswald", Impact, sans-serif'>Oswald（粗壯）</option>
+                                    <option value='"Bebas Neue", Impact, sans-serif'>Bebas Neue（標題體）</option>
+                                    <option value='"Anton", Impact, sans-serif'>Anton（極粗）</option>
                                     <option value='"Playfair Display", Georgia, serif'>Playfair Display（典雅）</option>
-                                    <option value='"Dancing Script", cursive'>Dancing Script（手寫英文）</option>
+                                    <option value='"Lobster", cursive'>Lobster（圓潤手寫）</option>
+                                    <option value='"Pacifico", cursive'>Pacifico（衝浪風）</option>
+                                    <option value='"Dancing Script", cursive'>Dancing Script（流暢手寫）</option>
+                                    <option value='"Great Vibes", cursive'>Great Vibes（優雅花體）</option>
+                                    <option value='"Caveat", cursive'>Caveat（隨手筆記）</option>
+                                    <option value='"Permanent Marker", cursive'>Permanent Marker（麥克筆）</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -259,11 +291,17 @@
                         </div>
                     </div>
 
+                    <!-- 字型即時預覽 -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">字型預覽</label>
+                        <div id="fontPreview" class="rounded-md border border-gray-200 bg-white px-2 py-2">永 字 八 法 Aa 123</div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-2">文字顏色</label>
                         <div class="flex items-center gap-2 mt-2">
                             <input type="checkbox" id="fontBold" checked class="cursor-pointer">
-    <label for="fontBold" class="text-xs font-medium text-gray-700">粗體</label>
+                            <label for="fontBold" class="text-xs font-medium text-gray-700">粗體</label>
                             <div class="color-swatch selected" data-color="#2d2d2d" style="background:#2d2d2d;" title="深黑"></div>
                             <div class="color-swatch" data-color="#ffffff" style="background:#ffffff; border-color:#d1d5db;" title="白色"></div>
                             <div class="color-swatch" data-color="#dc2626" style="background:#dc2626;" title="紅色"></div>
@@ -337,6 +375,11 @@
         const bgToleranceInput = document.getElementById('bgTolerance');
         const toleranceVal = document.getElementById('toleranceVal');
         const canvasContainer = document.getElementById('canvasContainer');
+        const newTextEl = document.getElementById('newText');
+        const fontFamilyEl = document.getElementById('fontFamily');
+        const fontSizeEl = document.getElementById('fontSize');
+        const fontBoldEl = document.getElementById('fontBold');
+        const fontPreviewEl = document.getElementById('fontPreview');
 
         // ── 放大鏡 DOM ──
         const magnifierEl = document.getElementById('magnifier');
@@ -348,6 +391,30 @@
         const zoomValSpan = document.getElementById('zoomVal');
         const lensSizeInput = document.getElementById('lensSize');
         const lensSizeValSpan = document.getElementById('lensSizeVal');
+
+        // ── 輸入法（IME）組字狀態：避免選字過程被誤判 ──
+        let isComposing = false;
+        newTextEl.addEventListener('compositionstart', () => { isComposing = true; });
+        newTextEl.addEventListener('compositionend', () => {
+            isComposing = false;
+            updateFontPreview();
+        });
+        // 確保點擊輸入框一定能取得焦點以喚起輸入法
+        newTextEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+
+        // ── 字型即時預覽 ──
+        function updateFontPreview() {
+            const fam = fontFamilyEl.value;
+            const bold = fontBoldEl.checked ? '700' : '400';
+            const sample = (newTextEl.value.split('\n')[0] || '').trim() || '永 字 八 法 Aa 123';
+            fontPreviewEl.style.fontFamily = fam;
+            fontPreviewEl.style.fontWeight = bold;
+            fontPreviewEl.style.color = selectedColor;
+            fontPreviewEl.textContent = sample;
+        }
+        fontFamilyEl.addEventListener('change', updateFontPreview);
+        fontBoldEl.addEventListener('change', updateFontPreview);
+        newTextEl.addEventListener('input', () => { if (!isComposing) updateFontPreview(); });
 
         // ── 放大鏡狀態 ──
         let magnifierEnabled = false;
@@ -390,23 +457,17 @@
             const half = lensSize / 2;
             const srcSize = lensSize / zoomLevel;
 
-            // 計算 src rect（在 canvas 座標系）
             let srcX = canvasX - srcSize / 2;
             let srcY = canvasY - srcSize / 2;
 
-            // 放大鏡顯示在滑鼠的右上方，超出邊界則換邊
             const containerRect = canvasContainer.getBoundingClientRect();
-            const canvasRect = canvas.getBoundingClientRect();
 
-            // 以 container 為基準定位放大鏡
             let magLeft = containerMouseX + 20;
             let magTop = containerMouseY - lensSize - 20;
 
-            // 超出右側 → 顯示左邊
             if (magLeft + lensSize > containerRect.width - 10) {
                 magLeft = containerMouseX - lensSize - 20;
             }
-            // 超出頂部 → 顯示下方
             if (magTop < 10) {
                 magTop = containerMouseY + 20;
             }
@@ -415,10 +476,8 @@
             magnifierEl.style.left = magLeft + 'px';
             magnifierEl.style.top = magTop + 'px';
 
-            // 繪製放大內容
             magnifierCtx.clearRect(0, 0, lensSize, lensSize);
 
-            // 填充棋盤格背景（對應 checkerboard）
             magnifierCtx.fillStyle = '#f0f0f0';
             magnifierCtx.fillRect(0, 0, lensSize, lensSize);
             for (let gx = 0; gx < lensSize; gx += 10) {
@@ -435,7 +494,6 @@
             magnifierCtx.arc(half, half, half, 0, Math.PI * 2);
             magnifierCtx.clip();
 
-            // 從主 canvas 取當前畫面（包含文字等）
             magnifierCtx.drawImage(
                 canvas,
                 srcX, srcY, srcSize, srcSize,
@@ -444,7 +502,6 @@
 
             magnifierCtx.restore();
 
-            // 更新座標標籤
             const displayX = Math.round(canvasX);
             const displayY = Math.round(canvasY);
             magnifierLabel.textContent = `${zoomLevel}× ｜ (${displayX}, ${displayY})`;
@@ -469,6 +526,7 @@
             } else {
                 selectedColorSample.style.textShadow = '';
             }
+            updateFontPreview();
         }
 
         swatches.forEach(swatch => {
@@ -559,7 +617,6 @@
             return {
                 x: (clientX - rect.left) * scaleX,
                 y: (clientY - rect.top) * scaleY,
-                // 相對 container 的座標（用於定位放大鏡）
                 containerX: clientX - canvasContainer.getBoundingClientRect().left,
                 containerY: clientY - canvasContainer.getBoundingClientRect().top
             };
@@ -589,8 +646,9 @@
                 ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
             }
             textObjects.forEach((t, index) => {
-                const isBold = document.getElementById('fontBold')?.checked;
-ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
+                // 粗體狀態改為「每段文字各自記住」，不再受目前勾選框影響
+                const weight = t.bold ? 'bold' : 'normal';
+                ctx.font = `${weight} ${t.fontSize}px ${t.fontFamily}`;
                 ctx.fillStyle = t.color;
                 ctx.textBaseline = 'top';
                 const lineHeight = t.fontSize * 1.6;
@@ -652,7 +710,6 @@ ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
                 drawMagnifier(pos.x, pos.y, pos.containerX, pos.containerY);
             }
 
-            // 原本的游標邏輯
             if (draggingTextIndex !== -1) {
                 // 拖曳中
             } else if (!isDrawing) {
@@ -727,14 +784,11 @@ ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
         }
 
         canvas.addEventListener('mousedown', handleInputStart);
-        // mousemove handled above (merged with magnifier)
         canvas.addEventListener('mouseup', handleInputEnd);
         canvas.addEventListener('mouseout', handleInputEnd);
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleInputStart(e); }, { passive: false });
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInputMove(e); }, { passive: false });
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleInputEnd(); }, { passive: false });
-
-        // Wrap handleInputMove for mouse (already registered separately above)
         canvas.addEventListener('mousemove', handleInputMove);
 
         eraseBtn.addEventListener('click', () => {
@@ -756,13 +810,14 @@ ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
             if (!baseImageData) return alert('請先上傳圖片！');
             if (!selectionBox || selectionBox.w === 0) return alert('請先框選一個大致的文字放置範圍！');
             saveState();
-            const text = document.getElementById('newText').value;
-            const fontSize = parseInt(document.getElementById('fontSize').value);
-            const fontFamily = document.getElementById('fontFamily').value;
+            const text = newTextEl.value;
+            const fontSize = parseInt(fontSizeEl.value);
+            const fontFamily = fontFamilyEl.value;
+            const isBold = fontBoldEl.checked;
             const lines = text.split('\n');
             const lineHeight = fontSize * 1.6;
             const totalTextHeight = lines.length * lineHeight;
-            ctx.font = `bold ${fontSize}px ${fontFamily}`;
+            ctx.font = `${isBold ? 'bold' : 'normal'} ${fontSize}px ${fontFamily}`;
             let maxWidth = 0;
             lines.forEach(line => {
                 const w = ctx.measureText(line).width;
@@ -780,6 +835,7 @@ ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
                 height: totalTextHeight,
                 fontSize,
                 fontFamily,
+                bold: isBold,
                 color: selectedColor
             });
 
@@ -814,8 +870,9 @@ ctx.font = `${isBold ? 'bold' : 'normal'} ${t.fontSize}px ${t.fontFamily}`;
             redrawCanvas();
         });
 
-        // 初始化放大鏡 canvas 大小
+        // 初始化
         updateMagnifierSize();
+        updateFontPreview();
     </script>
 </body>
 </html>
