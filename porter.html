@@ -291,6 +291,17 @@
                         </div>
                     </div>
 
+                    <!-- 📏 偵測原圖字級 -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
+                        <button id="detectSizeBtn" class="w-full bg-amber-500 text-white font-bold py-2 px-2 rounded-lg hover:bg-amber-600 transition shadow-md text-sm">
+                            📏 偵測原圖字級（先框選一行舊文字）
+                        </button>
+                        <p class="text-[11px] text-amber-700 mt-2 leading-relaxed">
+                            在右圖框住「原本要替換掉的一行文字」後點此，會自動分析筆畫高度、推算字級並填入上方欄位。建議在去背／消除「之前」先偵測。
+                        </p>
+                        <div id="detectResult" class="hidden mt-2 text-xs font-medium text-amber-800 bg-white rounded px-2 py-1 border border-amber-200"></div>
+                    </div>
+
                     <!-- 字型即時預覽 -->
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">字型預覽</label>
@@ -559,6 +570,8 @@
         let selectionBox = null;
         let draggingTextIndex = -1;
         let dragOffsetX = 0, dragOffsetY = 0;
+        let detectionOverlay = null;
+        let detectionTimer = null;
 
         bgToleranceInput.addEventListener('input', (e) => {
             toleranceVal.textContent = e.target.value;
@@ -663,6 +676,28 @@
                     ctx.setLineDash([]);
                 }
             });
+            // 偵測字級時，標示量到的文字高度區帶
+            if (detectionOverlay) {
+                const d = detectionOverlay;
+                ctx.strokeStyle = '#16a34a';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([6, 4]);
+                ctx.strokeRect(d.x, d.y, d.w, d.h);
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(22, 163, 74, 0.15)';
+                ctx.fillRect(d.x, d.y, d.w, d.h);
+                // 高度標籤
+                const label = `≈ ${d.size}px`;
+                ctx.font = `bold ${Math.max(14, Math.round(d.h * 0.5))}px sans-serif`;
+                const tw = ctx.measureText(label).width;
+                const lx = d.x;
+                const ly = d.y - Math.max(18, Math.round(d.h * 0.55)) - 4;
+                ctx.fillStyle = '#16a34a';
+                ctx.fillRect(lx, ly, tw + 12, Math.max(18, Math.round(d.h * 0.55)) + 4);
+                ctx.fillStyle = '#ffffff';
+                ctx.textBaseline = 'top';
+                ctx.fillText(label, lx + 6, ly + 2);
+            }
         }
 
         function removeBackgroundColor(x, y) {
@@ -790,6 +825,114 @@
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInputMove(e); }, { passive: false });
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleInputEnd(); }, { passive: false });
         canvas.addEventListener('mousemove', handleInputMove);
+
+        // ── 📏 偵測原圖字級 ──
+        // 原理：分析框選區內的水平投影（每一橫列的筆畫像素量），
+        // 自動找出文字所在的高度區帶，其像素高度≈中文字級。
+        const detectSizeBtn = document.getElementById('detectSizeBtn');
+        const detectResult = document.getElementById('detectResult');
+
+        function showDetectResult(msg, ok = true) {
+            detectResult.classList.remove('hidden');
+            detectResult.textContent = msg;
+            detectResult.classList.toggle('text-amber-800', ok);
+            detectResult.classList.toggle('text-red-600', !ok);
+        }
+
+        function detectFontSize() {
+            if (!baseImageData) { alert('請先上傳圖片！'); return; }
+            if (!selectionBox || selectionBox.w < 4 || selectionBox.h < 4) {
+                showDetectResult('請先在右圖框住一行「原本的文字」，再按偵測。', false);
+                return;
+            }
+            const W = baseImageData.width, H = baseImageData.height;
+            const data = baseImageData.data;
+
+            let bx = Math.max(0, Math.round(selectionBox.x));
+            let by = Math.max(0, Math.round(selectionBox.y));
+            let bw = Math.min(Math.round(selectionBox.w), W - bx);
+            let bh = Math.min(Math.round(selectionBox.h), H - by);
+            if (bw < 3 || bh < 3) { showDetectResult('框選範圍太小，請框大一點。', false); return; }
+
+            const lumAt = (px, py) => {
+                const i = (py * W + px) * 4;
+                if (data[i + 3] === 0) return null; // 透明視為背景
+                return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            };
+
+            // 用框的四個邊估計背景亮度（取中位數）
+            const bgSamples = [];
+            for (let px = bx; px < bx + bw; px++) {
+                const t = lumAt(px, by); if (t !== null) bgSamples.push(t);
+                const b = lumAt(px, by + bh - 1); if (b !== null) bgSamples.push(b);
+            }
+            for (let py = by; py < by + bh; py++) {
+                const l = lumAt(bx, py); if (l !== null) bgSamples.push(l);
+                const r = lumAt(bx + bw - 1, py); if (r !== null) bgSamples.push(r);
+            }
+            if (bgSamples.length === 0) { showDetectResult('此區域為透明，無法偵測。', false); return; }
+            bgSamples.sort((a, b) => a - b);
+            const bgLum = bgSamples[Math.floor(bgSamples.length / 2)];
+            const inkThresh = 55; // 與背景亮度差超過此值視為筆畫
+
+            // 水平投影：每一橫列的筆畫像素數
+            const rowCounts = new Array(bh).fill(0);
+            for (let ry = 0; ry < bh; ry++) {
+                let cnt = 0; const py = by + ry;
+                for (let px = bx; px < bx + bw; px++) {
+                    const L = lumAt(px, py);
+                    if (L !== null && Math.abs(L - bgLum) > inkThresh) cnt++;
+                }
+                rowCounts[ry] = cnt;
+            }
+            const maxRow = Math.max(...rowCounts);
+            if (maxRow < Math.max(2, bw * 0.02)) {
+                showDetectResult('偵測不到明顯文字，請框緊一點或改框對比清楚的文字。', false);
+                return;
+            }
+            const rowThresh = Math.max(1, maxRow * 0.18);
+
+            // 找出連續的「有筆畫」高度區帶（每帶≈一行文字）
+            const bands = [];
+            let start = -1;
+            for (let ry = 0; ry < bh; ry++) {
+                const ink = rowCounts[ry] >= rowThresh;
+                if (ink && start === -1) start = ry;
+                else if (!ink && start !== -1) { bands.push([start, ry - 1]); start = -1; }
+            }
+            if (start !== -1) bands.push([start, bh - 1]);
+            const heights = bands.map(b => b[1] - b[0] + 1).filter(h => h >= 3);
+            if (heights.length === 0) { showDetectResult('文字太小或太淡，無法判斷。', false); return; }
+
+            heights.sort((a, b) => a - b);
+            const medianH = heights[Math.floor(heights.length / 2)];
+
+            // 取最接近中位數的區帶作為示意框
+            let repBand = bands[0], best = Infinity;
+            bands.forEach(b => {
+                const h = b[1] - b[0] + 1;
+                if (Math.abs(h - medianH) < best) { best = Math.abs(h - medianH); repBand = b; }
+            });
+
+            const estSize = Math.round(medianH);
+            fontSizeEl.value = estSize;
+            updateFontPreview();
+
+            // 在畫布上標示量到的高度區帶（短暫顯示）
+            detectionOverlay = {
+                x: bx, y: by + repBand[0],
+                w: bw, h: repBand[1] - repBand[0] + 1,
+                size: estSize
+            };
+            redrawCanvas();
+            if (detectionTimer) clearTimeout(detectionTimer);
+            detectionTimer = setTimeout(() => { detectionOverlay = null; redrawCanvas(); }, 3000);
+
+            const lineWord = bands.length > 1 ? `（偵測到約 ${bands.length} 行，取中位數）` : '';
+            showDetectResult(`偵測完成：字高約 ${estSize}px，已填入字體大小 ${lineWord}。中文字此值≈字級；若是英數字可再放大約 1.3 倍。`);
+        }
+
+        detectSizeBtn.addEventListener('click', detectFontSize);
 
         eraseBtn.addEventListener('click', () => {
             if (!baseImageData) return alert('請先上傳圖片！');
